@@ -1,0 +1,20 @@
+[!] I should be testing behaviour regardless of implementation. 
+- utility methods like ZeroOrMore are an implementation concern
+[?] What is the desired behaviour of Document?
+- Should invoke parsing of the other appropriate symbols.
+- Should only consume input on success
+[!] Correct working of the parse method is inherently linked to the 
+	implementation of Input. But Input has its own tests - this would 
+	result in test overlap.
+[*] Mock out the Input class? 
+- the implementation would have to recreate *all* of the behaviour of 
+	Input for it to work properly. 
+- It need only recreate the *necessary* behaviour. And while this may
+	come close to the full implementation, it is free from the 
+	implementation iteself in that the true implementation may become
+	more sophisticated later on
+
+So. We pass in a branchable, commitable mock input, and check that in 
+addition to the appropriate symbols being invoked with the correct 
+cardinality, the method leaves the mock input at the correct position.
+
