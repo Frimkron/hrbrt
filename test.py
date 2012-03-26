@@ -64,8 +64,9 @@ class MockInput(object):
 
 	pos = 0
 	parent = None
+	data = None
 	
-	def __init__(self,data,pos,parent):
+	def __init__(self,data,pos=0,parent=None):
 		self.data = data
 		self.pos = pos
 		self.parent = parent
@@ -83,16 +84,11 @@ class MockInput(object):
 			self.parent.pos = self.pos
 
 
-def make_parse(*rets):
-	def gen():
-		for r in rets:
-			yield r
-		while True:
-			yield None
-	g = gen()
+def make_parse(vals):
 	def parse(input):
-		v = g.next()
-		if v is not None and v is not False:
+		n = input.data[input.pos]
+		v = vals.get(n,None)
+		if v is not None:
 			input.next()
 		return v
 	return parse
@@ -121,50 +117,50 @@ class TestDocument(unittest.TestCase):
 	def test_parse_returns_populated_document(self):
 		s1 = object()
 		s2 = object()
-		dt.FirstSection.parse.side_effect = make_parse(s1)
-		dt.Section.parse.side_effect = make_parse(s2)
-		result = dt.Document.parse(MockInput("ab\x00",0,None))
+		dt.FirstSection.parse.side_effect = make_parse({"f":s1})
+		dt.Section.parse.side_effect = make_parse({"s":s2})
+		result = dt.Document.parse(MockInput("fs\x00",0,None))
 		self.assertTrue( isinstance(result,dt.Document) )
 		self.assertTrue( hasattr(result,"sections") )
 		self.assertEquals( [s1,s2], list(result.sections) )
 
 	@mock_globals(dt,"FirstSection","Section")
 	def test_parse_expects_firstsection(self):
-		dt.FirstSection.parse.side_effect = make_parse(None)
-		self.assertIsNone( dt.Document.parse(MockInput("ab\x00",0,None)) )
+		dt.FirstSection.parse.side_effect = make_parse({"f":object()})
+		self.assertIsNone( dt.Document.parse(MockInput("s\x00",0,None)) )
 		self.assertFalse( dt.Section.parse.called )
 		
 	@mock_globals(dt,"FirstSection","Section")
 	def test_parse_allows_zero_sections(self):
-		dt.FirstSection.parse.side_effect = make_parse(object())
-		dt.Section.parse.side_effect = make_parse(None)
-		self.assertIsNotNone( dt.Document.parse(MockInput("a\x00",0,None)) )
+		dt.FirstSection.parse.side_effect = make_parse({"f":object()})
+		dt.Section.parse.side_effect = make_parse({"s":object()})
+		self.assertIsNotNone( dt.Document.parse(MockInput("f\x00",0,None)) )
 		
 	@mock_globals(dt,"FirstSection","Section")
 	def test_parse_allows_multiple_sections(self):
-		dt.FirstSection.parse.side_effect = make_parse(object())
-		dt.Section.parse.side_effect = make_parse(object(),object(),object())
-		self.assertIsNotNone( dt.Document.parse(MockInput("abbb\x00",0,None)) )
+		dt.FirstSection.parse.side_effect = make_parse({"f":object()})
+		dt.Section.parse.side_effect = make_parse({"s":object()})
+		self.assertIsNotNone( dt.Document.parse(MockInput("fsss\x00",0,None)) )
 		
 	@mock_globals(dt,"FirstSection","Section")
 	def test_parse_expects_char_0(self):
-		dt.FirstSection.parse.side_effect = make_parse(object())
-		dt.Section.parse.side_effect = make_parse(None)
-		self.assertIsNone( dt.Document.parse(MockInput("aq",0,None)) )
+		dt.FirstSection.parse.side_effect = make_parse({"f":object()})
+		dt.Section.parse.side_effect = make_parse({"s":object()})
+		self.assertIsNone( dt.Document.parse(MockInput("fq",0,None)) )
 		
 	@mock_globals(dt,"FirstSection","Section")
 	def test_parse_consumes_input_on_success(self):
-		dt.FirstSection.parse.side_effect = make_parse(object())
-		dt.Section.parse.side_effect = make_parse(object())
-		i = MockInput("ab\x00",0,None)
+		dt.FirstSection.parse.side_effect = make_parse({"f":object()})
+		dt.Section.parse.side_effect = make_parse({"s":object()})
+		i = MockInput("fs\x00",0,None)
 		dt.Document.parse(i)
 		self.assertEquals(3, i.pos)
 		
 	@mock_globals(dt,"FirstSection","Section")
 	def test_parse_doesnt_consume_input_on_failure(self):
-		dt.FirstSection.parse.side_effect = make_parse(object())
-		dt.Section.parse.side_effect = make_parse(object())
-		i = MockInput("abz",0,None)
+		dt.FirstSection.parse.side_effect = make_parse({"f":object()})
+		dt.Section.parse.side_effect = make_parse({"s":object()})
+		i = MockInput("fsq",0,None)
 		dt.Document.parse(i)
 		self.assertEquals(0, i.pos)
 	
@@ -186,28 +182,28 @@ class TestFirstSection(unittest.TestCase):
 	@mock_globals(dt,"SectionContent")
 	def test_parse_returns_populated_firstsection(self):	
 		c = object()
-		dt.SectionContent.parse.side_effect = make_parse(c)
-		result = dt.FirstSection.parse(MockInput("s",0,None))
+		dt.SectionContent.parse.side_effect = make_parse({"c":c})
+		result = dt.FirstSection.parse(MockInput("c",0,None))
 		self.assertTrue( isinstance(result,dt.FirstSection) )
 		self.assertTrue( hasattr(result,"content") )
 		self.assertEquals( c, result.content )
 		
 	@mock_globals(dt,"SectionContent")
 	def test_parse_expects_sectioncontent(self):
-		dt.SectionContent.parse.side_effect = make_parse(None)
-		self.assertIsNone( dt.FirstSection.parse(MockInput("s",0,None)) )
+		dt.SectionContent.parse.side_effect = make_parse({"c":object()})
+		self.assertIsNone( dt.FirstSection.parse(MockInput("q",0,None)) )
 		
 	@mock_globals(dt,"SectionContent")
 	def test_parse_consumes_input_on_success(self):
-		dt.SectionContent.parse.side_effect = make_parse(object())
-		input = MockInput("s",0,None)
+		dt.SectionContent.parse.side_effect = make_parse({"c":object()})
+		input = MockInput("c",0,None)
 		dt.FirstSection.parse(input)
 		self.assertEquals(1, input.pos)
 
 	@mock_globals(dt,"SectionContent")
 	def test_parse_doesnt_consume_input_on_failure(self):
-		dt.SectionContent.parse.side_effect = make_parse(None)
-		input = MockInput("s",0,None)
+		dt.SectionContent.parse.side_effect = make_parse({"c":object()})
+		input = MockInput("q",0,None)
 		dt.FirstSection.parse(input)
 		self.assertEquals(0, input.pos)
 		
@@ -238,9 +234,9 @@ class TestSection(unittest.TestCase):
 	@mock_globals(dt,"Heading","SectionContent")	
 	def test_parse_returns_populated_section(self):
 		h = object()
-		dt.Heading.parse.side_effect = make_parse(h)
+		dt.Heading.parse.side_effect = make_parse({"h":h})
 		c = object()
-		dt.SectionContent.parse.side_effect = make_parse(c)
+		dt.SectionContent.parse.side_effect = make_parse({"c":c})
 		result = dt.Section.parse(MockInput("hc",0,None))
 		self.assertTrue( isinstance(result,dt.Section) )
 		self.assertTrue( hasattr(result,"heading") )
@@ -250,29 +246,29 @@ class TestSection(unittest.TestCase):
 		
 	@mock_globals(dt,"Heading","SectionContent")
 	def test_parse_expects_heading(self):
-		dt.Heading.parse.side_effect = make_parse(None)
-		self.assertIsNone( dt.Section.parse(MockInput("ab",0,None)) )
+		dt.Heading.parse.side_effect = make_parse({"h":object()})
+		self.assertIsNone( dt.Section.parse(MockInput("c",0,None)) )
 		self.assertFalse( dt.SectionContent.parse.called )
 		
 	@mock_globals(dt,"Heading","SectionContent")
 	def test_parse_expects_sectioncontent(self):
-		dt.Heading.parse.side_effect = make_parse(object())
-		dt.SectionContent.parse.side_effect = make_parse(None)
-		self.assertIsNone( dt.Section.parse(MockInput("ab",0,None)) )
+		dt.Heading.parse.side_effect = make_parse({"h":object()})
+		dt.SectionContent.parse.side_effect = make_parse({"c":object()})
+		self.assertIsNone( dt.Section.parse(MockInput("hq",0,None)) )
 		
 	@mock_globals(dt,"Heading","SectionContent")
 	def test_parse_consumes_input_on_success(self):
-		dt.Heading.parse.side_effect = make_parse(object())
-		dt.SectionContent.parse.side_effect = make_parse(object())
-		i = MockInput("ab",0,None)
+		dt.Heading.parse.side_effect = make_parse({"h":object()})
+		dt.SectionContent.parse.side_effect = make_parse({"c":object()})
+		i = MockInput("hc",0,None)
 		dt.Section.parse(i)
 		self.assertEquals(2, i.pos)
 		
 	@mock_globals(dt,"Heading","SectionContent")
 	def test_parse_doesnt_consume_input_on_failure(self):
-		dt.Heading.parse.side_effect = make_parse(object())
-		dt.SectionContent.parse.side_effect = make_parse(None)
-		i = MockInput("ab",0,None)
+		dt.Heading.parse.side_effect = make_parse({"h":object()})
+		dt.SectionContent.parse.side_effect = make_parse({"c":object()})
+		i = MockInput("hq",0,None)
 		dt.Section.parse(i)
 		self.assertEquals(0, i.pos)
 		
@@ -294,11 +290,11 @@ class TestHeading(unittest.TestCase):
 	@mock_globals(dt,"QuoteMarker","HeadingMarker","LineWhitespace","Name","Newline")
 	def test_parse_returns_populated_heading(self):
 		n = object()
-		dt.QuoteMarker.parse.side_effect = make_parse(object())
-		dt.HeadingMarker.parse.side_effect = make_parse(object(),object())
-		dt.LineWhitespace.parse.side_effect = make_parse(object())
-		dt.Name.parse.side_effect = make_parse(n)
-		dt.Newline.parse.side_effect = make_parse(object())
+		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
+		dt.HeadingMarker.parse.side_effect = make_parse({"h":object()})
+		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
+		dt.Name.parse.side_effect = make_parse({"n":n})
+		dt.Newline.parse.side_effect = make_parse({"l":object()})
 		result = dt.Heading.parse(MockInput("qhwnhl",0,None))
 		self.assertTrue( isinstance(result,dt.Heading) )
 		self.assertTrue( hasattr(result,"name") )
@@ -306,18 +302,18 @@ class TestHeading(unittest.TestCase):
 		
 	@mock_globals(dt,"QuoteMarker","HeadingMarker","LineWhitespace","Name","Newline")
 	def test_parse_allows_no_quotemarker(self):
-		dt.QuoteMarker.parse.side_effect = make_parse(False)
-		dt.HeadingMarker.parse.side_effect = make_parse(object(),object())
-		dt.LineWhitespace.parse.side_effect = make_parse(object())
-		dt.Name.parse_side_effect = make_parse(object())
-		dt.Newline.parse.side_effect = make_parse(object())
+		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
+		dt.HeadingMarker.parse.side_effect = make_parse({"h":object()})
+		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
+		dt.Name.parse.side_effect = make_parse({"n":object()})
+		dt.Newline.parse.side_effect = make_parse({"l":object()})
 		self.assertIsNotNone( dt.Heading.parse(MockInput("hwnhl",0,None)) )
 		
 	@mock_globals(dt,"QuoteMarker","HeadingMarker","LineWhitespace","Name","Newline")
 	def test_parse_expects_first_headingmarker(self):
-		dt.QuoteMarker.parse.side_effect = make_parse(object())
-		dt.HeadingMarker.parse.side_effect = make_parse(None)
-		self.assertIsNone( dt.Heading.parse(MockInput("qhwnhl",0,None)) )
+		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
+		dt.HeadingMarker.parse.side_effect = make_parse({"h":object()})
+		self.assertIsNone( dt.Heading.parse(MockInput("qwnhl",0,None)) )
 		self.assertFalse( dt.LineWhitespace.parse.called )
 		self.assertFalse( dt.Name.parse.called )
 		self.assertEquals( 1, dt.HeadingMarker.parse.call_count )
@@ -325,60 +321,60 @@ class TestHeading(unittest.TestCase):
 		
 	@mock_globals(dt,"QuoteMarker","HeadingMarker","LineWhitespace","Name","Newline")
 	def test_parse_allows_no_linewhitespace(self):
-		dt.QuoteMarker.parse.side_effect = make_parse(object())
-		dt.HeadingMarker.parse.side_effect = make_parse(object(),object())
-		dt.LineWhitespace.parse.side_effect = make_parse(False)
-		dt.Name.parse.side_effect = make_parse(object)
-		dt.Newline.parse.side_effect = make_parse(object)
+		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
+		dt.HeadingMarker.parse.side_effect = make_parse({"h":object()})
+		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
+		dt.Name.parse.side_effect = make_parse({"n":object()})
+		dt.Newline.parse.side_effect = make_parse({"l":object()})
 		self.assertIsNotNone( dt.Heading.parse(MockInput("qhnhl",0,None)) )
 
 	@mock_globals(dt,"QuoteMarker","HeadingMarker","LineWhitespace","Name","Newline")
 	def test_parse_expects_name(self):
-		dt.QuoteMarker.parse.side_effect = make_parse(object())
-		dt.HeadingMarker.parse.side_effect = make_parse(object(),object())
-		dt.LineWhitespace.parse.side_effect = make_parse(object())
-		dt.Name.parse.side_effect = make_parse(None)
-		self.assertIsNone( dt.Heading.parse(MockInput("qhwnhl",0,None)) )
+		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
+		dt.HeadingMarker.parse.side_effect = make_parse({"h":object()})
+		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
+		dt.Name.parse.side_effect = make_parse({"n":object()})
+		self.assertIsNone( dt.Heading.parse(MockInput("qhwhl",0,None)) )
 		self.assertEquals(1, dt.HeadingMarker.parse.call_count)
 		self.assertFalse( dt.Newline.parse.called )		
 
 	@mock_globals(dt,"QuoteMarker","HeadingMarker","LineWhitespace","Name","Newline")
 	def test_parse_expects_secton_headingmarker(self):
-		dt.QuoteMarker.parse.side_effect = make_parse(object())
-		dt.HeadingMarker.parse.side_effect = make_parse(object(),None)
-		dt.LineWhitespace.parse.side_effect = make_parse(object())
-		dt.Name.parse.side_effect = make_parse(object())
-		self.assertIsNone( dt.Heading.parse(MockInput("qhwnhl",0,None)) )
+		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
+		dt.HeadingMarker.parse.side_effect = make_parse({"h":object()})
+		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
+		dt.Name.parse.side_effect = make_parse({"n":object()})
+		self.assertIsNone( dt.Heading.parse(MockInput("qhwnl",0,None)) )
 		self.assertFalse( dt.Newline.parse.called )
 		
 	@mock_globals(dt,"QuoteMarker","HeadingMarker","LineWhitespace","Name","Newline")
 	def test_parse_expects_newline(self):
-		dt.QuoteMarker.parse.side_effect = make_parse(object())
-		dt.HeadingMarker.parse.side_effect = make_parse(object(),object())
-		dt.LineWhitespace.parse.side_effect = make_parse(object())
-		dt.Name.parse.side_effect = make_parse(object())
-		dt.Newline.parse.side_effect = make_parse(None)
-		self.assertIsNone( dt.Heading.parse(MockInput("qhwnhl",0,None)) )
+		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
+		dt.HeadingMarker.parse.side_effect = make_parse({"h":object()})
+		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
+		dt.Name.parse.side_effect = make_parse({"n":object()})
+		dt.Newline.parse.side_effect = make_parse({"l":object()})
+		self.assertIsNone( dt.Heading.parse(MockInput("qhwnhz",0,None)) )
 		
 	@mock_globals(dt,"QuoteMarker","HeadingMarker","LineWhitespace","Name","Newline")
 	def test_parse_consumes_input_on_success(self):
-		dt.QuoteMarker.parse.side_effect = make_parse(object())
-		dt.HeadingMarker.parse.side_effect = make_parse(object(),object())
-		dt.LineWhitespace.parse.side_effect = make_parse(object())
-		dt.Name.parse.side_effect = make_parse(object())
-		dt.Newline.parse.side_effect = make_parse(object())
+		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
+		dt.HeadingMarker.parse.side_effect = make_parse({"h":object()})
+		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
+		dt.Name.parse.side_effect = make_parse({"n":object()})
+		dt.Newline.parse.side_effect = make_parse({"l":object()})
 		i = MockInput("qhwnhl",0,None)
 		dt.Heading.parse(i)
 		self.assertEquals(6, i.pos)
 		
 	@mock_globals(dt,"QuoteMarker","HeadingMarker","LineWhitespace","Name","Newline")
 	def test_parse_doesnt_consume_input_on_failure(self):
-		dt.QuoteMarker.parse.side_effect = make_parse(object())
-		dt.HeadingMarker.parse.side_effect = make_parse(object(),object())
-		dt.LineWhitespace.parse.side_effect = make_parse(object())
-		dt.Name.parse.side_effect = make_parse(object())
-		dt.Newline.parse.side_effect = make_parse(None)
-		i = MockInput("qhwnhl",0,None)
+		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
+		dt.HeadingMarker.parse.side_effect = make_parse({"h":object()})
+		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
+		dt.Name.parse.side_effect = make_parse({"n":object()})
+		dt.Newline.parse.side_effect = make_parse({"l":object()})
+		i = MockInput("qhwnhz",0,None)
 		dt.Heading.parse(i)
 		self.assertEquals(0, i.pos)
 	
@@ -562,7 +558,403 @@ class TestNewline(unittest.TestCase):
 		i = MockInput("\t^",0,None)
 		dt.Newline.parse(i)
 		self.assertEquals(0, i.pos)
+
+
+class TestSectionContent(unittest.TestCase):
+
+	def test_construct(self):
+		dt.SectionContent(["foo","bar"])
+		
+	def test_items_readable(self):
+		c = dt.SectionContent(["foo","bar"])
+		self.assertEquals("foo", c.items[0])
+		
+	def test_items_not_writable(self):
+		c = dt.SectionContent(["foo","bar"])
+		with self.assertRaises(AttributeError):
+			c.items = ["weh"]
+			
+	def test_items_immutable(self):
+		c = dt.SectionContent(["foo","bar"])
+		c.items[0] = "weh"
+		self.assertEquals("foo", c.items[0])
+		  	
+	@mock_globals(dt,"BlankLine","ChoiceBlock","InstructionBlock","TextBlock","FeedbackBlock")
+	def test_parse_returns_populated_sectioncontent(self):
+		dt.BlankLine.parse.side_effect = make_parse({"b":object()})
+		c = object()
+		dt.ChoiceBlock.parse.side_effect = make_parse({"c":c})
+		i = object()
+		dt.InstructionBlock.parse.side_effect = make_parse({"i":i})
+		t = object()
+		dt.TextBlock.parse.side_effect = make_parse({"t":t})
+		f = object()
+		dt.FeedbackBlock.parse.side_effect = make_parse({"f":f})
+		result = dt.SectionContent.parse(MockInput("bcitf$"))
+		self.assertTrue( isinstance(result,dt.SectionContent) )
+		self.assertTrue( hasattr(result,"items") )
+		self.assertEquals([c,i,t,f], result.items)
+
+	@mock_globals(dt,"BlankLine","ChoiceBlock","InstructionBlock","TextBlock","FeedbackBlock")	
+	def test_parse_allows_no_blank_line(self):
+		dt.BlankLine.parse.side_effect = make_parse({"b":object()})
+		dt.ChoiceBlock.parse.side_effect = make_parse({"c":object()})
+		dt.InstructionBlock.parse.side_effect = make_parse({"i":object()})
+		dt.TextBlock.parse.side_effect = make_parse({"t":object()})
+		dt.FeedbackBlock.parse.side_effect = make_parse({"f":object()})
+		self.assertIsNotNone( dt.SectionContent.parse(MockInput("citf$")) )
+		
+	@mock_globals(dt,"BlankLine","ChoiceBlock","InstructionBlock","TextBlock","FeedbackBlock")	
+	def test_parse_allows_multiple_blank_lines(self):
+		dt.BlankLine.parse.side_effect = make_parse({"b":object()})
+		dt.ChoiceBlock.parse.side_effect = make_parse({"c":object()})
+		dt.InstructionBlock.parse.side_effect = make_parse({"i":object()})
+		dt.TextBlock.parse.side_effect = make_parse({"t":object()})
+		dt.FeedbackBlock.parse.side_effect = make_parse({"f":object()})
+		self.assertIsNotNone( dt.SectionContent.parse(MockInput("bbbcitf$")) )
+		  	
+	@mock_globals(dt,"BlankLine","ChoiceBlock","InstructionBlock","TextBlock","FeedbackBlock")	
+	def test_parse_expects_block(self):
+		dt.BlankLine.parse.side_effect = make_parse({"b":object()})
+		dt.ChoiceBlock.parse.side_effect = make_parse({"c":object()})
+		dt.InstructionBlock.parse.side_effect = make_parse({"i":object()})
+		dt.TextBlock.parse.side_effect = make_parse({"t":object()})
+		dt.FeedbackBlock.parse.side_effect = make_parse({"f":object()})
+		self.assertIsNone( dt.SectionContent.parse(MockInput("bbb$")) )
+		
+	@mock_globals(dt,"BlankLine","ChoiceBlock","InstructionBlock","TextBlock","FeedbackBlock")	
+	def test_parse_allows_many_mixed_blocks(self):
+		dt.BlankLine.parse.side_effect = make_parse({"b":object()})
+		dt.ChoiceBlock.parse.side_effect = make_parse({"c":object()})
+		dt.InstructionBlock.parse.side_effect = make_parse({"i":object()})
+		dt.TextBlock.parse.side_effect = make_parse({"t":object()})
+		dt.FeedbackBlock.parse.side_effect = make_parse({"f":object()})
+		self.assertIsNotNone( dt.SectionContent.parse(MockInput("btiicfttccfi$")) )
+		
+	@mock_globals(dt,"BlankLine","ChoiceBlock","InstructionBlock","TextBlock","FeedbackBlock")	
+	def test_parse_consumes_input_on_success(self):
+		dt.BlankLine.parse.side_effect = make_parse({"b":object()})
+		dt.ChoiceBlock.parse.side_effect = make_parse({"c":object()})
+		dt.InstructionBlock.parse.side_effect = make_parse({"i":object()})
+		dt.TextBlock.parse.side_effect = make_parse({"t":object()})
+		dt.FeedbackBlock.parse.side_effect = make_parse({"f":object()})
+		i = MockInput("bcitf$")
+		dt.SectionContent.parse(i)
+		self.assertEquals(5, i.pos)
+		
+	@mock_globals(dt,"BlankLine","ChoiceBlock","InstructionBlock","TextBlock","FeedbackBlock")	
+	def test_parse_doesnt_consume_input_on_failure(self):
+		dt.BlankLine.parse.side_effect = make_parse({"b":object()})
+		dt.ChoiceBlock.parse.side_effect = make_parse({"c":object()})
+		dt.InstructionBlock.parse.side_effect = make_parse({"i":object()})
+		dt.TextBlock.parse.side_effect = make_parse({"t":object()})
+		dt.FeedbackBlock.parse.side_effect = make_parse({"f":object()})
+		i = MockInput("bbbbbb$")
+		dt.SectionContent.parse(i)
+		self.assertEquals(0, i.pos)
+		
+		
+class TestBlankLine(unittest.TestCase):
+
+	def test_construct(self):
+		dt.BlankLine()
+
+	@mock_globals(dt,"QuoteMarker","LineWhitespace","Newline")	
+	def test_parse_returns_blankline(self):
+		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
+		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
+		dt.Newline.parse.side_effect = make_parse({"l":object()})
+		result = dt.BlankLine.parse(MockInput("qwl"))
+		self.assertTrue( isinstance(result,dt.BlankLine) )
+		
+	@mock_globals(dt,"QuoteMarker","LineWhitespace","Newline")	
+	def test_parse_allows_no_quotemarker(self):
+		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
+		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
+		dt.Newline.parse.side_effect = make_parse({"l":object()})
+		self.assertIsNotNone( dt.BlankLine.parse(MockInput("wl")) )
+		  	
+	@mock_globals(dt,"QuoteMarker","LineWhitespace","Newline")	
+	def test_parse_allows_no_linewhitespace(self):
+		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
+		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
+		dt.Newline.parse.side_effect = make_parse({"l":object()})
+		self.assertIsNotNone( dt.BlankLine.parse(MockInput("ql")) )
+			
+	@mock_globals(dt,"QuoteMarker","LineWhitespace","Newline")	
+	def test_parse_expects_newline(self):
+		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
+		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
+		dt.Newline.parse.side_effect = make_parse({"l":object()})
+		self.assertIsNone( dt.BlankLine.parse(MockInput("qwz")) )
+	
+	@mock_globals(dt,"QuoteMarker","LineWhitespace","Newline")	
+	def test_parse_consumes_input_on_success(self):
+		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
+		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
+		dt.Newline.parse.side_effect = make_parse({"l":object()})
+		i = MockInput("qwl")
+		dt.BlankLine.parse(i)
+		self.assertEquals(3, i.pos)
+		
+	@mock_globals(dt,"QuoteMarker","LineWhitespace","Newline")	
+	def test_parse_doesnt_consume_input_on_failure(self):
+		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
+		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
+		dt.Newline.parse.side_effect = make_parse({"l":object()})
+		i = MockInput("qwz")
+		dt.BlankLine.parse(i)
+		self.assertEquals(0, i.pos)
+	
+	
+class TestChoiceBlock(unittest.TestCase):
+	
+	def test_construct(self):
+		dt.ChoiceBlock(["foo","bar"])
+		
+	def test_choices_readable(self):
+		c = dt.ChoiceBlock(["foo","bar"])
+		self.assertEquals("foo", c.choices[0])
+		
+	def test_choices_not_writable(self):
+		c = dt.ChoiceBlock(["foo","bar"])
+		with self.assertRaises(AttributeError):
+			c.choices = ["weh"]
+			
+	def test_choices_immutable(self):
+		c = dt.ChoiceBlock(["foo","bar"])
+		c.choices[0] = "blah"
+		self.assertEquals("foo",c.choices[0])
+		
+	@mock_globals(dt,"Choice","BlankLine")
+	def test_parse_returns_populated_choiceblock(self):
+		c1 = object()
+		c2 = object()
+		dt.Choice.parse.side_effect = make_parse({"c":c1,"C":c2})
+		dt.BlankLine.parse.side_effect = make_parse({"b":object()})
+		result = dt.ChoiceBlock.parse(MockInput("cCb$"))
+		self.assertTrue( isinstance(result,dt.ChoiceBlock) )
+		self.assertTrue( hasattr(result,"choices") )
+		self.assertEquals( [c1,c2], result.choices )
+		
+	@mock_globals(dt,"Choice","BlankLine")
+	def test_parse_expects_choice(self):
+		dt.Choice.parse.side_effect = make_parse({"c":object()})
+		dt.BlankLine.parse.side_effect = make_parse({"b":object()})
+		self.assertIsNone( dt.ChoiceBlock.parse(MockInput("b$")) )
+		self.assertFalse( dt.BlankLine.parse.called )
+		  	
+	@mock_globals(dt,"Choice","BlankLine")
+	def test_parse_allows_multiple_choices(self):
+		dt.Choice.parse.side_effect = make_parse({"c":object()})
+		dt.BlankLine.parse.side_effect = make_parse({"b":object()})
+		self.assertIsNotNone( dt.ChoiceBlock.parse(MockInput("cccb$")) )
+		  	
+	@mock_globals(dt,"Choice","BlankLine")
+	def test_parse_allows_no_blanklines(self):
+		dt.Choice.parse.side_effect = make_parse({"c":object()})
+		dt.BlankLine.parse.side_effect = make_parse({"b":object()})
+		self.assertIsNotNone( dt.ChoiceBlock.parse(MockInput("c$")) )
+		  	
+	@mock_globals(dt,"Choice","BlankLine")
+	def test_parse_allows_multiple_blank_lines(self):
+		dt.Choice.parse.side_effect = make_parse({"c":object()})
+		dt.BlankLine.parse.side_effect = make_parse({"b":object()})
+		self.assertIsNotNone( dt.ChoiceBlock.parse(MockInput("cbbb$")) )
+		  	
+	@mock_globals(dt,"Choice","BlankLine")
+	def test_parse_consumes_input_on_success(self):
+		dt.Choice.parse.side_effect = make_parse({"c":object()})
+		dt.BlankLine.parse.side_effect = make_parse({"b":object()})
+		i = MockInput("ccb$")
+		dt.ChoiceBlock.parse(i)
+		self.assertEquals(3, i.pos)
+		
+	@mock_globals(dt,"Choice","BlankLine")
+	def test_parse_doesnt_consume_input_on_failure(self):
+		dt.Choice.parse.side_effect = make_parse({"c":object()})
+		dt.BlankLine.parse.side_effect = make_parse({"b":object()})
+		i = MockInput("bbb$")
+		dt.ChoiceBlock.parse(i)
+		self.assertEquals(0, i.pos)
 		  	
 		  	
+class TestChoice(unittest.TestCase):
+
+	def test_construct(self):
+		dt.Choice("alpha","beta","gamma")
+		
+	def test_marker_readable(self):
+		c = dt.Choice("alpha","beta","gamma")
+		self.assertEquals("alpha",c.marker)
+		
+	def test_marker_not_writable(self):
+		c = dt.Choice("alpha","beta","gamma")
+		with self.assertRaises(AttributeError):
+			c.marker = "blah"
+			
+	def test_description_readable(self):
+		c = dt.Choice("alpha","beta","gamma")
+		self.assertEquals("beta",c.description)
+		
+	def test_description_no_writable(self):
+		c = dt.Choice("alpha","beta","gamma")
+		with self.assertRaises(AttributeError):
+			c.description = "blah"
+			
+	def test_response_readable(self):
+		c = dt.Choice("alpha","beta","gamma")
+		self.assertEquals("gamma",c.response)
+		
+	def test_response_not_writable(self):
+		c = dt.Choice("alpha","beta","gamma")
+		with self.assertRaises(AttributeError):
+			c.response = "blah"
+			
+	@mock_globals(dt,"QuoteMarker","TextLineMarker","ChoiceMarker",
+		"ChoiceDescription","ChoiceResponse", "Newline")
+	def test_parse_returns_populated_choice(self):
+		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
+		dt.TextLineMarker.parse.side_effect = make_parse({"t":object()})
+		c = object()
+		dt.ChoiceMarker.parse.side_effect = make_parse({"c":c})
+		d = object()
+		dt.ChoiceDescription.parse.side_effect = make_parse({"d":d})
+		r = object()
+		dt.ChoiceResponse.parse.side_effect = make_parse({"r":r})
+		dt.Newline.parse.side_effect = make_parse({"l":object()})
+		result = dt.Choice.parse(MockInput("qtcdrl"))
+		self.assertTrue( isinstance(result,dt.Choice) )
+		self.assertTrue( hasattr(result,"marker") )
+		self.assertEquals( c, result.marker )
+		self.assertTrue( hasattr(result,"description") )
+		self.assertEquals( d, result.description )
+		self.assertTrue( hasattr(result,"response") )
+		self.assertEquals( r, result.response )
+		
+	@mock_globals(dt,"QuoteMarker","TextLineMarker","ChoiceMarker",
+		"ChoiceDescription","ChoiceResponse", "Newline")
+	def test_parse_allows_no_quotemarker(self):
+		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
+		dt.TextLineMarker.parse.side_effect = make_parse({"t":object()})
+		dt.ChoiceMarker.parse.side_effect = make_parse({"c":object()})
+		dt.ChoiceDescription.parse.side_effect = make_parse({"d":object()})
+		dt.ChoiceResponse.parse.side_effect = make_parse({"r":object()})
+		dt.Newline.parse.side_effect = make_parse({"l":object()})
+		self.assertIsNotNone( dt.Choice.parse(MockInput("tcdrl")) )
+		
+	@mock_globals(dt,"QuoteMarker","TextLineMarker","ChoiceMarker",
+		"ChoiceDescription","ChoiceResponse", "Newline")
+	def test_parse_expects_textlinemarker(self):
+		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
+		dt.TextLineMarker.parse.side_effect = make_parse({"t":object()})
+		dt.ChoiceMarker.parse.side_effect = make_parse({"c":object()})
+		dt.ChoiceDescription.parse.side_effect = make_parse({"d":object()})
+		dt.ChoiceResponse.parse.side_effect = make_parse({"r":object()})
+		dt.Newline.parse.side_effect = make_parse({"l":object()})
+		self.assertIsNone( dt.Choice.parse(MockInput("qcdrl")) )
+		self.assertFalse( dt.ChoiceMarker.parse.called )
+		self.assertFalse( dt.ChoiceDescription.parse.called )
+		self.assertFalse( dt.ChoiceResponse.parse.called )
+		self.assertFalse( dt.Newline.parse.called )
+		
+	@mock_globals(dt,"QuoteMarker","TextLineMarker","ChoiceMarker",
+		"ChoiceDescription","ChoiceResponse", "Newline")
+	def test_parse_expects_choicemarker(self):
+		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
+		dt.TextLineMarker.parse.side_effect = make_parse({"t":object()})
+		dt.ChoiceMarker.parse.side_effect = make_parse({"c":object()})
+		dt.ChoiceDescription.parse.side_effect = make_parse({"d":object()})
+		dt.ChoiceResponse.parse.side_effect = make_parse({"r":object()})
+		dt.Newline.parse.side_effect = make_parse({"l":object()})
+		self.assertIsNone( dt.Choice.parse(MockInput("qtdrl")) )
+		self.assertFalse( dt.ChoiceDescription.parse.called )
+		self.assertFalse( dt.ChoiceResponse.parse.called )
+		self.assertFalse( dt.Newline.parse.called )
+		
+	@mock_globals(dt,"QuoteMarker","TextLineMarker","ChoiceMarker",
+		"ChoiceDescription","ChoiceResponse", "Newline")
+	def test_parse_expects_choice_description(self):
+		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
+		dt.TextLineMarker.parse.side_effect = make_parse({"t":object()})
+		dt.ChoiceMarker.parse.side_effect = make_parse({"c":object()})
+		dt.ChoiceDescription.parse.side_effect = make_parse({"d":object()})
+		dt.ChoiceResponse.parse.side_effect = make_parse({"r":object()})
+		dt.Newline.parse.side_effect = make_parse({"l":object()})
+		self.assertIsNone( dt.Choice.parse(MockInput("qtcrl")) )
+		self.assertFalse( dt.ChoiceResponse.parse.called )
+		self.assertFalse( dt.Newline.parse.called )
+		
+	@mock_globals(dt,"QuoteMarker","TextLineMarker","ChoiceMarker",
+		"ChoiceDescription","ChoiceResponse", "Newline")
+	def test_parse_allows_no_choiceresponse(self):
+		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
+		dt.TextLineMarker.parse.side_effect = make_parse({"t":object()})
+		dt.ChoiceMarker.parse.side_effect = make_parse({"c":object()})
+		dt.ChoiceDescription.parse.side_effect = make_parse({"d":object()})
+		dt.ChoiceResponse.parse.side_effect = make_parse({"r":object()})
+		dt.Newline.parse.side_effect = make_parse({"l":object()})
+		self.assertIsNotNone( dt.Choice.parse(MockInput("qtcdl")) )
+		
+	@mock_globals(dt,"QuoteMarker","TextLineMarker","ChoiceMarker",
+		"ChoiceDescription","ChoiceResponse", "Newline")
+	def test_parse_expects_newline(self):
+		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
+		dt.TextLineMarker.parse.side_effect = make_parse({"t":object()})
+		dt.ChoiceMarker.parse.side_effect = make_parse({"c":object()})
+		dt.ChoiceDescription.parse.side_effect = make_parse({"d":object()})
+		dt.ChoiceResponse.parse.side_effect = make_parse({"r":object()})
+		dt.Newline.parse.side_effect = make_parse({"l":object()})
+		self.assertIsNone( dt.Choice.parse(MockInput("qtcdr$")) )
+		
+	@mock_globals(dt,"QuoteMarker","TextLineMarker","ChoiceMarker",
+		"ChoiceDescription","ChoiceResponse", "Newline")
+	def test_parse_consumes_input_on_success(self):
+		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
+		dt.TextLineMarker.parse.side_effect = make_parse({"t":object()})
+		dt.ChoiceMarker.parse.side_effect = make_parse({"c":object()})
+		dt.ChoiceDescription.parse.side_effect = make_parse({"d":object()})
+		dt.ChoiceResponse.parse.side_effect = make_parse({"r":object()})
+		dt.Newline.parse.side_effect = make_parse({"l":object()})
+		i = MockInput("qtcdrl")
+		dt.Choice.parse(i)
+		self.assertEquals(6,i.pos)
+		
+	@mock_globals(dt,"QuoteMarker","TextLineMarker","ChoiceMarker",
+		"ChoiceDescription","ChoiceResponse", "Newline")
+	def test_parse_consumes_no_input_on_failure(self):
+		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
+		dt.TextLineMarker.parse.side_effect = make_parse({"t":object()})
+		dt.ChoiceMarker.parse.side_effect = make_parse({"c":object()})
+		dt.ChoiceDescription.parse.side_effect = make_parse({"d":object()})
+		dt.ChoiceResponse.parse.side_effect = make_parse({"r":object()})
+		dt.Newline.parse.side_effect = make_parse({"l":object()})
+		i = MockInput("qtcdr$")
+		dt.Choice.parse(i)
+		self.assertEquals(0,i.pos)
+
+# TestLineMarker
+# ChoiceMarker
+# ChoiceMarkerOpen
+# ChoiceMarkerText
+# ChoiceMarkerClose
+# ChoiceDescription
+# ChoiceDescPart
+# ChoiceResponse
+# ChoiceResponseSeparator
+# ChoiceResponseDesc
+# ChoiceResponseDescPart
+# ChoiceGoto
+# GotoMarker
+# EndPunctuation
+# InstructionBlock
+# InstructionLine
+# InstructionLineMarker
+# LineText
+# TextBlock
+# TextLine
+# FeedbackBlock
+# FeedbackLine		
+		
 unittest.main()
 
