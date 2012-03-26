@@ -933,11 +933,200 @@ class TestChoice(unittest.TestCase):
 		dt.Choice.parse(i)
 		self.assertEquals(0,i.pos)
 
-# TestLineMarker
-# ChoiceMarker
-# ChoiceMarkerOpen
-# ChoiceMarkerText
-# ChoiceMarkerClose
+
+class TestTextLineMarker(unittest.TestCase):
+
+	def test_construct(self):
+		dt.TextLineMarker()
+		
+	def test_parse_returns_textlinemarker(self):
+		result = dt.TextLineMarker.parse(MockInput(": $"))
+		self.assertTrue( isinstance(result,dt.TextLineMarker) )
+		
+	def test_parse_expects_color(self):
+		self.assertIsNone( dt.TextLineMarker.parse(MockInput(" $")) )
+		
+	def test_parse_expects_space(self):
+		self.assertIsNone( dt.TextLineMarker.parse(MockInput(":$")) )
+		
+	def test_parse_accepts_tab(self):
+		self.assertIsNotNone( dt.TextLineMarker.parse(MockInput(":\t$")) )
+		
+	def test_parse_consumes_input_on_success(self):
+		i = MockInput(": $")
+		dt.TextLineMarker.parse(i)
+		self.assertEquals(2, i.pos)
+		
+	def test_parse_doesnt_consume_input_on_failure(self):
+		i = MockInput(":$")
+		dt.TextLineMarker.parse(i)
+		self.assertEquals(0, i.pos)
+
+
+class TestChoiceMarker(unittest.TestCase):
+
+	def test_construct(self):
+		dt.ChoiceMarker("foo")
+		
+	def test_text_is_readable(self):
+		m = dt.ChoiceMarker("foo")
+		self.assertEquals("foo",m.text)
+		
+	def test_text_is_not_writable(self):
+		m = dt.ChoiceMarker("foo")
+		with self.assertRaises(AttributeError):
+			m.text = "bar"
+			
+	@mock_globals(dt,"ChoiceMarkerOpen","LineWhitespace","ChoiceMarkerText","ChoiceMarkerClose")
+	def test_parse_returns_populated_choicemarker(self):
+		dt.ChoiceMarkerOpen.parse.side_effect = make_parse({"o":object()})
+		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
+		t = object()
+		dt.ChoiceMarkerText.parse.side_effect = make_parse({"t":t})
+		dt.ChoiceMarkerClose.parse.side_effect = make_parse({"c":object()})
+		result = dt.ChoiceMarker.parse(MockInput("owtc"))
+		self.assertTrue( isinstance(result,dt.ChoiceMarker) )
+		self.assertTrue( hasattr(result,"text") )
+		self.assertEquals( t, result.text )
+		
+	@mock_globals(dt,"ChoiceMarkerOpen","LineWhitespace","ChoiceMarkerText","ChoiceMarkerClose")
+	def test_parse_expects_choicemarkeropen(self):
+		dt.ChoiceMarkerOpen.parse.side_effect = make_parse({"o":object()})
+		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
+		dt.ChoiceMarkerText.parse.side_effect = make_parse({"t":object()})
+		dt.ChoiceMarkerClose.parse.side_effect = make_parse({"c":object()})
+		self.assertIsNone( dt.ChoiceMarker.parse(MockInput("wtc")) )
+		self.assertFalse( dt.LineWhitespace.parse.called )
+		self.assertFalse( dt.ChoiceMarkerText.parse.called )
+		self.assertFalse( dt.ChoiceMarkerClose.parse.called )
+		
+	@mock_globals(dt,"ChoiceMarkerOpen","LineWhitespace","ChoiceMarkerText","ChoiceMarkerClose")
+	def test_parse_allows_no_linewhitespace(self):
+		dt.ChoiceMarkerOpen.parse.side_effect = make_parse({"o":object()})
+		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
+		dt.ChoiceMarkerText.parse.side_effect = make_parse({"t":object()})
+		dt.ChoiceMarkerClose.parse.side_effect = make_parse({"c":object()})
+		self.assertIsNotNone( dt.ChoiceMarker.parse(MockInput("otc")) )
+
+	@mock_globals(dt,"ChoiceMarkerOpen","LineWhitespace","ChoiceMarkerText","ChoiceMarkerClose")
+	def test_parse_allows_no_choicemarkertext(self):
+		dt.ChoiceMarkerOpen.parse.side_effect = make_parse({"o":object()})
+		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
+		dt.ChoiceMarkerText.parse.side_effect = make_parse({"t":object()})
+		dt.ChoiceMarkerClose.parse.side_effect = make_parse({"c":object()})
+		self.assertIsNotNone( dt.ChoiceMarker.parse(MockInput("owc")) )
+
+	@mock_globals(dt,"ChoiceMarkerOpen","LineWhitespace","ChoiceMarkerText","ChoiceMarkerClose")
+	def test_parse_expects_choicemarkerclose(self):
+		dt.ChoiceMarkerOpen.parse.side_effect = make_parse({"o":object()})
+		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
+		dt.ChoiceMarkerText.parse.side_effect = make_parse({"t":object()})
+		dt.ChoiceMarkerClose.parse.side_effect = make_parse({"c":object()})
+		self.assertIsNone( dt.ChoiceMarker.parse(MockInput("owt$")) )
+
+	@mock_globals(dt,"ChoiceMarkerOpen","LineWhitespace","ChoiceMarkerText","ChoiceMarkerClose")
+	def test_parse_consumes_input_on_success(self):
+		dt.ChoiceMarkerOpen.parse.side_effect = make_parse({"o":object()})
+		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
+		dt.ChoiceMarkerText.parse.side_effect = make_parse({"t":object()})
+		dt.ChoiceMarkerClose.parse.side_effect = make_parse({"c":object()})
+		i = MockInput("owtc")
+		dt.ChoiceMarker.parse(i)
+		self.assertEquals(4, i.pos)
+		
+	@mock_globals(dt,"ChoiceMarkerOpen","LineWhitespace","ChoiceMarkerText","ChoiceMarkerClose")
+	def test_parse_doesnt_consume_input_on_failure(self):
+		dt.ChoiceMarkerOpen.parse.side_effect = make_parse({"o":object()})
+		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
+		dt.ChoiceMarkerText.parse.side_effect = make_parse({"t":object()})
+		dt.ChoiceMarkerClose.parse.side_effect = make_parse({"c":object()})
+		i = MockInput("owtz")
+		dt.ChoiceMarker.parse(i)
+		self.assertEquals(0, i.pos)
+
+
+class TestChoiceMarkerOpen(unittest.TestCase):
+
+	def test_construct(self):
+		dt.ChoiceMarkerOpen()
+		
+	def test_parse_returns_choicemarkeropen(self):
+		result = dt.ChoiceMarkerOpen.parse(MockInput("[$"))
+		self.assertTrue( isinstance(result,dt.ChoiceMarkerOpen) )
+
+	def test_parse_expects_left_square(self):
+		self.assertIsNone( dt.ChoiceMarkerOpen.parse(MockInput("$")) )
+		
+	def test_parse_consumes_input_on_success(self):
+		i = MockInput("[$")
+		dt.ChoiceMarkerOpen.parse(i)
+		self.assertEquals(1, i.pos)
+		
+	def test_parse_doesnt_consume_input_on_failure(self):
+		i = MockInput("$")
+		dt.ChoiceMarkerOpen.parse(i)
+		self.assertEquals(0, i.pos)
+
+
+class TestChoiceMarkerText(unittest.TestCase):
+
+	def test_construct(self):
+		dt.ChoiceMarkerText("foo")
+		
+	def test_text_is_readable(self):
+		c = dt.ChoiceMarkerText("foo")
+		self.assertEquals("foo", c.text)
+		
+	def test_text_is_not_writable(self):
+		c = dt.ChoiceMarkerText("foo")
+		with self.assertRaises(AttributeError):
+			c.text = "bar"
+			
+	def test_parse_returns_populated_choicemarkertext(self):
+		result = dt.ChoiceMarkerText.parse(MockInput("foo]"))
+		self.assertTrue( isinstance(result,dt.ChoiceMarkerText) )
+		self.assertTrue( hasattr(result,"text") )
+		self.assertEquals("foo", result.text)
+		
+	def test_parse_expects_non_right_square(self):
+		self.assertIsNone( dt.ChoiceMarkerText.parse(MockInput("]$")) )
+		
+	def test_parse_allows_multiple_non_right_square(self):
+		self.assertIsNotNone( dt.ChoiceMarkerText.parse(MockInput("a1%*>;@?]$")) )
+		
+	def text_parse_consumes_input_on_success(self):
+		i = MockInput("foobar]$")
+		dt.ChoiceMarkerText.parse(i)
+		self.assertEquals(6, i.pos)
+		
+	def text_parse_doesnt_consume_input_on_success(self):
+		i = MockInput("]$")
+		dt.ChoicemarkerText.parse(i)
+		self.assertEquals(0, i.pos)
+
+
+class TestChoiceMarkerClose(unittest.TestCase):
+
+	def test_construct(self):
+		dt.ChoiceMarkerClose()
+		
+	def test_parse_returns_choicemarkerclose(self):
+		result = dt.ChoiceMarkerClose.parse(MockInput("]"))
+		self.assertTrue( isinstance(result,dt.ChoiceMarkerClose) )
+	
+	def test_parse_expects_right_square(self):
+		self.assertIsNone( dt.ChoiceMarkerClose.parse(MockInput("$")) )
+	
+	def test_parse_consumes_input_on_success(self):
+		i = MockInput("]$")
+		dt.ChoiceMarkerClose.parse(i)
+		self.assertEquals(1, i.pos)
+		
+	def test_parse_doesnt_consume_input_on_failure(self):
+		i = MockInput("$")
+		dt.ChoiceMarkerClose.parse(i)
+		self.assertEquals(0, i.pos)
+
 # ChoiceDescription
 # ChoiceDescPart
 # ChoiceResponse

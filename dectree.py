@@ -30,7 +30,7 @@ QuoteMarker <- '([ \t]*>)+'
 LineWhitespace <- '[ \t]+'
 Newline <- '(\r\n|\r|\n)'
 Choice <- QuoteMarker? TextLineMarker ChoiceMarker ChoiceDescription ChoiceResponse? Newline
-ChoiceMarker <- ChoiceMarkerOpen LineWhitespace? ChoiceMarkerText ChoiceMarkerClose
+ChoiceMarker <- ChoiceMarkerOpen LineWhitespace? ChoiceMarkerText? ChoiceMarkerClose
 ChoiceMarkerOpen <- '['
 ChoiceMarkerText <- '[a-zA-Z0-9_- \t`!"$%^&*()_+=[{};:'@#~,<.>/?\|]+'
 ChoiceMarkerClose <- ']'
