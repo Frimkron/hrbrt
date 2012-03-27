@@ -1,8 +1,38 @@
 #!/usr/bin/python2
 
+import sys
 import mock
 import unittest
 import dectree as dt
+
+# monkey patching
+if sys.version_info < (2,7):
+
+	def assertIsNone(self,val):
+		self.assertTrue( val is None )
+	unittest.TestCase.assertIsNone = assertIsNone
+	
+	def assertIsNotNone(self,val):
+		self.assertTrue( val is not None )
+	unittest.TestCase.assertIsNotNone = assertIsNotNone
+	
+	class RaiseChecker(object):
+		def __init__(self,testcase,expected):
+			self.testcase = testcase
+			self.expected = expected
+		def __enter__(self):
+			pass
+		def __exit__(self,exctype,excval,exctb):
+			self.testcase.assertEquals(self.expected,exctype)
+			return True
+	def assertRaises(self,*args):
+		if len(args)==1:
+			return RaiseChecker(self,args[0])
+		else:
+			self._assertRaises(*args)
+	unittest.TestCase._assertRaises = unittest.TestCase.assertRaises
+	unittest.TestCase.assertRaises = assertRaises
+
 
 def mock_globals(where,*names):
 	def dec(fn):
@@ -83,17 +113,13 @@ class MockInput(object):
 			self.parent.pos = self.pos
 
 
-def make_parse(*rets):
-	def gen():
-		for r in rets:
-			yield r
-		while True:
-			yield None
-	g = gen()
+def make_parse(vals):
 	def parse(input):
-		v = g.next()
-		if v is not None and v is not False:
+		n = input.data[input.pos]
+		v = vals.get(n,None)
+		if v is not None:
 			input.next()
+		v = vals.get(None,None)
 		return v
 	return parse
 
@@ -121,8 +147,8 @@ class TestDocument(unittest.TestCase):
 	def test_parse_returns_populated_document(self):
 		s1 = object()
 		s2 = object()
-		dt.FirstSection.parse.side_effect = make_parse(s1)
-		dt.Section.parse.side_effect = make_parse(s2)
+		dt.FirstSection.parse.side_effect = make_parse({"a":s1})
+		dt.Section.parse.side_effect = make_parse({"b":s2})
 		result = dt.Document.parse(MockInput("ab\x00",0,None))
 		self.assertTrue( isinstance(result,dt.Document) )
 		self.assertTrue( hasattr(result,"sections") )
@@ -130,40 +156,40 @@ class TestDocument(unittest.TestCase):
 
 	@mock_globals(dt,"FirstSection","Section")
 	def test_parse_expects_firstsection(self):
-		dt.FirstSection.parse.side_effect = make_parse(None)
-		self.assertIsNone( dt.Document.parse(MockInput("ab\x00",0,None)) )
+		dt.FirstSection.parse.side_effect = make_parse({"a":object()})
+		self.assertIsNone( dt.Document.parse(MockInput("b\x00",0,None)) )
 		self.assertFalse( dt.Section.parse.called )
 		
 	@mock_globals(dt,"FirstSection","Section")
 	def test_parse_allows_zero_sections(self):
-		dt.FirstSection.parse.side_effect = make_parse(object())
-		dt.Section.parse.side_effect = make_parse(None)
+		dt.FirstSection.parse.side_effect = make_parse({"a":object()})
+		dt.Section.parse.side_effect = make_parse({"b":object()})
 		self.assertIsNotNone( dt.Document.parse(MockInput("a\x00",0,None)) )
 		
 	@mock_globals(dt,"FirstSection","Section")
 	def test_parse_allows_multiple_sections(self):
-		dt.FirstSection.parse.side_effect = make_parse(object())
-		dt.Section.parse.side_effect = make_parse(object(),object(),object())
+		dt.FirstSection.parse.side_effect = make_parse({"a":object()})
+		dt.Section.parse.side_effect = make_parse({"b":object()})
 		self.assertIsNotNone( dt.Document.parse(MockInput("abbb\x00",0,None)) )
 		
 	@mock_globals(dt,"FirstSection","Section")
 	def test_parse_expects_char_0(self):
-		dt.FirstSection.parse.side_effect = make_parse(object())
-		dt.Section.parse.side_effect = make_parse(None)
+		dt.FirstSection.parse.side_effect = make_parse({"a":object()})
+		dt.Section.parse.side_effect = make_parse({"b":object()})
 		self.assertIsNone( dt.Document.parse(MockInput("aq",0,None)) )
 		
 	@mock_globals(dt,"FirstSection","Section")
 	def test_parse_consumes_input_on_success(self):
-		dt.FirstSection.parse.side_effect = make_parse(object())
-		dt.Section.parse.side_effect = make_parse(object())
+		dt.FirstSection.parse.side_effect = make_parse({"a":object()})
+		dt.Section.parse.side_effect = make_parse({"b":object()})
 		i = MockInput("ab\x00",0,None)
 		dt.Document.parse(i)
 		self.assertEquals(3, i.pos)
 		
 	@mock_globals(dt,"FirstSection","Section")
 	def test_parse_doesnt_consume_input_on_failure(self):
-		dt.FirstSection.parse.side_effect = make_parse(object())
-		dt.Section.parse.side_effect = make_parse(object())
+		dt.FirstSection.parse.side_effect = make_parse({"a":object()})
+		dt.Section.parse.side_effect = make_parse({"b":object()})
 		i = MockInput("abz",0,None)
 		dt.Document.parse(i)
 		self.assertEquals(0, i.pos)
@@ -186,28 +212,28 @@ class TestFirstSection(unittest.TestCase):
 	@mock_globals(dt,"SectionContent")
 	def test_parse_returns_populated_firstsection(self):	
 		c = object()
-		dt.SectionContent.parse.side_effect = make_parse(c)
-		result = dt.FirstSection.parse(MockInput("s",0,None))
+		dt.SectionContent.parse.side_effect = make_parse({"c":c})
+		result = dt.FirstSection.parse(MockInput("c",0,None))
 		self.assertTrue( isinstance(result,dt.FirstSection) )
 		self.assertTrue( hasattr(result,"content") )
 		self.assertEquals( c, result.content )
 		
 	@mock_globals(dt,"SectionContent")
 	def test_parse_expects_sectioncontent(self):
-		dt.SectionContent.parse.side_effect = make_parse(None)
-		self.assertIsNone( dt.FirstSection.parse(MockInput("s",0,None)) )
+		dt.SectionContent.parse.side_effect = make_parse({"c":c})
+		self.assertIsNone( dt.FirstSection.parse(MockInput("d",0,None)) )
 		
 	@mock_globals(dt,"SectionContent")
 	def test_parse_consumes_input_on_success(self):
-		dt.SectionContent.parse.side_effect = make_parse(object())
-		input = MockInput("s",0,None)
+		dt.SectionContent.parse.side_effect = make_parse({"c":object()})
+		input = MockInput("c",0,None)
 		dt.FirstSection.parse(input)
 		self.assertEquals(1, input.pos)
 
 	@mock_globals(dt,"SectionContent")
 	def test_parse_doesnt_consume_input_on_failure(self):
-		dt.SectionContent.parse.side_effect = make_parse(None)
-		input = MockInput("s",0,None)
+		dt.SectionContent.parse.side_effect = make_parse({"c":object()})
+		input = MockInput("d",0,None)
 		dt.FirstSection.parse(input)
 		self.assertEquals(0, input.pos)
 		
@@ -238,9 +264,9 @@ class TestSection(unittest.TestCase):
 	@mock_globals(dt,"Heading","SectionContent")	
 	def test_parse_returns_populated_section(self):
 		h = object()
-		dt.Heading.parse.side_effect = make_parse(h)
+		dt.Heading.parse.side_effect = make_parse({"h":h})
 		c = object()
-		dt.SectionContent.parse.side_effect = make_parse(c)
+		dt.SectionContent.parse.side_effect = make_parse({"c":c})
 		result = dt.Section.parse(MockInput("hc",0,None))
 		self.assertTrue( isinstance(result,dt.Section) )
 		self.assertTrue( hasattr(result,"heading") )
@@ -250,29 +276,29 @@ class TestSection(unittest.TestCase):
 		
 	@mock_globals(dt,"Heading","SectionContent")
 	def test_parse_expects_heading(self):
-		dt.Heading.parse.side_effect = make_parse(None)
-		self.assertIsNone( dt.Section.parse(MockInput("ab",0,None)) )
+		dt.Heading.parse.side_effect = make_parse({"h":object()})
+		self.assertIsNone( dt.Section.parse(MockInput("c",0,None)) )
 		self.assertFalse( dt.SectionContent.parse.called )
 		
 	@mock_globals(dt,"Heading","SectionContent")
 	def test_parse_expects_sectioncontent(self):
-		dt.Heading.parse.side_effect = make_parse(object())
-		dt.SectionContent.parse.side_effect = make_parse(None)
-		self.assertIsNone( dt.Section.parse(MockInput("ab",0,None)) )
+		dt.Heading.parse.side_effect = make_parse({"h":object()})
+		dt.SectionContent.parse.side_effect = make_parse({"c":object()})
+		self.assertIsNone( dt.Section.parse(MockInput("hq",0,None)) )
 		
 	@mock_globals(dt,"Heading","SectionContent")
 	def test_parse_consumes_input_on_success(self):
-		dt.Heading.parse.side_effect = make_parse(object())
-		dt.SectionContent.parse.side_effect = make_parse(object())
-		i = MockInput("ab",0,None)
+		dt.Heading.parse.side_effect = make_parse({"h":object()})
+		dt.SectionContent.parse.side_effect = make_parse({"c":object()})
+		i = MockInput("hc",0,None)
 		dt.Section.parse(i)
 		self.assertEquals(2, i.pos)
 		
 	@mock_globals(dt,"Heading","SectionContent")
 	def test_parse_doesnt_consume_input_on_failure(self):
-		dt.Heading.parse.side_effect = make_parse(object())
-		dt.SectionContent.parse.side_effect = make_parse(None)
-		i = MockInput("ab",0,None)
+		dt.Heading.parse.side_effect = make_parse({"h":object()})
+		dt.SectionContent.parse.side_effect = make_parse({"c":object()})
+		i = MockInput("hq",0,None)
 		dt.Section.parse(i)
 		self.assertEquals(0, i.pos)
 		
@@ -294,11 +320,11 @@ class TestHeading(unittest.TestCase):
 	@mock_globals(dt,"QuoteMarker","HeadingMarker","LineWhitespace","Name","Newline")
 	def test_parse_returns_populated_heading(self):
 		n = object()
-		dt.QuoteMarker.parse.side_effect = make_parse(object())
-		dt.HeadingMarker.parse.side_effect = make_parse(object(),object())
-		dt.LineWhitespace.parse.side_effect = make_parse(object())
+		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
+		dt.HeadingMarker.parse.side_effect = make_parse({"h":object()})
+		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
 		dt.Name.parse.side_effect = make_parse(n)
-		dt.Newline.parse.side_effect = make_parse(object())
+		dt.Newline.parse.side_effect = make_parse({"l":object()})
 		result = dt.Heading.parse(MockInput("qhwnhl",0,None))
 		self.assertTrue( isinstance(result,dt.Heading) )
 		self.assertTrue( hasattr(result,"name") )
@@ -306,9 +332,9 @@ class TestHeading(unittest.TestCase):
 		
 	@mock_globals(dt,"QuoteMarker","HeadingMarker","LineWhitespace","Name","Newline")
 	def test_parse_allows_no_quotemarker(self):
-		dt.QuoteMarker.parse.side_effect = make_parse(False)
-		dt.HeadingMarker.parse.side_effect = make_parse(object(),object())
-		dt.LineWhitespace.parse.side_effect = make_parse(object())
+		dt.QuoteMarker.parse.side_effect = make_parse({None:False})
+		dt.HeadingMarker.parse.side_effect = make_parse({"h":object()})
+		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
 		dt.Name.parse_side_effect = make_parse(object())
 		dt.Newline.parse.side_effect = make_parse(object())
 		self.assertIsNotNone( dt.Heading.parse(MockInput("hwnhl",0,None)) )
@@ -562,7 +588,63 @@ class TestNewline(unittest.TestCase):
 		i = MockInput("\t^",0,None)
 		dt.Newline.parse(i)
 		self.assertEquals(0, i.pos)
-		  	
+
+
+class TestSectionContent(unittest.TestCase):
+	
+	def test_construct(self):
+		dt.SectionContent([object(),object()])
+		
+	def test_items_readable(self):	
+		c = dt.SectionContent(["foo"])
+		self.assertEquals("foo",c.items[0])
+		
+	def test_items_not_writable(self):
+		c = dt.SectionContent(["foo"])
+		with self.assertRaises(AttributeError):
+			c.items = ["bar"]
+			
+	def test_items_immutable(self):
+		c = dt.SectionContent(["foo"])
+		c.items[0] = "bar"
+		self.assertEquals("foo", c.items[0])
+		
+	@mock_globals(dt,"BlankLine","ChoiceBlock","InstructionBlock","TextBlock","FeedbackBlock")
+	def test_parse_returns_populated_sectioncontent(self):
+		dt.BlankLine.parse.side_effect = make_parse(object())
+		c = object()
+		dt.ChoiceBlock.parse.side_effect = make_parse(c)
+		i = object()
+		dt.InstructionBlock.parse.side_effect = make_parse(i)
+		t = object()
+		dt.TextBlock.parse.side_effect = make_parse(t)
+		f = object()
+		dt.FeedbackBlock.parse.side_effect = make_parse(f)	
+		result = dt.SectionContent.parse(MockInput("bcitf",0,None))
+		self.assertTrue( isinstance(result,dt.SectionContent) )
+		self.assertTrue( hasattr(result,"items") )
+		self.assertEquals([c,i,t,f], result.items)
+
+	@mock_globals(dt,"BlankLine","ChoiceBlock","InstructionBlock","TextBlock","FeedbackBlock")		
+	def test_parse_allows_no_blank_lines(self):
+		dt.BlankLine.parse.side_effect = make_parse(None)
+		dt.ChoiceBlock.parse.side_effect = make_parse(object())
+		dt.InstructionBlock.parse.side_effect = make_parse(object())
+		dt.TextBlock.parse.side_effect = make_parse(object())
+		dt.FeedbackBlock.parse.side_effect = make_parse(object())
+		self.assertIsNotNone( dt.SectionContent.parse(MockInput("citf",0,None)) )
+
+	@mock_globals(dt,"BlankLine","ChoiceBlock","InstructionBlock","TextBlock","FeedbackBlock")			
+	def test_parse_allows_multiple_blank_lines(self):
+		dt.BlankLine.parse.side_effect = make_parse(object(),object(),object())
+		dt.ChoiceBlock.parse.side_effect = make_parse(object())
+		dt.InstructionBlock.parse.side_effect = make_parse(object())
+		dt.TextBlock.parse.side_effect = make_parse(object())
+		dt.FeedbackBlock.parse.side_effect = make_parse(object())
+		self.assertIsNotNone( dt.SectionContent.parse(MockInput("bbbcitf",0,None)) )
+	
+	# TODO: How do I know it didn't just parse a *single* blank line and absorb
+	#	the others as other symbols?
 		  	
 unittest.main()
 
