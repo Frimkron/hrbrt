@@ -708,17 +708,18 @@ class ChoiceDescPart(object):
 	
 class ChoiceResponse(object):
 	
-	_text = None
-	text = property(lambda s: s._text)
+	_description = None
+	description = property(lambda s: s._description)
 	_goto = None
 	goto = property(lambda s: s._goto)
 	
-	def __init__(self,text,goto):
-		self._text = text
+	def __init__(self,description,goto):
+		self._description = description
 		self._goto = goto
 	
 	def __repr__(self):
-		return "ChoiceResponse(%s,%s)" % (repr(self._text),repr(self._goto))
+		return "ChoiceResponse(%s,%s)" % (
+			repr(self._description),repr(self._goto))
 	
 	@staticmethod
 	def parse(input):
@@ -726,14 +727,14 @@ class ChoiceResponse(object):
 		
 		if ChoiceResponseSeparator.parse(input) is None: return None
 		
-		text = Optional(ChoiceResponseDesc).parse(input)
-		if text is None: return None
+		desc = Optional(ChoiceResponseDesc).parse(input)
+		if desc is None: return None
 						
 		goto = Optional(ChoiceGoto).parse(input)
 		if goto is None: return None
 						
 		input.commit()
-		return ChoiceResponse(text if text is not False else Empty(),
+		return ChoiceResponse(desc if desc is not False else Empty(),
 			goto if goto is not False else Empty())
 			
 
