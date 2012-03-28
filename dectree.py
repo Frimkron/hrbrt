@@ -1,4 +1,3 @@
-# TODO: Unit tests
 # TODO: Blocks should not be broken by blank lines or feedback.
 #	- feedback blocks should be combined in each section and put
 #	in their own attribute
@@ -6,6 +5,8 @@
 # TODO: Section names should be valid - post process AST?
 # TODO: Recipient may assume to read into next section 
 #		when there isn't a goto in a section.
+# TODO: choice and response descriptions probably allow blank 
+#		text lines
 # TODO: Probably no need for line nodes in AST
 # TODO: Command line recipient usage 
 # TODO: Command line sender usage
