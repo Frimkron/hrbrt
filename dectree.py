@@ -1,6 +1,8 @@
 # TODO: Blocks should not be broken by blank lines or feedback.
 #	- feedback blocks should be combined in each section and put
 #	in their own attribute
+# TODO: User could insert feedback into the middle of a choice 
+#   description or response.
 # TODO: Section names should be unique
 # TODO: Section names should be valid - post process AST?
 # TODO: Recipient may assume to read into next section 
@@ -110,6 +112,10 @@ class Input(object):
 			return self._child.get_deepest_pos()
 		else:
 			return self._pos
+
+
+class ValidationException(Exception):
+	pass
 
 
 class Document(object):
@@ -1173,20 +1179,26 @@ Put here as a test
 : Bob.
 """
 
+s = """\
+: [] I think that linebreaks are
+:  
+: an important part of a description
+"""
+
 #import pdb
 #pdb.set_trace()
 
-#i = Input(s)
-#d = Document.parse(i)
-#if d is not None:
-	#print d
-#	print HtmlOutput().output(d)
-#else:
-#	p = i.get_deepest_pos()
-#	print "Parse error near %s" % repr(s[p:p+100]+"...")
+i = Input(s)
+d = Document.parse(i)
+if d is not None:
+	print d
+	#print HtmlOutput().output(d)
+else:
+	p = i.get_deepest_pos()
+	print "Parse error near %s" % repr(s[p:p+100]+"...")
 
-if __name__ == "__main__":
-	import argparse
-	
-	ap = argparse.ArgumentParser(description="Parse decision tree documents")
-	ap.parse_args()
+#if __name__ == "__main__":
+#	import argparse
+#	
+#	ap = argparse.ArgumentParser(description="Parse decision tree documents")
+#	ap.parse_args()

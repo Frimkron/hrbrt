@@ -193,7 +193,12 @@ class TestDocument(unittest.TestCase):
 		i = MockInput("fsq",0,None)
 		dt.Document.parse(i)
 		self.assertEquals(0, i.pos)
-	
+		
+	def test_parse_throws_error_for_duplicate_section_names(self):
+		s1 = 
+		dt.FirstSection.parse.return_value = s1
+		dt.Section.parse.return_value = [s2,s3]
+		
 		
 class TestFirstSection(unittest.TestCase):
 
