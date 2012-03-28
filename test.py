@@ -1885,6 +1885,12 @@ class TestInstructionBlock(unittest.TestCase):
 		dt.InstructionBlock.parse(i)
 		self.assertEquals(0,i.pos)
 
+
+class TestInstructionLine(unittest.TestCase):
+	
+	def test_construct(self):
+		dt.InstructionLine()
+
 # InstructionLine
 # InstructionLineMarker
 # LineText
