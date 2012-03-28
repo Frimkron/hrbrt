@@ -1811,7 +1811,80 @@ class TestEndPunctuation(unittest.TestCase):
 		self.assertEquals(0,i.pos)
 		
 
-# InstructionBlock
+class TestInstructionBlock(unittest.TestCase):
+	
+	def test_construct(self):
+		dt.InstructionBlock(["foo","bar"])
+
+	def test_lines_readable(self):
+		b = dt.InstructionBlock(["foo","bar"])
+		self.assertEquals("foo",b.lines[0])
+		
+	def test_lines_not_writable(self):
+		b = dt.InstructionBlock(["foo","bar"])
+		with self.assertRaises(AttributeError):
+			b.lines = ["weh"]
+
+	def test_lines_immutable(self):
+		b = dt.InstructionBlock(["foo","bar"])
+		b.lines[0] = "weh"
+		self.assertEquals("foo", b.lines[0])
+
+	@mock_globals(dt,"InstructionLine", "BlankLine")
+	def test_parse_returns_instructionblock(self):
+		l1 = object()
+		l2 = object()
+		dt.InstructionLine.parse.side_effect = make_parse({"l":l1,"m":l2})
+		dt.BlankLine.parse.side_effect = make_parse({"b":object()})
+		result = dt.InstructionBlock.parse(MockInput("lmb$"))
+		self.assertTrue( isinstance(result,dt.InstructionBlock) )
+		self.assertTrue( hasattr(result,"lines") )
+		self.assertEquals([l1,l2], result.lines)
+		
+	@mock_globals(dt,"InstructionLine", "BlankLine")
+	def test_parse_expects_instructionline(self):
+		dt.InstructionLine.parse.side_effect = make_parse({"l":object()})
+		dt.BlankLine.parse.side_effect = make_parse({"b":object()})
+		self.assertIsNone( dt.InstructionBlock.parse(MockInput("b$")) )
+		
+	@mock_globals(dt,"InstructionLine", "BlankLine")
+	def test_parse_allows_multiple_instructionlines(self):
+		dt.InstructionLine.parse.side_effect = make_parse({"l":object()})
+		dt.BlankLine.parse.side_effect = make_parse({"b":object()})
+		result =  dt.InstructionBlock.parse(MockInput("lllb$"))
+		self.assertIsNotNone( result )
+		self.assertEquals(3, len(result.lines) )
+		
+	@mock_globals(dt,"InstructionLine", "BlankLine")
+	def test_parse_allows_no_blanklines(self):
+		dt.InstructionLine.parse.side_effect = make_parse({"l":object()})
+		dt.BlankLine.parse.side_effect = make_parse({"b":object()})
+		self.assertIsNotNone( dt.InstructionBlock.parse(MockInput("l$")) )
+		
+	@mock_globals(dt,"InstructionLine", "BlankLine")
+	def test_parse_allows_multiple_blank_lines(self):
+		dt.InstructionLine.parse.side_effect = make_parse({"l":object()})
+		dt.BlankLine.parse.side_effect = make_parse({"b":object()})
+		i = MockInput("lbbb$")
+		self.assertIsNotNone( dt.InstructionBlock.parse(i) )
+		self.assertEquals(4,i.pos)
+		
+	@mock_globals(dt,"InstructionLine", "BlankLine")
+	def test_parse_consumes_input_on_success(self):
+		dt.InstructionLine.parse.side_effect = make_parse({"l":object()})
+		dt.BlankLine.parse.side_effect = make_parse({"b":object()})
+		i = MockInput("lb$")
+		dt.InstructionBlock.parse(i)
+		self.assertEquals(2,i.pos)
+		
+	@mock_globals(dt,"InstructionLine", "BlankLine")
+	def test_parse_doesnt_consume_input_on_failure(self):
+		dt.InstructionLine.parse.side_effect = make_parse({"l":object()})
+		dt.BlankLine.parse.side_effect = make_parse({"b":object()})
+		i = MockInput("z$")
+		dt.InstructionBlock.parse(i)
+		self.assertEquals(0,i.pos)
+
 # InstructionLine
 # InstructionLineMarker
 # LineText
