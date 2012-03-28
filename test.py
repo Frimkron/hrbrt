@@ -1639,14 +1639,178 @@ class TestChoiceResponseDescPart(unittest.TestCase):
 		result = dt.ChoiceResponseDescPart.parse(MockInput(" \t \t\x00"))
 		self.assertIsNotNone(result)
 		self.assertEquals(4, len(result.text))
-		
-	# TODO: consume on success
-	# TODO: dont consume on failure
 
-# ChoiceResponseDescPart
-# ChoiceGoto
-# GotoMarker
-# EndPunctuation
+	def test_parse_consumes_input_on_sucess(self):
+		i = MockInput("foo\x00")
+		dt.ChoiceResponseDescPart.parse(i)
+		self.assertEquals(3, i.pos)
+		
+	def test_parse_doesnt_consume_input_on_failure(self):
+		i = MockInput("GO TO\x00")
+		dt.ChoiceResponseDescPart.parse(i)
+		self.assertEquals(0, i.pos)
+		
+
+class TestChoiceGoto(unittest.TestCase):
+
+	def test_construct(self):
+		dt.ChoiceGoto("foo")
+	
+	def test_name_readable(self):
+		g = dt.ChoiceGoto("foo")
+		self.assertEquals("foo",g.name)
+		
+	def test_name_not_writable(self):
+		g = dt.ChoiceGoto("foo")
+		with self.assertRaises(AttributeError):
+			g.name = "bar"
+			
+	@mock_globals(dt,"GotoMarker","LineWhitespace","Name","EndPunctuation")
+	def test_parse_returns_choicegoto(self):
+		dt.GotoMarker.parse.side_effect = make_parse({"m":object()})
+		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
+		n = object()
+		dt.Name.parse.side_effect = make_parse({"n":n})
+		dt.EndPunctuation.parse.side_effect = make_parse({"e":object()})
+		result = dt.ChoiceGoto.parse(MockInput("mwne$"))
+		self.assertTrue( isinstance(result,dt.ChoiceGoto) )
+		self.assertTrue( hasattr(result,"name") )
+		self.assertEquals( n, result.name )
+
+	@mock_globals(dt,"GotoMarker","LineWhitespace","Name","EndPunctuation")
+	def test_parse_expects_gotomarker(self):
+		dt.GotoMarker.parse.side_effect = make_parse({"m":object()})
+		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
+		dt.Name.parse.side_effect = make_parse({"n":object()})
+		dt.EndPunctuation.parse.side_effect = make_parse({"e":object()})
+		self.assertIsNone( dt.ChoiceGoto.parse(MockInput("wne$")) )
+		self.assertFalse( dt.LineWhitespace.parse.called )
+		self.assertFalse( dt.Name.parse.called )
+		self.assertFalse( dt.EndPunctuation.parse.called )
+		
+	@mock_globals(dt,"GotoMarker","LineWhitespace","Name","EndPunctuation")
+	def test_parse_allows_no_linewhitespace(self):
+		dt.GotoMarker.parse.side_effect = make_parse({"m":object()})
+		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
+		dt.Name.parse.side_effect = make_parse({"n":object()})
+		dt.EndPunctuation.parse.side_effect = make_parse({"e":object()})
+		self.assertIsNotNone( dt.ChoiceGoto.parse(MockInput("mne$")) )
+		
+	@mock_globals(dt,"GotoMarker","LineWhitespace","Name","EndPunctuation")
+	def test_parse_expects_name(self):
+		dt.GotoMarker.parse.side_effect = make_parse({"m":object()})
+		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
+		dt.Name.parse.side_effect = make_parse({"n":object()})
+		dt.EndPunctuation.parse.side_effect = make_parse({"e":object()})
+		self.assertIsNone( dt.ChoiceGoto.parse(MockInput("mwe$")) )
+		self.assertFalse( dt.EndPunctuation.parse.called )
+		
+	@mock_globals(dt,"GotoMarker","LineWhitespace","Name","EndPunctuation")
+	def test_parse_allows_no_endpunctuation(self):
+		dt.GotoMarker.parse.side_effect = make_parse({"m":object()})
+		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
+		dt.Name.parse.side_effect = make_parse({"n":object()})
+		dt.EndPunctuation.parse.side_effect = make_parse({"e":object()})
+		self.assertIsNotNone( dt.ChoiceGoto.parse(MockInput("mwn$")) )
+		
+	@mock_globals(dt,"GotoMarker","LineWhitespace","Name","EndPunctuation")
+	def test_parse_consumes_input_on_success(self):
+		dt.GotoMarker.parse.side_effect = make_parse({"m":object()})
+		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
+		dt.Name.parse.side_effect = make_parse({"n":object()})
+		dt.EndPunctuation.parse.side_effect = make_parse({"e":object()})
+		i = MockInput("mwne$")
+		dt.ChoiceGoto.parse(i)
+		self.assertEquals(4,i.pos)
+		
+	@mock_globals(dt,"GotoMarker","LineWhitespace","Name","EndPunctuation")
+	def test_parse_doesnt_consume_input_on_failure(self):
+		dt.GotoMarker.parse.side_effect = make_parse({"m":object()})
+		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
+		dt.Name.parse.side_effect = make_parse({"n":object()})
+		dt.EndPunctuation.parse.side_effect = make_parse({"e":object()})
+		i = MockInput("mwq$")
+		dt.ChoiceGoto.parse(i)
+		self.assertEquals(0,i.pos)
+
+
+class TestGotoMarker(unittest.TestCase):
+
+	def test_construct(self):
+		dt.GotoMarker()
+		
+	def test_parse_returns_gotomarker(self):
+		result = dt.GotoMarker.parse(MockInput("GO TO$"))
+		self.assertTrue( isinstance(result,dt.GotoMarker) )
+		
+	def test_parse_expects_g(self):
+		self.assertIsNone( dt.GotoMarker.parse(MockInput("O TO$")) )
+		
+	def test_parse_expects_first_o(self):
+		self.assertIsNone( dt.GotoMarker.parse(MockInput("G TO$")) )
+		
+	def test_parse_expects_space(self):
+		self.assertIsNone( dt.GotoMarker.parse(MockInput("GOTO$")) )
+		
+	def test_parse_expects_t(self):
+		self.assertIsNone( dt.GotoMarker.parse(MockInput("GO O$")) )
+		
+	def test_parse_expects_second_o(self):
+		self.assertIsNone( dt.GotoMarker.parse(MockInput("GO T$")) )
+		
+	def test_parse_consumes_input_on_success(self):
+		i = MockInput("GO TO$")
+		dt.GotoMarker.parse(i)
+		self.assertEquals(5, i.pos)
+		
+	def test_parse_doesnt_consume_input_on_failure(self):
+		i = MockInput("GO TP$")
+		dt.GotoMarker.parse(i)
+
+
+class TestEndPunctuation(unittest.TestCase):
+
+	def test_construct(self):
+		dt.EndPunctuation()
+		
+	def test_parse_returns_endpunctuation(self):
+		result = dt.EndPunctuation.parse(MockInput(".$"))
+		self.assertTrue( isinstance(result,dt.EndPunctuation) )
+		
+	def test_parse_expects_punc_char(self):
+		self.assertIsNone( dt.EndPunctuation.parse(MockInput("g$")) )
+		
+	def test_parse_allows_comma(self):
+		self.assertIsNotNone( dt.EndPunctuation.parse(MockInput(",$")) )
+		
+	def test_parse_allows_colon(self):
+		self.assertIsNotNone( dt.EndPunctuation.parse(MockInput(":$")) )
+		
+	def test_parse_allows_semicolon(self):
+		self.assertIsNotNone( dt.EndPunctuation.parse(MockInput(";$")) )
+		
+	def test_parse_allows_exclaimation(self):
+		self.assertIsNotNone( dt.EndPunctuation.parse(MockInput("!$")) )
+		
+	def test_parse_allows_question(self):
+		self.assertIsNotNone( dt.EndPunctuation.parse(MockInput("?$")) )
+		
+	def test_parse_allows_multiple_punc_chars(self):
+		i = MockInput(",!?$")
+		self.assertIsNotNone( dt.EndPunctuation.parse(i) )
+		self.assertEquals(3, i.pos)
+		
+	def test_parse_consumes_input_on_success(self):
+		i = MockInput(".$")
+		dt.EndPunctuation.parse(i)
+		self.assertEquals(1,i.pos)
+		
+	def test_parse_doesnt_consume_input_on_failure(self):
+		i = MockInput("g$")
+		dt.EndPunctuation.parse(i)
+		self.assertEquals(0,i.pos)
+		
+
 # InstructionBlock
 # InstructionLine
 # InstructionLineMarker

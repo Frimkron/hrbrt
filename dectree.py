@@ -846,14 +846,14 @@ class GotoMarker(object):
 	
 class EndPunctuation(object):
 	
-	_CHARACTERS = ".,!?;"
+	_CHARACTERS = ".,!?;:"
 	
 	@staticmethod
 	def parse(input):
 		input = input.branch()
 		if OneOrMore(Char(EndPunctuation._CHARACTERS)).parse(input) is None: return None
 		input.commit()
-		return EndPunctuation
+		return EndPunctuation()
 		
 		
 class FeedbackLine(object):
