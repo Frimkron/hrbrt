@@ -114,7 +114,7 @@ class Input(object):
 			return self._pos
 
 
-class ValidationException(Exception):
+class ValidationError(Exception):
 	pass
 
 
