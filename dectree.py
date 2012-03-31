@@ -2,13 +2,20 @@
 #	- feedback blocks should be combined in each section and put
 #	in their own attribute
 # TODO: User could insert feedback into the middle of a choice 
-#   description or response.
-# TODO: Section names should be unique
-# TODO: Section names should be valid - post process AST?
+#   description or response. Feedback blocks should be able to 
+#	be attached at different levels e.g. attached to choices
 # TODO: Recipient may assume to read into next section 
-#		when there isn't a goto in a section.
+#		when there isn't a goto in a section. Force author to 
+#		have all paths lead to final section. Or else introduce
+#		some kind of END HERE syntax for explicitly telling the 
+#		user to stop reading (though an explicit end section is 
+#		just as easy to author)
+# TODO: Allow gotos at the end of sections.
 # TODO: choice and response descriptions probably allow blank 
 #		text lines
+# TODO: Blank text lines (or lines with only a colon) are parsed
+#		as feedback lines. Should instead be invalid syntax to 
+#		properly disallow blank text lines.
 # TODO: Probably no need for line nodes in AST
 # TODO: Command line recipient usage 
 # TODO: Command line sender usage
@@ -145,8 +152,33 @@ class Document(object):
 		if Char(chr(0)).parse(input) is None: return None
 		
 		input.commit()
-		return Document(items)
+		doc = Document(items)
+		
+		Document._validate(doc)
+		
+		return doc
+		
+	@staticmethod
+	def _validate(doc):
+	
+		# Collect section names, checking for duplicates		
+		secnames = set([])
+		for n in [s.heading.name.text for s in doc.sections[1:]]:
+			if n in secnames:
+				raise ValidationError("Duplicate section name '%s'" % n)
+			secnames.add(n)
 
+		# Iterate over goto references, checking sections exist			
+		for s in doc.sections:
+			for b in s.content.items:
+				if isinstance(b,ChoiceBlock):
+					for c in b.choices:
+						if( not isinstance(c.response,Empty)
+								and not isinstance(c.response.goto,Empty)):
+							n = c.response.goto.name.text
+							if n not in secnames:
+								raise ValidationError("Goto references unknown section '%s'" % n)
+						
 
 class FirstSection(object):
 
@@ -1185,19 +1217,20 @@ s = """\
 : an important part of a description
 """
 
-#import pdb
-#pdb.set_trace()
+if __name__ == "__main__":
 
-i = Input(s)
-d = Document.parse(i)
-if d is not None:
-	print d
-	#print HtmlOutput().output(d)
-else:
-	p = i.get_deepest_pos()
-	print "Parse error near %s" % repr(s[p:p+100]+"...")
-
-#if __name__ == "__main__":
+	#import pdb
+	#pdb.set_trace()
+	
+	i = Input(s)
+	d = Document.parse(i)
+	if d is not None:
+		print d
+		#print HtmlOutput().output(d)
+	else:
+		p = i.get_deepest_pos()
+		print "Parse error near %s" % repr(s[p:p+100]+"...")
+	
 #	import argparse
 #	
 #	ap = argparse.ArgumentParser(description="Parse decision tree documents")
