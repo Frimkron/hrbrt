@@ -11,6 +11,7 @@
 #		user to stop reading (though an explicit end section is 
 #		just as easy to author)
 # TODO: Allow gotos at the end of sections.
+# TODO: No need for Empty() any more - just use None
 # TODO: choice and response descriptions probably allow blank 
 #		text lines
 # TODO: Blank text lines (or lines with only a colon) are parsed
@@ -39,7 +40,7 @@ FeedbackBlock <- ( !( InstructionLine TextLine Choice Heading ) FeedbackLine )+ 
 QuoteMarker <- '([ \t]*>)+'
 LineWhitespace <- '[ \t]+'
 Newline <- '(\r\n|\r|\n)'
-Choice <- QuoteMarker? TextLineMarker ChoiceMarker ChoiceDescription ChoiceResponse? Newline
+Choice <- QuoteMarker? TextLineMarker LineWhitespace? ChoiceMarker ChoiceDescription ChoiceResponse? Newline
 ChoiceMarker <- ChoiceMarkerOpen LineWhitespace? ChoiceMarkerText? ChoiceMarkerClose
 ChoiceMarkerOpen <- '['
 ChoiceMarkerText <- '[a-zA-Z0-9_- \t`!"$%^&*()_+=[{};:'@#~,<.>/?\|]+'
@@ -56,12 +57,12 @@ EndPunctuation <- '[.,:;!?]+'
 Heading <- QuoteMarker? HeadingMarker LineWhitespace? Name HeadingMarker Newline
 HeadingMarker <- '={2,}'
 Name <- '[a-zA-Z0-9_-][a-zA-Z0-9_ -]*'
-InstructionLine <- QuoteMarker? InstructionLineMarker LineText Newline
-InstructionLineMarker <- '%[ \t]'
+InstructionLine <- QuoteMarker? InstructionLineMarker LineWhitespace? LineText Newline
+InstructionLineMarker <- '%'
 LineText <- '[a-zA-Z0-9_- \t`!"$%^&*()_+=[{]};:'@#~,<.>/?\|]+'
-TextLine <- QuoteMarker? TextLineMarker LineText Newline
-TextLineMarker <- ':[ \t]'
-FeedbackLine <- QuoteMarker? LineText Newline
+TextLine <- QuoteMarker? TextLineMarker LineWhitespace? LineText Newline
+TextLineMarker <- ':'
+FeedbackLine <- QuoteMarker? !( TextLineMarker | InstructionLineMarker ) LineText Newline
 """
 
 ALL_CHARACTERS = (
@@ -465,6 +466,8 @@ class TextLine(object):
 	
 		if TextLineMarker.parse(input) is None: return None
 	
+		Optional(LineWhitespace).parse(input)
+	
 		text = LineText.parse(input)
 		if text is None: return None
 
@@ -480,7 +483,6 @@ class TextLineMarker(object):
 	def parse(input):
 		input = input.branch()
 		if Char(":").parse(input) is None: return None
-		if Char(" \t").parse(input) is None: return None
 		input.commit()
 		return TextLineMarker()
 
@@ -555,6 +557,8 @@ class InstructionLine(object):
 		
 		if InstructionLineMarker.parse(input) is None: return None
 		
+		Optional(LineWhitespace).parse(input)
+		
 		text = LineText.parse(input)
 		if text is None: return None
 		
@@ -570,7 +574,6 @@ class InstructionLineMarker(object):
 	def parse(input):
 		input = input.branch()		
 		if Char('%').parse(input) is None: return None
-		if Char(' \t').parse(input) is None: return None		
 		input.commit()
 		return InstructionLineMarker()
 
@@ -911,6 +914,9 @@ class FeedbackLine(object):
 		input = input.branch()
 		
 		Optional(QuoteMarker).parse(input)
+
+		if( Not(Alternatives(TextLineMarker,InstructionLineMarker))
+				.parse(input) is None): return None
 		
 		text = LineText.parse(input)
 		if text is None: return None
@@ -1212,9 +1218,11 @@ Put here as a test
 """
 
 s = """\
-: [] I think that linebreaks are
-:  
-: an important part of a description
+:[] blank in the 
+: lol
+: description -- and blank
+: foo
+: in the response!
 """
 
 if __name__ == "__main__":
