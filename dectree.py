@@ -1,3 +1,7 @@
+# TODO: Currently can't put choice response on its own line 
+#	because treated as text line. Should allow a description
+#	newline between description and response. Maybe one either 
+#	side of separator?
 # TODO: Blocks should not be broken by blank lines or feedback.
 #	- feedback blocks should be combined in each section and put
 #	in their own attribute
@@ -12,11 +16,6 @@
 #		just as easy to author)
 # TODO: Allow gotos at the end of sections.
 # TODO: No need for Empty() any more - just use None
-# TODO: choice and response descriptions probably allow blank 
-#		text lines
-# TODO: Blank text lines (or lines with only a colon) are parsed
-#		as feedback lines. Should instead be invalid syntax to 
-#		properly disallow blank text lines.
 # TODO: Probably no need for line nodes in AST
 # TODO: Command line recipient usage 
 # TODO: Command line sender usage
@@ -45,11 +44,12 @@ ChoiceMarker <- ChoiceMarkerOpen LineWhitespace? ChoiceMarkerText? ChoiceMarkerC
 ChoiceMarkerOpen <- '['
 ChoiceMarkerText <- '[a-zA-Z0-9_- \t`!"$%^&*()_+=[{};:'@#~,<.>/?\|]+'
 ChoiceMarkerClose <- ']'
-ChoiceDescription <- ChoiceDescPart ( Newline QuoteMarker? TextLineMarker !ChoiceMarker ChoiceDescPart )*
+ChoiceDescription <- ChoiceDescPart ( ChoiceDescNewline ChoiceDescPart )*
+ChoiceDescNewline <- Newline QuoteMarker? TextLineMarker LineWhitespace? !ChoiceMarker
 ChoiceDescPart <- ( '[a-zA-Z0-9_ \t`!"$%^&*()_+=[{};:'@#~,<.>/?\|]+' | '-' !'-' )+
-ChoiceResponse <- ChoiceResponseSeparator ChoiceResponseDesc? ChoiceGoto?
+ChoiceResponse <- ChoiceDescNewline? ChoiceResponseSeparator ( ChoiceDescNewline? ChoiceResponseDesc ChoiceGoto? | ChoiceGoto )
 ChoiceResponseSeparator <- '--'
-ChoiceResponseDesc <-- ChoiceResponseDescPart ( Newline QuoteMarker? TextLineMarker !ChoiceMarker ChoiceReponseDescPart )*
+ChoiceResponseDesc <-- ChoiceResponseDescPart ( ChoiceDescNewline ChoiceReponseDescPart )*
 ChoiceResponseDescPart <- ( '[a-zABCDEFHIJKLMNOPQRSTUVWXYZZ0-9_ \t`!"$%^&*()_+=[{};:'@#~,<.>/?\|-]' | 'G' !'O TO' )+
 ChoiceGoto <- GotoMarker LineWhitespace? Name EndPunctuation?
 GotoMarker <- 'GO TO'
@@ -603,6 +603,8 @@ class Choice(object):
 		Optional(QuoteMarker).parse(input)
 
 		if TextLineMarker.parse(input) is None: return None
+
+		Optional(LineWhitespace).parse(input)
 		
 		marker = ChoiceMarker.parse(input)
 		if marker is None: return None
@@ -716,14 +718,34 @@ class ChoiceDescription(object):
 		if p is None: return None
 		parts.append(p)
 		
-		ps = ZeroOrMore(Sequence(Newline,Optional(QuoteMarker),
-				TextLineMarker,Not(ChoiceMarker),ChoiceDescPart)).parse(input)
+		ps = ZeroOrMore(Sequence(
+			ChoiceDescNewline,ChoiceDescPart)).parse(input)
 		if ps is None: return None
-		parts.extend([p[4::5][0] for p in ps])
+		parts.extend([p[1::2][0] for p in ps])
 		
 		input.commit()
 		return ChoiceDescription(parts)
+
+
+class ChoiceDescNewline(object):
+
+	@staticmethod
+	def parse(input):
+		input = input.branch()
+	
+		if Newline.parse(input) is None: return None
+	
+		Optional(QuoteMarker).parse(input)
 		
+		if TextLineMarker.parse(input) is None: return None
+		
+		Optional(LineWhitespace).parse(input)
+		
+		if Not(ChoiceMarker).parse(input) is None: return None
+		
+		input.commit()
+		return ChoiceDescNewline()		
+	
 	
 class ChoiceDescPart(object):
 
@@ -811,10 +833,10 @@ class ChoiceResponseDesc(object):
 		if p is None: return None
 		parts.append(p)
 		
-		ps = ZeroOrMore(Sequence(Newline,Optional(QuoteMarker),
-				TextLineMarker,Not(ChoiceMarker),ChoiceResponseDescPart)).parse(input)
+		ps = ZeroOrMore(Sequence(
+			ChoiceDescNewline,ChoiceResponseDescPart)).parse(input)
 		if ps is None: return None
-		parts.extend([p[4::5][0] for p in ps])
+		parts.extend([p[1::2][0] for p in ps])
 		
 		input.commit()
 		return ChoiceResponseDesc(parts)
@@ -1218,11 +1240,8 @@ Put here as a test
 """
 
 s = """\
-:[] blank in the 
-: lol
-: description -- and blank
-: foo
-: in the response!
+: [] Option A
+:	-- is great
 """
 
 if __name__ == "__main__":

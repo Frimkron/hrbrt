@@ -18,3 +18,111 @@ So. We pass in a branchable, commitable mock input, and check that in
 addition to the appropriate symbols being invoked with the correct 
 cardinality, the method leaves the mock input at the correct position.
 
+---
+
+[!] Text blocks, choice blocks and instruction blocks can be broken by
+	blank lines and feedback.
+- Of these, choice blocks are the biggest issue because it changes the
+  flow of the document.
+[?] Aren't blank lines used to deliberately split up blocks?
+- I think the issue was that the recipient can add blank lines
+- But the recipient can do lots of things like that. They could completely
+  destroy the document, potentially.
+- The syntax aims to prevent *accidental* destruction as much as possible
+- Feedback certainly shouldn't break up a block.
+[!] A recipient might *replace* a blank line with feedback, thereby turning
+	separated blocks into a single block and changing the document
+	
+	: This is a single block               : This is a single block
+	: of text                              : of text
+	                                ->     great jorb
+	: And this is another single           : And this is another single
+	: block of text                        : block of text
+
+    : [] block 1 choice A                  : [] block 1 choice A
+    : [] block 1 choice B                  : [] block 1 choice B
+                                           derp
+    : [] block 2 choice A                  : [] block 2 choice A
+    : [] block 2 choice B                  : [] block 2 choice B
+
+[*] Maybe some kind of separator line - one which is unobtrusive yet doesnt
+	invite the recipient to write on it
+
+	: This is a single block               : This is a single block
+	: of text                              : of text
+	: - - - - -                            : - - - - - 
+	                                ->     great jorb
+	: And this is another single           : And this is another single
+	: block of text                        : block of text
+
+    : [] block 1 choice A                  : [] block 1 choice A
+    : [] block 1 choice B                  : [] block 1 choice B
+    : - - - - -                            : - - - - -
+                                           derp
+    : [] block 2 choice A                  : [] block 2 choice A
+    : [] block 2 choice B                  : [] block 2 choice B
+
+[*] Maybe choice blocks MUST be separated by text or instruction blocks.
+	After all, the following is kind of ambiguous:
+	
+	: [] Option A
+	:		-- is great
+	: [] Option B
+	
+	: [] Option C
+	: [] Option D
+
+[!] Can't have choice response on its own line because description part
+	is expected at start of line. 
+[*] Allow optional description newlines before and after separator
+
+	: [] Option A
+	VALID!
+	~~~~~~~~~~~~~
+	: [] Option A -- is great
+	VALID!
+	~~~~~~~~~~~~~
+	: [] Option A --
+	:		is great
+	VALID!
+	~~~~~~~~~~~~~
+	: [] Option A
+	:		-- is great
+	VALID
+	~~~~~~~~~~~~~
+	: [] Option A
+	
+	:		-- is great
+	NOT VALID
+	~~~~~~~~~~~~~
+	: [] Option A --
+	
+	: is great
+	NOT VALID
+	~~~~~~~~~~~~~
+	: [] Option A
+	:
+	: -- is great
+	NOT VALID
+	~~~~~~~~~~~~~
+	: [] Option A --
+	:
+	: is great
+	NOT VALID
+	~~~~~~~~~~~~~
+	: [] Option A
+	:--
+	: is great
+	VALID!
+	
+<Choice> ::= <QuoteMarker>? <TextLineMarker> <LineWhitespace>? <ChoiceMarker> <ChoiceDescription> <ChoiceResponse>?
+<ChoiceResponse> ::= <ChoiceDescNewline>? <ChoiceResponseSeparator> <ChoiceDescNewline>? <ChoiceResponseDesc>? <ChoiceResponseGoto>?
+
+
+QM TLM LW CM CDP CDN CRS CRDP N
+
+QM TLM LW CM CDR CRS CDN CRDP N
+
+P (N P)* ( N? S N? P (N P)* )?
+
+[*] Make ChoiceDescNewline a reused symbol.
