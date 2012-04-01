@@ -1,3 +1,12 @@
+# TODO: Should have optional whitespace between choice marker
+#	and description, so that blank choice description is not 
+#	allowed
+# TODO: Should perhaps disallow choice marker in text line,
+#	to avoid bad choice syntax becoming text line.
+# TODO: Should I allow the GO TO marker as an alternative 
+#	description-response separator? e.g. :[] foo GO TO bar
+# TODO: Should I allow the alternative GOTO (no space) goto 
+#	marker?
 # TODO: Currently can't put choice response on its own line 
 #	because treated as text line. Should allow a description
 #	newline between description and response. Maybe one either 
@@ -51,7 +60,7 @@ ChoiceResponse <- ChoiceDescNewline? ChoiceResponseSeparator ( ChoiceDescNewline
 ChoiceResponseSeparator <- '--'
 ChoiceResponseDesc <-- ChoiceResponseDescPart ( ChoiceDescNewline ChoiceReponseDescPart )*
 ChoiceResponseDescPart <- ( '[a-zABCDEFHIJKLMNOPQRSTUVWXYZZ0-9_ \t`!"$%^&*()_+=[{};:'@#~,<.>/?\|-]' | 'G' !'O TO' )+
-ChoiceGoto <- GotoMarker LineWhitespace? Name EndPunctuation?
+ChoiceGoto <- ChoiceDescNewline? GotoMarker LineWhitespace? Name EndPunctuation?
 GotoMarker <- 'GO TO'
 EndPunctuation <- '[.,:;!?]+'
 Heading <- QuoteMarker? HeadingMarker LineWhitespace? Name HeadingMarker Newline
@@ -788,15 +797,24 @@ class ChoiceResponse(object):
 	@staticmethod
 	def parse(input):
 		input = input.branch()
+
+		Optional(ChoiceDescNewline).parse(input)
 		
 		if ChoiceResponseSeparator.parse(input) is None: return None
-		
-		desc = Optional(ChoiceResponseDesc).parse(input)
-		if desc is None: return None
-						
-		goto = Optional(ChoiceGoto).parse(input)
-		if goto is None: return None
-						
+
+		result = Sequence(
+			Optional(ChoiceDescNewline),
+			ChoiceResponseDesc,
+			Optional(ChoiceGoto)).parse(input)
+		if result is not None:
+			desc = result[1]
+			goto = result[2]
+		else:
+			result = ChoiceGoto.parse(input)
+			if result is None: return None
+			desc = False
+			goto = result
+
 		input.commit()
 		return ChoiceResponse(desc if desc is not False else Empty(),
 			goto if goto is not False else Empty())
@@ -883,6 +901,8 @@ class ChoiceGoto(object):
 	@staticmethod
 	def parse(input):
 		input = input.branch()
+
+		Optional(ChoiceDescNewline).parse(input)
 		
 		if GotoMarker.parse(input) is None: return None
 		
@@ -1240,8 +1260,7 @@ Put here as a test
 """
 
 s = """\
-: [] Option A
-:	-- is great
+:[foo] bar
 """
 
 if __name__ == "__main__":

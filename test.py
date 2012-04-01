@@ -1,7 +1,5 @@
 #!/usr/bin/python2
 
-# TODO: test for extra ChoiceResponseNewlines in ChoiceResponseDesc
-
 import sys
 import mock
 import unittest
@@ -1494,64 +1492,97 @@ class TestChoiceResponse(unittest.TestCase):
 		with self.assertRaises(AttributeError):
 			r.goto = "weh"
 		
-	@mock_statics(dt,"ChoiceResponseSeparator.parse",
+	@mock_statics(dt,"ChoiceResponseSeparator.parse","ChoiceDescNewline.parse",
 			"ChoiceResponseDesc.parse","ChoiceGoto.parse")	
 	def test_parse_returns_populated_choiceresponse(self):
+		dt.ChoiceDescNewline.parse.side_effect = make_parse({"n":object()})
 		dt.ChoiceResponseSeparator.parse.side_effect = make_parse({"s":object()})
 		d = object()	
 		dt.ChoiceResponseDesc.parse.side_effect = make_parse({"d":d})
 		g = object()
 		dt.ChoiceGoto.parse.side_effect = make_parse({"g":g})
-		result = dt.ChoiceResponse.parse(MockInput("sdg$"))
+		result = dt.ChoiceResponse.parse(MockInput("nsndg$"))
 		self.assertTrue( isinstance(result,dt.ChoiceResponse) )
 		self.assertTrue( hasattr(result,"description") )
 		self.assertEquals(d, result.description)
 		self.assertTrue( hasattr(result,"goto") )
 		self.assertEquals(g, result.goto)
 		
-	@mock_statics(dt,"ChoiceResponseSeparator.parse",
+	@mock_statics(dt,"ChoiceResponseSeparator.parse","ChoiceDescNewline.parse",
 			"ChoiceResponseDesc.parse","ChoiceGoto.parse")	
-	def test_parse_expects_choiceresponseseparator(self):
+	def test_parse_allows_no_first_choicedescnewline(self):
+		dt.ChoiceDescNewline.parse.side_effect = make_parse({"n":object()})
 		dt.ChoiceResponseSeparator.parse.side_effect = make_parse({"s":object()})
 		dt.ChoiceResponseDesc.parse.side_effect = make_parse({"d":object()})
 		dt.ChoiceGoto.parse.side_effect = make_parse({"g":object()})
-		self.assertIsNone( dt.ChoiceResponse.parse(MockInput("$")) )
+		self.assertIsNotNone( dt.ChoiceResponse.parse(MockInput("sndg$")) )
+		
+	@mock_statics(dt,"ChoiceResponseSeparator.parse","ChoiceDescNewline.parse",
+			"ChoiceResponseDesc.parse","ChoiceGoto.parse")	
+	def test_parse_expects_choiceresponseseparator(self):
+		dt.ChoiceDescNewline.parse.side_effect = make_parse({"n":object()})
+		dt.ChoiceResponseSeparator.parse.side_effect = make_parse({"s":object()})
+		dt.ChoiceResponseDesc.parse.side_effect = make_parse({"d":object()})
+		dt.ChoiceGoto.parse.side_effect = make_parse({"g":object()})
+		self.assertIsNone( dt.ChoiceResponse.parse(MockInput("n$")) )
 		self.assertFalse( dt.ChoiceResponseDesc.parse.called )
 		self.assertFalse( dt.ChoiceGoto.parse.called )
 		
-	@mock_statics(dt,"ChoiceResponseSeparator.parse",
+	@mock_statics(dt,"ChoiceResponseSeparator.parse","ChoiceDescNewline.parse",
 			"ChoiceResponseDesc.parse","ChoiceGoto.parse")	
-	def test_parse_allows_no_choiceresponsedesc(self):
+	def test_parse_allows_no_choicedescnewline_for_choiceresponsedesc(self):
+		dt.ChoiceDescNewline.parse.side_effect = make_parse({"n":object()})
 		dt.ChoiceResponseSeparator.parse.side_effect = make_parse({"s":object()})
 		dt.ChoiceResponseDesc.parse.side_effect = make_parse({"d":object()})
 		dt.ChoiceGoto.parse.side_effect = make_parse({"g":object()})
-		self.assertIsNotNone( dt.ChoiceResponse.parse(MockInput("sg$")) )
+		self.assertIsNotNone( dt.ChoiceResponse.parse(MockInput("nsdg$")) )
 		
-	@mock_statics(dt,"ChoiceResponseSeparator.parse",
+	@mock_statics(dt,"ChoiceResponseSeparator.parse","ChoiceDescNewline.parse",
 			"ChoiceResponseDesc.parse","ChoiceGoto.parse")	
-	def test_parse_allows_no_choicegoto(self):
+	def test_parse_allows_choicegoto_and_no_choiceresponsedesc(self):
+		dt.ChoiceDescNewline.parse.side_effect = make_parse({"n":object()})
 		dt.ChoiceResponseSeparator.parse.side_effect = make_parse({"s":object()})
 		dt.ChoiceResponseDesc.parse.side_effect = make_parse({"d":object()})
 		dt.ChoiceGoto.parse.side_effect = make_parse({"g":object()})
-		self.assertIsNotNone( dt.ChoiceResponse.parse(MockInput("sd$")) )
+		self.assertIsNotNone( dt.ChoiceResponse.parse(MockInput("nsg$")) )
 		
-	@mock_statics(dt,"ChoiceResponseSeparator.parse",
+	@mock_statics(dt,"ChoiceResponseSeparator.parse","ChoiceDescNewline.parse",
+			"ChoiceResponseDesc.parse","ChoiceGoto.parse")	
+	def test_parse_allows_choiceresponsedesc_and_no_choicegoto(self):
+		dt.ChoiceDescNewline.parse.side_effect = make_parse({"n":object()})
+		dt.ChoiceResponseSeparator.parse.side_effect = make_parse({"s":object()})
+		dt.ChoiceResponseDesc.parse.side_effect = make_parse({"d":object()})
+		dt.ChoiceGoto.parse.side_effect = make_parse({"g":object()})
+		self.assertIsNotNone( dt.ChoiceResponse.parse(MockInput("nsnd$")) )
+		
+	@mock_statics(dt,"ChoiceResponseSeparator.parse","ChoiceDescNewline.parse",
+			"ChoiceResponseDesc.parse","ChoiceGoto.parse")	
+	def test_parse_expects_either_choiceresponsedesc_or_choicegoto(self):
+		dt.ChoiceDescNewline.parse.side_effect = make_parse({"n":object()})
+		dt.ChoiceResponseSeparator.parse.side_effect = make_parse({"s":object()})
+		dt.ChoiceResponseDesc.parse.side_effect = make_parse({"d":object()})
+		dt.ChoiceGoto.parse.side_effect = make_parse({"g":object()})
+		self.assertIsNone( dt.ChoiceResponse.parse(MockInput("ns$")) )
+		
+	@mock_statics(dt,"ChoiceResponseSeparator.parse","ChoiceDescNewline.parse",
 			"ChoiceResponseDesc.parse","ChoiceGoto.parse")	
 	def test_parse_consumes_input_on_success(self):
+		dt.ChoiceDescNewline.parse.side_effect = make_parse({"n":object()})
 		dt.ChoiceResponseSeparator.parse.side_effect = make_parse({"s":object()})
 		dt.ChoiceResponseDesc.parse.side_effect = make_parse({"d":object()})
 		dt.ChoiceGoto.parse.side_effect = make_parse({"g":object()})
-		i = MockInput("sdg$")
+		i = MockInput("nsndg$")
 		dt.ChoiceResponse.parse(i)
-		self.assertEquals(3, i.pos)
+		self.assertEquals(5, i.pos)
 		
-	@mock_statics(dt,"ChoiceResponseSeparator.parse",
+	@mock_statics(dt,"ChoiceResponseSeparator.parse","ChoiceDescNewline.parse",
 			"ChoiceResponseDesc.parse","ChoiceGoto.parse")	
 	def test_parse_doesnt_consume_input_on_failure(self):
+		dt.ChoiceDescNewline.parse.side_effect = make_parse({"n":object()})	
 		dt.ChoiceResponseSeparator.parse.side_effect = make_parse({"s":object()})
 		dt.ChoiceResponseDesc.parse.side_effect = make_parse({"d":object()})
 		dt.ChoiceGoto.parse.side_effect = make_parse({"g":object()})
-		i = MockInput("z$")
+		i = MockInput("nsn$")
 		dt.ChoiceResponse.parse(i)
 		self.assertEquals(0, i.pos)
 
@@ -1724,77 +1755,94 @@ class TestChoiceGoto(unittest.TestCase):
 			g.name = "bar"
 			
 	@mock_statics(dt,"GotoMarker.parse","LineWhitespace.parse",
-			"Name.parse","EndPunctuation.parse")
+			"Name.parse","EndPunctuation.parse","ChoiceDescNewline.parse")
 	def test_parse_returns_choicegoto(self):
+		dt.ChoiceDescNewline.parse.side_effect = make_parse({"l":object()})
 		dt.GotoMarker.parse.side_effect = make_parse({"m":object()})
 		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
 		n = object()
 		dt.Name.parse.side_effect = make_parse({"n":n})
 		dt.EndPunctuation.parse.side_effect = make_parse({"e":object()})
-		result = dt.ChoiceGoto.parse(MockInput("mwne$"))
+		result = dt.ChoiceGoto.parse(MockInput("lmwne$"))
 		self.assertTrue( isinstance(result,dt.ChoiceGoto) )
 		self.assertTrue( hasattr(result,"name") )
 		self.assertEquals( n, result.name )
 
 	@mock_statics(dt,"GotoMarker.parse","LineWhitespace.parse",
-			"Name.parse","EndPunctuation.parse")
-	def test_parse_expects_gotomarker(self):
+			"Name.parse","EndPunctuation.parse","ChoiceDescNewline.parse")
+	def test_parse_allows_no_choicedescnewline(self):
+		dt.ChoiceDescNewline.parse.side_effect = make_parse({"l":object()})
 		dt.GotoMarker.parse.side_effect = make_parse({"m":object()})
 		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
 		dt.Name.parse.side_effect = make_parse({"n":object()})
 		dt.EndPunctuation.parse.side_effect = make_parse({"e":object()})
-		self.assertIsNone( dt.ChoiceGoto.parse(MockInput("wne$")) )
+		self.assertIsNotNone( dt.ChoiceGoto.parse(MockInput("mwne$")) )
+
+	@mock_statics(dt,"GotoMarker.parse","LineWhitespace.parse",
+			"Name.parse","EndPunctuation.parse","ChoiceDescNewline.parse")
+	def test_parse_expects_gotomarker(self):
+		dt.ChoiceDescNewline.parse.side_effect = make_parse({"l":object()})
+		dt.GotoMarker.parse.side_effect = make_parse({"m":object()})
+		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
+		dt.Name.parse.side_effect = make_parse({"n":object()})
+		dt.EndPunctuation.parse.side_effect = make_parse({"e":object()})
+		self.assertIsNone( dt.ChoiceGoto.parse(MockInput("lwne$")) )
 		self.assertFalse( dt.LineWhitespace.parse.called )
 		self.assertFalse( dt.Name.parse.called )
 		self.assertFalse( dt.EndPunctuation.parse.called )
 		
 	@mock_statics(dt,"GotoMarker.parse","LineWhitespace.parse",
-			"Name.parse","EndPunctuation.parse")
+			"Name.parse","EndPunctuation.parse","ChoiceDescNewline.parse")
 	def test_parse_allows_no_linewhitespace(self):
+		dt.ChoiceDescNewline.parse.side_effect = make_parse({"l":object()})
 		dt.GotoMarker.parse.side_effect = make_parse({"m":object()})
 		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
 		dt.Name.parse.side_effect = make_parse({"n":object()})
 		dt.EndPunctuation.parse.side_effect = make_parse({"e":object()})
-		self.assertIsNotNone( dt.ChoiceGoto.parse(MockInput("mne$")) )
+		self.assertIsNotNone( dt.ChoiceGoto.parse(MockInput("lmne$")) )
 		
 	@mock_statics(dt,"GotoMarker.parse","LineWhitespace.parse",
-			"Name.parse","EndPunctuation.parse")
+			"Name.parse","EndPunctuation.parse","ChoiceDescNewline.parse")
 	def test_parse_expects_name(self):
+		dt.ChoiceDescNewline.parse.side_effect = make_parse({"l":object()})
 		dt.GotoMarker.parse.side_effect = make_parse({"m":object()})
 		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
 		dt.Name.parse.side_effect = make_parse({"n":object()})
 		dt.EndPunctuation.parse.side_effect = make_parse({"e":object()})
-		self.assertIsNone( dt.ChoiceGoto.parse(MockInput("mwe$")) )
+		self.assertIsNone( dt.ChoiceGoto.parse(MockInput("lmwe$")) )
 		self.assertFalse( dt.EndPunctuation.parse.called )
 		
 	@mock_statics(dt,"GotoMarker.parse","LineWhitespace.parse",
-			"Name.parse","EndPunctuation.parse")
+			"Name.parse","EndPunctuation.parse","ChoiceDescNewline.parse")
 	def test_parse_allows_no_endpunctuation(self):
+		dt.ChoiceDescNewline.parse.side_effect = make_parse({"l":object()})
 		dt.GotoMarker.parse.side_effect = make_parse({"m":object()})
 		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
 		dt.Name.parse.side_effect = make_parse({"n":object()})
 		dt.EndPunctuation.parse.side_effect = make_parse({"e":object()})
-		self.assertIsNotNone( dt.ChoiceGoto.parse(MockInput("mwn$")) )
+		self.assertIsNotNone( dt.ChoiceGoto.parse(MockInput("lmwn$")) )
 		
 	@mock_statics(dt,"GotoMarker.parse","LineWhitespace.parse",
-			"Name.parse","EndPunctuation.parse")
+			"Name.parse","EndPunctuation.parse","ChoiceDescNewline.parse")
 	def test_parse_consumes_input_on_success(self):
+		dt.ChoiceDescNewline.parse.side_effect = make_parse({"l":object()})
 		dt.GotoMarker.parse.side_effect = make_parse({"m":object()})
 		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
 		dt.Name.parse.side_effect = make_parse({"n":object()})
 		dt.EndPunctuation.parse.side_effect = make_parse({"e":object()})
-		i = MockInput("mwne$")
+		i = MockInput("lmwne$")
 		dt.ChoiceGoto.parse(i)
-		self.assertEquals(4,i.pos)
+		self.assertEquals(5,i.pos)
 		
 	@mock_statics(dt,"GotoMarker.parse","LineWhitespace.parse",
-			"Name.parse","EndPunctuation.parse")
+			"Name.parse","EndPunctuation.parse","ChoiceDescNewline.parse")
 	def test_parse_doesnt_consume_input_on_failure(self):
+		dt.ChoiceDescNewline.parse.side_effect = make_parse({"l":object()})
 		dt.GotoMarker.parse.side_effect = make_parse({"m":object()})
 		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
 		dt.Name.parse.side_effect = make_parse({"n":object()})
 		dt.EndPunctuation.parse.side_effect = make_parse({"e":object()})
-		i = MockInput("mwq$")
+		i = MockInput("lmwq$")
 		dt.ChoiceGoto.parse(i)
 		self.assertEquals(0,i.pos)
 
