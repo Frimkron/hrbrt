@@ -1,16 +1,5 @@
-# TODO: Should have optional whitespace between choice marker
-#	and description, so that blank choice description is not 
-#	allowed
-# TODO: Should perhaps disallow choice marker in text line,
-#	to avoid bad choice syntax becoming text line.
-# TODO: Should I allow the GO TO marker as an alternative 
-#	description-response separator? e.g. :[] foo GO TO bar
-# TODO: Should I allow the alternative GOTO (no space) goto 
-#	marker?
-# TODO: Currently can't put choice response on its own line 
-#	because treated as text line. Should allow a description
-#	newline between description and response. Maybe one either 
-#	side of separator?
+# TODO: Not sure about disallowing choicemarker at start of
+#	text line. It may confuse more than help
 # TODO: Blocks should not be broken by blank lines or feedback.
 #	- feedback blocks should be combined in each section and put
 #	in their own attribute
@@ -24,7 +13,6 @@
 #		user to stop reading (though an explicit end section is 
 #		just as easy to author)
 # TODO: Allow gotos at the end of sections.
-# TODO: No need for Empty() any more - just use None
 # TODO: Probably no need for line nodes in AST
 # TODO: Command line recipient usage 
 # TODO: Command line sender usage
@@ -48,7 +36,7 @@ FeedbackBlock <- ( !( InstructionLine TextLine Choice Heading ) FeedbackLine )+ 
 QuoteMarker <- '([ \t]*>)+'
 LineWhitespace <- '[ \t]+'
 Newline <- '(\r\n|\r|\n)'
-Choice <- QuoteMarker? TextLineMarker LineWhitespace? ChoiceMarker ChoiceDescription ChoiceResponse? Newline
+Choice <- QuoteMarker? TextLineMarker LineWhitespace? ChoiceMarker LineWhitespace? ChoiceDescription ChoiceResponse? Newline
 ChoiceMarker <- ChoiceMarkerOpen LineWhitespace? ChoiceMarkerText? ChoiceMarkerClose
 ChoiceMarkerOpen <- '['
 ChoiceMarkerText <- '[a-zA-Z0-9_- \t`!"$%^&*()_+=[{};:'@#~,<.>/?\|]+'
@@ -69,7 +57,7 @@ Name <- '[a-zA-Z0-9_-][a-zA-Z0-9_ -]*'
 InstructionLine <- QuoteMarker? InstructionLineMarker LineWhitespace? LineText Newline
 InstructionLineMarker <- '%'
 LineText <- '[a-zA-Z0-9_- \t`!"$%^&*()_+=[{]};:'@#~,<.>/?\|]+'
-TextLine <- QuoteMarker? TextLineMarker LineWhitespace? LineText Newline
+TextLine <- QuoteMarker? TextLineMarker LineWhitespace? !ChoiceMarker LineText Newline
 TextLineMarker <- ':'
 FeedbackLine <- QuoteMarker? !( TextLineMarker | InstructionLineMarker ) LineText Newline
 """
@@ -183,8 +171,8 @@ class Document(object):
 			for b in s.content.items:
 				if isinstance(b,ChoiceBlock):
 					for c in b.choices:
-						if( not isinstance(c.response,Empty)
-								and not isinstance(c.response.goto,Empty)):
+						if( c.response is not None
+								and c.response.goto is not None ):
 							n = c.response.goto.name.text
 							if n not in secnames:
 								raise ValidationError("Goto references unknown section '%s'" % n)
@@ -476,6 +464,8 @@ class TextLine(object):
 		if TextLineMarker.parse(input) is None: return None
 	
 		Optional(LineWhitespace).parse(input)
+
+		if Not(ChoiceMarker).parse(input) is None: return None
 	
 		text = LineText.parse(input)
 		if text is None: return None
@@ -617,6 +607,8 @@ class Choice(object):
 		
 		marker = ChoiceMarker.parse(input)
 		if marker is None: return None
+
+		Optional(LineWhitespace).parse(input)
 		
 		desc = ChoiceDescription.parse(input)
 		if desc is None: return None
@@ -627,16 +619,9 @@ class Choice(object):
 		if Newline.parse(input) is None: return None
 		
 		input.commit()
-		return Choice(marker,desc,resp if resp is not False else Empty())
+		return Choice(marker,desc,resp if resp is not False else None)
 		
 
-class Empty(object):
-	"""A null object used to mark data which isn't present"""
-	
-	def __repr__(self):	
-		return "Empty()"
-	
-		
 class ChoiceMarker(object):
 	
 	_text = None
@@ -662,7 +647,7 @@ class ChoiceMarker(object):
 		if ChoiceMarkerClose.parse(input) is None: return None
 		
 		input.commit()
-		return ChoiceMarker(text if text is not False else Empty())
+		return ChoiceMarker(text if text is not False else None)
 		
 
 class ChoiceMarkerOpen(object):
@@ -816,8 +801,8 @@ class ChoiceResponse(object):
 			goto = result
 
 		input.commit()
-		return ChoiceResponse(desc if desc is not False else Empty(),
-			goto if goto is not False else Empty())
+		return ChoiceResponse(desc if desc is not False else None,
+			goto if goto is not False else None)
 			
 
 class ChoiceResponseSeparator(object):
@@ -1260,7 +1245,9 @@ Put here as a test
 """
 
 s = """\
-:[foo] bar
+: This is a text block
+: []
+: Yippe K-I-AY
 """
 
 if __name__ == "__main__":
