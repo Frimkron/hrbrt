@@ -71,6 +71,160 @@ cardinality, the method leaves the mock input at the correct position.
 	
 	: [] Option C
 	: [] Option D
+	
+[!] Sender may want a specific break in a text block - i.e. to split 
+	into distinct paragraphs
+[?] Is this that much of an issue? What effect would it have if the 
+	recipient inadvertantly combined paragraphs in the response?
+[!] Another potential issue is that the author might be confused that 
+	text and instruction blocks are separated by blank lines, but 
+	choice blocks aren't.
+[!] The recipient, too, may be confused by separated choice blocks - 
+	it would no longer be obvious which choices are together
+[*] So disallow blank lines in the middle of choices - simple
+
+	:	This is text block 1
+	:	it continues on this line
+	lol wut
+	:	This is a separate text block which 
+	:	would be its own paragraph, but recipient
+	:	has combined them by writing in the blank
+	:	line
+	
+	:	[] This is a choice block
+	
+	:	[] This choice block is illegal becausee they *must*
+	:		be separated by other blocks
+	lol wut
+	:	[] This block is allowed because the feedback makes
+	:		it part of the block above
+	
+[!] Recipient could add blank lines and break document structure
+
+[*] Another option is to have specific syntax for the start of a block
+	e.g:
+	
+	::	Start of text block is here
+	: 	and continues onto further lines
+	
+	%%	Start of instruction block is here
+	%	and continues onto further lines
+	
+	%	The blank lines above does not break 
+	%	the block, because we know explicitly
+	% 	when a new one is started
+	
+	::	[] Start of choice block is here
+	:	[] and continues onto further lines
+	
+	:	[] Blank lines above does not break
+	:	[] The choice block. But is that confusing?
+
+[*] But maybe a text block *should* be separated when the user inserts
+	feedback in the middle of it - after all, we want feedback to be 
+	associated with the right part of the document
+[?] Do we? This is something of a feature creep - how would a command
+	line based reader allow for user feedback between paragraphs?
+	It's always been assumed that feedback would be like a "comments"
+	section associated with whole choice blocks or even whole sections.
+
+- Possible syntax ideas:
+
+	. A text block
+	: with explicit
+	: start marker.
+	: Can you spot it?
+	
+	, An instruction block
+	; with explicit start
+	; marker. Found it?
+	
+	. [] A choice block
+	: [] With explicit start
+	: [] Blank lines still are
+	: [] Not allowed inbetween
+	
+[?] Too easy for author to forget the opening syntax and/or make typos?
+
+	:: A text block
+	:  which goes on
+	:  Not allowed consecutive 
+	:  opening markers
+	
+	;; An instruction block
+	;  which goes on
+	
+	:: [] Option A
+	:  [] Option B
+	
+	----
+	
+	`` A text block
+	`  which goes on
+	
+	----
+	
+	|| Pipes are another 
+	|  option. But do they
+	|  look too much like Ls
+	|  or 1s?
+	
+	|: Start of block
+	|  continuation
+	
+	+: Instruction
+	+  block
+	+  goes here
+	
+	%: Instruction
+	%  block is here
+	%: The colon is 
+	%  kinda nice.
+	
+	:: Text block
+	:  blah blah
+	
+	%% Are double percents
+	%  really all that bad?
+	
+	|: [] Hello
+	|  [] Goodbye
+	|  [] Pipe colon looks like a smiley
+	
+	
+[?] Why not allow consequtive opening markers?
+- Because it would confuse recipient in the case of choice blocks
+[*] Choice blocks have to be separated by other blocks anyway
+[!] Backticks are ugly and confusing
+
+[!] Opening block syntax still doesn't solve issue of blank lines between
+	choice lines. Either author is allowed to confuse recipient, or 
+	recipient is allowed to break document structure.
+[?] Is it really all that confusing to have separated choice lines?
+	Typically the author has to ask a question with a text block for 
+	a set of choice lines to make sense
+
+	::	Yo what's up?
+	
+	::	[] Not a lot
+	:	[] Lots of stuff
+	
+	
+	:	[] Cats
+	:	[] Dogs
+	
+[*] Ultimately, if the author creates a document which the recipient
+	gets confused by and doesn't complete in the way they hoped, there's
+	not a lot that can be done
+	- There will always be ways for the recipient to mess up
+	- The method that lessens the chance of the recipient destroying 
+		the syntax should be the priority.
+	- Having them mark 2 answers in a set, or leave a set out, isn't
+		that major and could happen anyway, if they wrongly assume
+		they can tick all that apply.
+[*] So, choice blocks continue, ignoring feedback and blank lines,  
+	until the next block opening. And consecutive choice blocks are 
+	not allowed at all.
 
 [!] Can't have choice response on its own line because description part
 	is expected at start of line. 

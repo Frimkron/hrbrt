@@ -1,3 +1,6 @@
+# TODO: Blank lines should break up blocks and feedback shouldn't.
+#	But recipient might write on the blank lines and change 
+#	document structure
 # TODO: Not sure about disallowing choicemarker at start of
 #	text line. It may confuse more than help
 # TODO: Blocks should not be broken by blank lines or feedback.
@@ -1245,9 +1248,9 @@ Put here as a test
 """
 
 s = """\
-: This is a text block
-: []
-: Yippe K-I-AY
+: This is a block of text
+lol wut
+: And this is another block
 """
 
 if __name__ == "__main__":
