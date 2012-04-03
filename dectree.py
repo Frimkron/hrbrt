@@ -1,3 +1,6 @@
+# TODO: FirstTextLine's place in TextBlock
+# TODO: FirstInstructionLine
+# TODO: FirstChoice
 # TODO: Blank lines should break up blocks and feedback shouldn't.
 #	But recipient might write on the blank lines and change 
 #	document structure
@@ -62,6 +65,8 @@ InstructionLineMarker <- '%'
 LineText <- '[a-zA-Z0-9_- \t`!"$%^&*()_+=[{]};:'@#~,<.>/?\|]+'
 TextLine <- QuoteMarker? TextLineMarker LineWhitespace? !ChoiceMarker LineText Newline
 TextLineMarker <- ':'
+FirstTextLineMarker <- '::'
+FirstTextLine <- QuoteMarker? FirstTextLineMarker LineWhitespace? !ChoiceMarker LineText Newline
 FeedbackLine <- QuoteMarker? !( TextLineMarker | InstructionLineMarker ) LineText Newline
 """
 
@@ -479,6 +484,38 @@ class TextLine(object):
 		return TextLine(text)
 
 
+class FirstTextLine(object):
+
+	_text = None
+	text = property(lambda s: s._text)
+	
+	def __init__(self,text):
+		self._text = text
+		
+	def __repr__(self):
+		return "FirstTextLine(%s)" % repr(self._text)
+
+	@staticmethod
+	def parse(input):
+		input = input.branch()
+	
+		Optional(QuoteMarker).parse(input)
+	
+		if FirstTextLineMarker.parse(input) is None: return None
+	
+		Optional(LineWhitespace).parse(input)
+
+		if Not(ChoiceMarker).parse(input) is None: return None
+	
+		text = LineText.parse(input)
+		if text is None: return None
+
+		if Newline.parse(input) is None: return None
+		
+		input.commit()	
+		return FirstTextLine(text)
+
+
 class TextLineMarker(object):
 
 	@staticmethod
@@ -487,6 +524,17 @@ class TextLineMarker(object):
 		if Char(":").parse(input) is None: return None
 		input.commit()
 		return TextLineMarker()
+
+
+class FirstTextLineMarker(object):
+
+	@staticmethod
+	def parse(input):
+		input = input.branch()
+		if Char(":").parse(input) is None: return None
+		if Char(":").parse(input) is None: return None
+		input.commit()
+		return FirstTextLineMarker()
 
 
 class LineText(object):
