@@ -1,5 +1,4 @@
-# TODO: FirstTextLine's place in TextBlock
-# TODO: FirstInstructionLine
+# TODO: First line in InstructionBlock
 # TODO: FirstChoice
 # TODO: Blank lines should break up blocks and feedback shouldn't.
 #	But recipient might write on the blank lines and change 
@@ -36,8 +35,8 @@ Section <- Heading SectionContent
 SectionContent <- BlankLine* ( ChoiceBlock | InstructionBlock | TextBlock |  FeedbackBlock )+
 BlankLine <- QuoteMarker? LineWhitespace? Newline
 ChoiceBlock <- Choice+ BlankLine*
-InstructionBlock <- InstructionLine+ BlankLine*
-TextBlock <- TextLine+ BlankLine*
+InstructionBlock <- FirstInstructionLine ( BlankLine | InstructionLine | FeedbackLine )*
+TextBlock <- FirstTextLine ( BlankLine | TextLine | FeedbackLine )*
 FeedbackBlock <- ( !( InstructionLine TextLine Choice Heading ) FeedbackLine )+ BlankLine*
 QuoteMarker <- '([ \t]*>)+'
 LineWhitespace <- '[ \t]+'
@@ -62,11 +61,13 @@ HeadingMarker <- '={2,}'
 Name <- '[a-zA-Z0-9_-][a-zA-Z0-9_ -]*'
 InstructionLine <- QuoteMarker? InstructionLineMarker LineWhitespace? LineText Newline
 InstructionLineMarker <- '%'
+FirstInstructionLine <- QuoteMarker? FirstInstructionLineMarker LineWhitespace? LineText Newline
+FirstInstructionLineMarker <- '%%'
 LineText <- '[a-zA-Z0-9_- \t`!"$%^&*()_+=[{]};:'@#~,<.>/?\|]+'
 TextLine <- QuoteMarker? TextLineMarker LineWhitespace? !ChoiceMarker LineText Newline
 TextLineMarker <- ':'
-FirstTextLineMarker <- '::'
 FirstTextLine <- QuoteMarker? FirstTextLineMarker LineWhitespace? !ChoiceMarker LineText Newline
+FirstTextLineMarker <- '::'
 FeedbackLine <- QuoteMarker? !( TextLineMarker | InstructionLineMarker ) LineText Newline
 """
 
@@ -404,26 +405,41 @@ class InstructionBlock(object):
 	
 class TextBlock(object):
 	
-	_lines = None
-	lines = property(lambda s: list(s._lines))
+	_text = None
+	text = property(lambda s: s._text)
+	_feedback = None
+	feedback = property(lambda s: s._feedback)
 	
-	def __init__(self,lines):
-		self._lines = lines
+	def __init__(self,text,feedback):
+		self._text = text
+		self._feedback = feedback
 		
 	def __repr__(self):
-		return "TextBlock(%s)" % repr(self._lines)
+		return "TextBlock(%s,%s)" % (
+			repr(self._text),repr(self._feedback) )
 	
 	@staticmethod
 	def parse(input):
 		input = input.branch()
 		
-		lines = OneOrMore(TextLine).parse(input)
-		if lines is None: return None
+		tlines = []
+		flines = []
 		
-		if ZeroOrMore(BlankLine).parse(input) is None: return None
+		l = FirstTextLine.parse(input)
+		if l is None: return None
+		tlines.append(l.text.text)
 		
+		while True:
+			l = Alternatives(BlankLine,TextLine,
+					FeedbackLine).parse(input)
+			if l is None: break
+			if isinstance(l,TextLine):
+				tlines.append(l.text.text)
+			elif isinstance(l,FeedbackLine):
+				flines.append(l.text.text)
+					
 		input.commit()
-		return TextBlock(lines)
+		return TextBlock(" ".join(tlines)," ".join(flines))
 	
 	
 class FeedbackBlock(object):
@@ -626,6 +642,47 @@ class InstructionLineMarker(object):
 		if Char('%').parse(input) is None: return None
 		input.commit()
 		return InstructionLineMarker()
+
+
+class FirstInstructionLine(object):
+	
+	_text = None
+	text = property(lambda s: s._text)
+	
+	def __init__(self,text):
+		self._text = text
+
+	def __repr__(self):
+		return "FirstInstructionLine(%s)" % repr(self._text)
+		
+	@staticmethod
+	def parse(input):
+		input = input.branch()	
+		
+		Optional(QuoteMarker).parse(input)
+		
+		if FirstInstructionLineMarker.parse(input) is None: return None
+		
+		Optional(LineWhitespace).parse(input)
+		
+		text = LineText.parse(input)
+		if text is None: return None
+		
+		if Newline.parse(input) is None: return None
+		
+		input.commit()
+		return FirstInstructionLine(text)
+
+
+class FirstInstructionLineMarker(object):
+
+	@staticmethod
+	def parse(input):
+		input = input.branch()
+		if Char('%').parse(input) is None: return None
+		if Char('%').parse(input) is None: return None
+		input.commit()
+		return FirstInstructionLineMarker()
 
 
 class Choice(object):
