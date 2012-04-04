@@ -1,5 +1,5 @@
-# TODO: First line in InstructionBlock
-# TODO: FirstChoice
+# TODO: Use TextLineContent for InstructionLines
+# TODO: FirstChoice - create ChoiceContent
 # TODO: Blank lines should break up blocks and feedback shouldn't.
 #	But recipient might write on the blank lines and change 
 #	document structure
@@ -64,10 +64,11 @@ InstructionLineMarker <- '%'
 FirstInstructionLine <- QuoteMarker? FirstInstructionLineMarker LineWhitespace? LineText Newline
 FirstInstructionLineMarker <- '%%'
 LineText <- '[a-zA-Z0-9_- \t`!"$%^&*()_+=[{]};:'@#~,<.>/?\|]+'
-TextLine <- QuoteMarker? TextLineMarker LineWhitespace? !ChoiceMarker LineText Newline
+TextLine <- QuoteMarker? TextLineMarker TextLineContent
 TextLineMarker <- ':'
-FirstTextLine <- QuoteMarker? FirstTextLineMarker LineWhitespace? !ChoiceMarker LineText Newline
+FirstTextLine <- QuoteMarker? FirstTextLineMarker TextLineContent
 FirstTextLineMarker <- '::'
+TextLineContent <- LineWhitespace? LineText Newline
 FeedbackLine <- QuoteMarker? !( TextLineMarker | InstructionLineMarker ) LineText Newline
 """
 
@@ -381,26 +382,40 @@ class ChoiceBlock(object):
 	
 class InstructionBlock(object):
 	
-	_lines = None
-	lines = property(lambda s: list(s._lines))
+	_text = None
+	text = property(lambda s: s._text)
+	_feedback = None
+	feedback = property(lambda s: s._feedback)
 	
-	def __init__(self,lines):
-		self._lines = lines
+	def __init__(self,text,feedback):
+		self._text = text
+		self._feedback = feedback
 		
 	def __repr__(self):	
-		return "InstructionBlock(%s)" % repr(self._lines)
+		return "InstructionBlock(%s,%s)" % (
+			repr(self._text),repr(self._feedback))
 		
 	@staticmethod
 	def parse(input):
 		input = input.branch()
 		
-		lines = OneOrMore(InstructionLine).parse(input)
-		if lines is None: return None
+		tlines = []
+		flines = []
 		
-		if ZeroOrMore(BlankLine).parse(input) is None: return None
+		l = FirstInstructionLine.parse(input)
+		if l is None: return None
+		tlines.append(l.text.text)
 		
+		while True:
+			l = Alternatives(BlankLine,InstructionLine,FeedbackLine).parse(input)
+			if l is None: break
+			if isinstance(l,InstructionLine):
+				tlines.append(l.text.text)
+			elif isinstance(l,FeedbackLine):
+				flines.append(l.text.text)
+				
 		input.commit()
-		return InstructionBlock(lines)
+		return InstructionBlock(" ".join(tlines)," ".join(flines))
 		
 	
 class TextBlock(object):
@@ -486,18 +501,12 @@ class TextLine(object):
 		Optional(QuoteMarker).parse(input)
 	
 		if TextLineMarker.parse(input) is None: return None
-	
-		Optional(LineWhitespace).parse(input)
 
-		if Not(ChoiceMarker).parse(input) is None: return None
-	
-		text = LineText.parse(input)
-		if text is None: return None
-
-		if Newline.parse(input) is None: return None
+		content = TextLineContent.parse(input)
+		if content is None: return None	
 		
 		input.commit()	
-		return TextLine(text)
+		return TextLine(content.text)
 
 
 class FirstTextLine(object):
@@ -518,18 +527,38 @@ class FirstTextLine(object):
 		Optional(QuoteMarker).parse(input)
 	
 		if FirstTextLineMarker.parse(input) is None: return None
-	
-		Optional(LineWhitespace).parse(input)
 
-		if Not(ChoiceMarker).parse(input) is None: return None
-	
-		text = LineText.parse(input)
-		if text is None: return None
-
-		if Newline.parse(input) is None: return None
+		content = TextLineContent.parse(input)
+		if content is None: return None	
 		
 		input.commit()	
-		return FirstTextLine(text)
+		return FirstTextLine(content.text)
+
+
+class TextLineContent(object):
+
+	_text = None
+	text = property(lambda s: s._text)
+
+	def __init__(self,text):
+		self._text = text
+		
+	def __repr__(self):	
+		return "TextLineContent(%s)" % repr(self._text)
+
+	@staticmethod
+	def parse(input):
+		input = input.branch()
+		
+		Optional(LineWhitespace).parse(input)
+		
+		text = LineText.parse(input)
+		if text is None: return None
+		
+		if Newline.parse(input) is None: return None
+		
+		input.commit()
+		return TextLineContent(text.text)
 
 
 class TextLineMarker(object):
