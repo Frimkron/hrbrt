@@ -59,9 +59,9 @@ EndPunctuation <- '[.,:;!?]+'
 Heading <- QuoteMarker? HeadingMarker LineWhitespace? Name HeadingMarker Newline
 HeadingMarker <- '={2,}'
 Name <- '[a-zA-Z0-9_-][a-zA-Z0-9_ -]*'
-InstructionLine <- QuoteMarker? InstructionLineMarker LineWhitespace? LineText Newline
+InstructionLine <- QuoteMarker? InstructionLineMarker TextLineContent
 InstructionLineMarker <- '%'
-FirstInstructionLine <- QuoteMarker? FirstInstructionLineMarker LineWhitespace? LineText Newline
+FirstInstructionLine <- QuoteMarker? FirstInstructionLineMarker TextLineContent
 FirstInstructionLineMarker <- '%%'
 LineText <- '[a-zA-Z0-9_- \t`!"$%^&*()_+=[{]};:'@#~,<.>/?\|]+'
 TextLine <- QuoteMarker? TextLineMarker TextLineContent
@@ -651,16 +651,12 @@ class InstructionLine(object):
 		Optional(QuoteMarker).parse(input)
 		
 		if InstructionLineMarker.parse(input) is None: return None
-		
-		Optional(LineWhitespace).parse(input)
-		
-		text = LineText.parse(input)
-		if text is None: return None
-		
-		if Newline.parse(input) is None: return None
+
+		text = TextLineContent.parse(input)
+		if text is None: return None		
 		
 		input.commit()
-		return InstructionLine(text)
+		return InstructionLine(text.text)
 
 
 class InstructionLineMarker(object):
@@ -691,16 +687,12 @@ class FirstInstructionLine(object):
 		Optional(QuoteMarker).parse(input)
 		
 		if FirstInstructionLineMarker.parse(input) is None: return None
-		
-		Optional(LineWhitespace).parse(input)
-		
-		text = LineText.parse(input)
-		if text is None: return None
-		
-		if Newline.parse(input) is None: return None
+
+		text = TextLineContent.parse(input)
+		if text is None: return None		
 		
 		input.commit()
-		return FirstInstructionLine(text)
+		return FirstInstructionLine(text.text)
 
 
 class FirstInstructionLineMarker(object):
