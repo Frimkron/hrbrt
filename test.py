@@ -553,7 +553,7 @@ class TestQuoteMarker(unittest.TestCase):
 		dt.QuoteMarker()
 		
 	def test_parse_returns_quotemarker(self):
-		result = dt.QuoteMarker.parse(MockInput(" \t>x",0,None))
+		result = dt.QuoteMarker.parse(MockInput(" \t> x",0,None))
 		self.assertTrue( isinstance(result,dt.QuoteMarker) )
 		
 	def test_parse_allows_no_whitespace(self):
@@ -563,7 +563,12 @@ class TestQuoteMarker(unittest.TestCase):
 		self.assertIsNone( dt.QuoteMarker.parse(MockInput("x",0,None)) )
 		
 	def test_parse_allows_multiple_markers(self):
-		self.assertIsNotNone( dt.QuoteMarker.parse(MockInput(" > > >x",0,None)) )
+		self.assertIsNotNone( dt.QuoteMarker.parse(MockInput(" > > > x",0,None)) )
+		
+	def test_parse_allows_trailing_whitespace(self):
+		i = MockInput(">\t x")
+		self.assertIsNotNone( dt.QuoteMarker.parse(i) )
+		self.assertEquals(3,i.pos)
 		
 	def test_parse_consumes_input_on_success(self):
 		i = MockInput("\t>x",0,None)
@@ -1302,8 +1307,11 @@ class TestTextLineMarker(unittest.TestCase):
 		result = dt.TextLineMarker.parse(MockInput(":$"))
 		self.assertTrue( isinstance(result,dt.TextLineMarker) )
 		
-	def test_parse_expects_color(self):
+	def test_parse_expects_colon(self):
 		self.assertIsNone( dt.TextLineMarker.parse(MockInput("$")) )
+
+	def test_parse_rejects_second_colon(self):
+		self.assertIsNone( dt.TextLineMarker.parse(MockInput("::$")) )
 		
 	def test_parse_consumes_input_on_success(self):
 		i = MockInput(":$")
@@ -2266,6 +2274,9 @@ class TestInstructionLineMarker(unittest.TestCase):
 
 	def test_parse_expects_percent(self):
 		self.assertIsNone( dt.InstructionLineMarker.parse(MockInput("z$")) )
+
+	def test_parse_rejects_second_percent(self):
+		self.assertIsNone( dt.InstructionLineMarker.parse(MockInput("%%$")) )
 		
 	def test_parse_consumes_input_on_success(self):
 		i = MockInput("%$")
@@ -2538,11 +2549,14 @@ class TestFeedbackLine(unittest.TestCase):
 			l.text = "bar"
 			
 	@mock_statics(dt,"QuoteMarker.parse","LineText.parse","Newline.parse",
-			"TextLineMarker.parse","InstructionLineMarker.parse")
+			"TextLineMarker.parse","InstructionLineMarker.parse",
+			"FirstTextLineMarker.parse", "FirstInstructionLineMarker.parse")
 	def test_parse_returns_populated_feedbackline(self):
 		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
 		dt.InstructionLineMarker.parse.side_effect = make_parse({"i":object()})
+		dt.FirstInstructionLineMarker.parse.side_effect = make_parse({"I":object()})
 		dt.TextLineMarker.parse.side_effect = make_parse({"m":object()})
+		dt.FirstTextLineMarker.parse.side_effect = make_parse({"M":object()})
 		dt.LineText.parse.side_effect = make_parse({"t":dt.LineText("foo")})
 		dt.Newline.parse.side_effect = make_parse({"l":object()})
 		result = dt.FeedbackLine.parse(MockInput("qtl$"))
@@ -2551,64 +2565,110 @@ class TestFeedbackLine(unittest.TestCase):
 		self.assertEquals( "foo", result.text )
 	
 	@mock_statics(dt,"QuoteMarker.parse","LineText.parse","Newline.parse",
-			"TextLineMarker.parse","InstructionLineMarker.parse")
+			"TextLineMarker.parse","InstructionLineMarker.parse",
+			"FirstTextLineMarker.parse", "FirstInstructionLineMarker.parse")
 	def test_parse_allows_no_quotemarker(self):
 		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
 		dt.InstructionLineMarker.parse.side_effect = make_parse({"i":object()})	
+		dt.FirstInstructionLineMarker.parse.side_effect = make_parse({"I":object()})
 		dt.TextLineMarker.parse.side_effect = make_parse({"m":object()})
+		dt.FirstTextLineMarker.parse.side_effect = make_parse({"M":object()})
 		dt.LineText.parse.side_effect = make_parse({"t":dt.LineText("a")})
 		dt.Newline.parse.side_effect = make_parse({"l":object()})
 		self.assertIsNotNone( dt.FeedbackLine.parse(MockInput("tl$")) )
 	
 	@mock_statics(dt,"QuoteMarker.parse","LineText.parse","Newline.parse",
-			"TextLineMarker.parse","InstructionLineMarker.parse")
+			"TextLineMarker.parse","InstructionLineMarker.parse",
+			"FirstTextLineMarker.parse", "FirstInstructionLineMarker.parse")
 	def test_parse_expects_linetext(self):
 		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
 		dt.InstructionLineMarker.parse.side_effect = make_parse({"i":object()})	
-		dt.TextLineMarker.parse.side_effect = make_parse({"m":object()})		
+		dt.FirstInstructionLineMarker.parse.side_effect = make_parse({"I":object()})
+		dt.TextLineMarker.parse.side_effect = make_parse({"m":object()})
+		dt.FirstTextLineMarker.parse.side_effect = make_parse({"M":object()})
 		dt.LineText.parse.side_effect = make_parse({"t":dt.LineText("a")})
 		dt.Newline.parse.side_effect = make_parse({"l":object()})
 		self.assertIsNone( dt.FeedbackLine.parse(MockInput("ql$")) )
 		self.assertFalse( dt.Newline.parse.called )
 
 	@mock_statics(dt,"QuoteMarker.parse","LineText.parse","Newline.parse",
-			"TextLineMarker.parse","InstructionLineMarker.parse")
+			"TextLineMarker.parse","InstructionLineMarker.parse",
+			"FirstTextLineMarker.parse", "FirstInstructionLineMarker.parse")
 	def test_parse_checks_for_and_rejects_textlinemarker(self):
 		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
 		dt.InstructionLineMarker.parse.side_effect = make_parse({"i":object()})	
+		dt.FirstInstructionLineMarker.parse.side_effect = make_parse({"I":object()})
 		dt.LineText.parse.side_effect = make_parse({"t":dt.LineText("a")})
 		dt.TextLineMarker.parse.side_effect = make_parse({"t":object()})
+		dt.FirstTextLineMarker.parse.side_effect = make_parse({"T":object()})
 		dt.Newline.parse.side_effect = make_parse({"l":object()})
 		self.assertIsNone( dt.FeedbackLine.parse(MockInput("qtl$")) )
 		self.assertFalse( dt.Newline.parse.called )
 	
 	@mock_statics(dt,"QuoteMarker.parse","LineText.parse","Newline.parse",
-			"TextLineMarker.parse","InstructionLineMarker.parse")
+			"TextLineMarker.parse","InstructionLineMarker.parse",
+			"FirstTextLineMarker.parse", "FirstInstructionLineMarker.parse")
 	def test_parse_checks_for_and_rejects_instructionlinemarker(self):
 		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
 		dt.TextLineMarker.parse.side_effect = make_parse({"m":object()})		
+		dt.FirstTextLineMarker.parse.side_effect = make_parse({"M":object()})
 		dt.LineText.parse.side_effect = make_parse({"t":dt.LineText("a")})
 		dt.InstructionLineMarker.parse.side_effect = make_parse({"t":object()})
+		dt.FirstInstructionLineMarker.parse.side_effect = make_parse({"T":object()})
 		dt.Newline.parse.side_effect = make_parse({"l":object()})
 		self.assertIsNone( dt.FeedbackLine.parse(MockInput("qtl$")) )
 		self.assertFalse( dt.Newline.parse.called )
 	
 	@mock_statics(dt,"QuoteMarker.parse","LineText.parse","Newline.parse",
-			"TextLineMarker.parse","InstructionLineMarker.parse")
+			"TextLineMarker.parse","InstructionLineMarker.parse",
+			"FirstTextLineMarker.parse", "FirstInstructionLineMarker.parse")
+	def test_parse_checks_for_and_rejects_firstteextlinemarker(self):
+		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
+		dt.TextLineMarker.parse.side_effect = make_parse({"m":object()})		
+		dt.FirstTextLineMarker.parse.side_effect = make_parse({"t":object()})
+		dt.LineText.parse.side_effect = make_parse({"t":dt.LineText("a")})
+		dt.InstructionLineMarker.parse.side_effect = make_parse({"i":object()})
+		dt.FirstInstructionLineMarker.parse.side_effect = make_parse({"I":object()})
+		dt.Newline.parse.side_effect = make_parse({"l":object()})
+		self.assertIsNone( dt.FeedbackLine.parse(MockInput("qtl$")) )
+		self.assertFalse( dt.Newline.parse.called )
+	
+	@mock_statics(dt,"QuoteMarker.parse","LineText.parse","Newline.parse",
+			"TextLineMarker.parse","InstructionLineMarker.parse",
+			"FirstTextLineMarker.parse", "FirstInstructionLineMarker.parse")
+	def test_parse_checks_for_and_rejects_firstinstructionlinemarker(self):
+		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
+		dt.TextLineMarker.parse.side_effect = make_parse({"m":object()})		
+		dt.FirstTextLineMarker.parse.side_effect = make_parse({"M":object()})
+		dt.LineText.parse.side_effect = make_parse({"t":dt.LineText("a")})
+		dt.InstructionLineMarker.parse.side_effect = make_parse({"i":object()})
+		dt.FirstInstructionLineMarker.parse.side_effect = make_parse({"t":object()})
+		dt.Newline.parse.side_effect = make_parse({"l":object()})
+		self.assertIsNone( dt.FeedbackLine.parse(MockInput("qtl$")) )
+		self.assertFalse( dt.Newline.parse.called )
+	
+	@mock_statics(dt,"QuoteMarker.parse","LineText.parse","Newline.parse",
+			"TextLineMarker.parse","InstructionLineMarker.parse",
+			"FirstTextLineMarker.parse", "FirstInstructionLineMarker.parse")
 	def test_parse_expects_newline(self):
 		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
 		dt.InstructionLineMarker.parse.side_effect = make_parse({"i":object()})	
+		dt.FirstInstructionLineMarker.parse.side_effect = make_parse({"I":object()})
 		dt.TextLineMarker.parse.side_effect = make_parse({"m":object()})
+		dt.FirstTextLineMarker.parse.side_effect = make_parse({"M":object()})
 		dt.LineText.parse.side_effect = make_parse({"t":dt.LineText("a")})
 		dt.Newline.parse.side_effect = make_parse({"l":object()})
 		self.assertIsNone( dt.FeedbackLine.parse(MockInput("qt$")) )
 	
 	@mock_statics(dt,"QuoteMarker.parse","LineText.parse","Newline.parse",
-			"TextLineMarker.parse","InstructionLineMarker.parse")
+			"TextLineMarker.parse","InstructionLineMarker.parse",
+			"FirstTextLineMarker.parse", "FirstInstructionLineMarker.parse")
 	def test_parse_consumes_input_on_success(self):
 		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
 		dt.InstructionLineMarker.parse.side_effect = make_parse({"i":object()})	
+		dt.FirstInstructionLineMarker.parse.side_effect = make_parse({"I":object()})
 		dt.TextLineMarker.parse.side_effect = make_parse({"m":object()})
+		dt.FirstTextLineMarker.parse.side_effect = make_parse({"M":object()})
 		dt.LineText.parse.side_effect = make_parse({"t":dt.LineText("a")})
 		dt.Newline.parse.side_effect = make_parse({"l":object()})
 		i = MockInput("qtl$")
@@ -2616,11 +2676,14 @@ class TestFeedbackLine(unittest.TestCase):
 		self.assertEquals(3, i.pos)
 		
 	@mock_statics(dt,"QuoteMarker.parse","LineText.parse","Newline.parse",
-			"TextLineMarker.parse","InstructionLineMarker.parse")
+			"TextLineMarker.parse","InstructionLineMarker.parse",
+			"FirstTextLineMarker.parse", "FirstInstructionLineMarker.parse")
 	def test_parse_doesnt_consume_input_on_failure(self):
 		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
 		dt.InstructionLineMarker.parse.side_effect = make_parse({"i":object()})
+		dt.FirstInstructionLineMarker.parse.side_effect = make_parse({"I":object()})
 		dt.TextLineMarker.parse.side_effect = make_parse({"m":object()})
+		dt.FirstTextLineMarker.parse.side_effect = make_parse({"M":object()})
 		dt.LineText.parse.side_effect = make_parse({"t":dt.LineText("a")})
 		dt.Newline.parse.side_effect = make_parse({"l":object()})
 		i = MockInput("qt$")

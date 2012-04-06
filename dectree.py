@@ -1,3 +1,8 @@
+# TODO: Headings absorbed as feedback into blocks
+# TODO: Feedback not allowed at start of section
+# TODO: Recipient can break choices by inserting feedback in 
+#		the middle of choice descriptions/responses
+# TODO: Combine feedback from blocks into section-level feedback
 # TODO: Recipient may assume to read into next section 
 #		when there isn't a goto in a section. Force author to 
 #		have all paths lead to final section. Or else introduce
@@ -5,7 +10,6 @@
 #		user to stop reading (though an explicit end section is 
 #		just as easy to author)
 # TODO: Allow gotos at the end of sections.
-# TODO: Probably no need for line nodes in AST
 # TODO: Command line recipient usage 
 # TODO: Command line sender usage
 # TODO: Tidy up formal definition
@@ -24,7 +28,7 @@ BlankLine <- QuoteMarker? LineWhitespace? Newline
 ChoiceBlock <- FirstChoice ( BlankLine | Choice | FeedbackLine )*
 InstructionBlock <- FirstInstructionLine ( BlankLine | InstructionLine | FeedbackLine )*
 TextBlock <- FirstTextLine ( BlankLine | TextLine | FeedbackLine )*
-QuoteMarker <- '([ \t]*>)+'
+QuoteMarker <- '([ \t]*>)+[ \t]*'
 LineWhitespace <- '[ \t]+'
 Newline <- '(\r\n|\r|\n)'
 Choice <- QuoteMarker? TextLineMarker LineWhitespace? ChoiceMarker ChoiceContent
@@ -48,16 +52,16 @@ Heading <- QuoteMarker? HeadingMarker LineWhitespace? Name HeadingMarker Newline
 HeadingMarker <- '={2,}'
 Name <- '[a-zA-Z0-9_-][a-zA-Z0-9_ -]*'
 InstructionLine <- QuoteMarker? InstructionLineMarker TextLineContent
-InstructionLineMarker <- '%'
+InstructionLineMarker <- '%' !'%'
 FirstInstructionLine <- QuoteMarker? FirstInstructionLineMarker TextLineContent
 FirstInstructionLineMarker <- '%%'
 LineText <- '[a-zA-Z0-9_- \t`!"$%^&*()_+=[{]};:'@#~,<.>/?\|]+'
 TextLine <- QuoteMarker? TextLineMarker TextLineContent
-TextLineMarker <- ':'
+TextLineMarker <- ':' !':'
 FirstTextLine <- QuoteMarker? FirstTextLineMarker TextLineContent
 FirstTextLineMarker <- '::'
 TextLineContent <- LineWhitespace? LineText Newline
-FeedbackLine <- QuoteMarker? !( TextLineMarker | InstructionLineMarker ) LineText Newline
+FeedbackLine <- QuoteMarker? !( TextLineMarker | FirstTextLineMarker | InstructionLineMarker | FirstInstructionLineMarker ) LineText Newline
 """
 
 ALL_CHARACTERS = (
@@ -293,6 +297,7 @@ class QuoteMarker(object):
 		input = input.branch()
 		if OneOrMore(Sequence(ZeroOrMore(Char(' \t')),
 				Char('>'))).parse(input) is None: return None
+		ZeroOrMore(Char(' \t')).parse(input)
 		input.commit()
 		return QuoteMarker()
 
@@ -551,6 +556,7 @@ class TextLineMarker(object):
 	def parse(input):
 		input = input.branch()
 		if Char(":").parse(input) is None: return None
+		if Not(Char(":")).parse(input) is None: return None
 		input.commit()
 		return TextLineMarker()
 
@@ -649,6 +655,7 @@ class InstructionLineMarker(object):
 	def parse(input):
 		input = input.branch()		
 		if Char('%').parse(input) is None: return None
+		if Not(Char('%')).parse(input) is None: return None
 		input.commit()
 		return InstructionLineMarker()
 
@@ -1133,7 +1140,8 @@ class FeedbackLine(object):
 		
 		Optional(QuoteMarker).parse(input)
 
-		if( Not(Alternatives(TextLineMarker,InstructionLineMarker))
+		if( Not(Alternatives(FirstTextLineMarker,TextLineMarker,
+				FirstInstructionLineMarker,InstructionLineMarker))
 				.parse(input) is None): return None
 		
 		text = LineText.parse(input)
@@ -1435,10 +1443,18 @@ Put here as a test
 : Bob.
 """
 
+# <Choice> ::= <QuoteMarker>? <FirstTextLineMarker> <LineWhitespace>?
+#				<ChoiceMarker> <LineWhitespace>? 
+
 s = """\
-:: This is a block of text
-lol wut
-:: And this is another block
+:: This is a text block
+:  and so this 
+:: This is a new one
+== section ==
+:: [] And this is a choice -- GOTO foo
+:  [] block
+=== foo ===
+:: blah
 """
 
 if __name__ == "__main__":
@@ -1447,13 +1463,17 @@ if __name__ == "__main__":
 	#pdb.set_trace()
 	
 	i = Input(s)
-	d = Document.parse(i)
-	if d is not None:
-		print d
-		#print HtmlOutput().output(d)
-	else:
-		p = i.get_deepest_pos()
-		print "Parse error near %s" % repr(s[p:p+100]+"...")
+	try:
+		d = Document.parse(i)
+		if d is not None:
+			print d
+			#print HtmlOutput().output(d)
+		else:
+			p = i.get_deepest_pos()
+			print "Parse error near %s" % repr(s[p:p+100]+"...")
+			
+	except ValidationError as e:
+		print "Validation error: %s" % str(e)
 	
 #	import argparse
 #	
