@@ -1,16 +1,3 @@
-# TODO: Use TextLineContent for InstructionLines
-# TODO: FirstChoice - create ChoiceContent
-# TODO: Blank lines should break up blocks and feedback shouldn't.
-#	But recipient might write on the blank lines and change 
-#	document structure
-# TODO: Not sure about disallowing choicemarker at start of
-#	text line. It may confuse more than help
-# TODO: Blocks should not be broken by blank lines or feedback.
-#	- feedback blocks should be combined in each section and put
-#	in their own attribute
-# TODO: User could insert feedback into the middle of a choice 
-#   description or response. Feedback blocks should be able to 
-#	be attached at different levels e.g. attached to choices
 # TODO: Recipient may assume to read into next section 
 #		when there isn't a goto in a section. Force author to 
 #		have all paths lead to final section. Or else introduce
@@ -32,19 +19,20 @@
 Document <- FirstSection Section* '\x00'
 FirstSection <- SectionContent
 Section <- Heading SectionContent
-SectionContent <- BlankLine* ( ChoiceBlock | InstructionBlock | TextBlock |  FeedbackBlock )+
+SectionContent <- BlankLine* ( ChoiceBlock | InstructionBlock | TextBlock )+
 BlankLine <- QuoteMarker? LineWhitespace? Newline
-ChoiceBlock <- Choice+ BlankLine*
+ChoiceBlock <- FirstChoice ( BlankLine | Choice | FeedbackLine )*
 InstructionBlock <- FirstInstructionLine ( BlankLine | InstructionLine | FeedbackLine )*
 TextBlock <- FirstTextLine ( BlankLine | TextLine | FeedbackLine )*
-FeedbackBlock <- ( !( InstructionLine TextLine Choice Heading ) FeedbackLine )+ BlankLine*
 QuoteMarker <- '([ \t]*>)+'
 LineWhitespace <- '[ \t]+'
 Newline <- '(\r\n|\r|\n)'
-Choice <- QuoteMarker? TextLineMarker LineWhitespace? ChoiceMarker LineWhitespace? ChoiceDescription ChoiceResponse? Newline
-ChoiceMarker <- ChoiceMarkerOpen LineWhitespace? ChoiceMarkerText? ChoiceMarkerClose
+Choice <- QuoteMarker? TextLineMarker LineWhitespace? ChoiceMarker ChoiceContent
+FirstChoice <- QuoteMarker? FirstTextLineMarker LineWhitespace? ChoiceMarker ChoiceContent
+ChoiceContent <- LineWhitespace? ChoiceDescription ChoiceResponse? Newline
+ChoiceMarker <- ChoiceMarkerOpen LineWhitespace? ChoiceMarkerMark? ChoiceMarkerClose
 ChoiceMarkerOpen <- '['
-ChoiceMarkerText <- '[a-zA-Z0-9_- \t`!"$%^&*()_+=[{};:'@#~,<.>/?\|]+'
+ChoiceMarkerMark <- '[a-zA-Z0-9_- \t`!"$%^&*()_+=[{};:'@#~,<.>/?\|]+'
 ChoiceMarkerClose <- ']'
 ChoiceDescription <- ChoiceDescPart ( ChoiceDescNewline ChoiceDescPart )*
 ChoiceDescNewline <- Newline QuoteMarker? TextLineMarker LineWhitespace? !ChoiceMarker
@@ -171,7 +159,7 @@ class Document(object):
 	
 		# Collect section names, checking for duplicates		
 		secnames = set([])
-		for n in [s.heading.name.text for s in doc.sections[1:]]:
+		for n in [s.heading.name for s in doc.sections[1:]]:
 			if n in secnames:
 				raise ValidationError("Duplicate section name '%s'" % n)
 			secnames.add(n)
@@ -181,9 +169,8 @@ class Document(object):
 			for b in s.content.items:
 				if isinstance(b,ChoiceBlock):
 					for c in b.choices:
-						if( c.response is not None
-								and c.response.goto is not None ):
-							n = c.response.goto.name.text
+						if c.goto is not None:
+							n = c.goto
 							if n not in secnames:
 								raise ValidationError("Goto references unknown section '%s'" % n)
 						
@@ -254,8 +241,14 @@ class SectionContent(object):
 		if ZeroOrMore(BlankLine).parse(input) is None: return None
 		
 		items = OneOrMore(Alternatives(ChoiceBlock,InstructionBlock,
-				TextBlock,FeedbackBlock)).parse(input)
+				TextBlock)).parse(input)
 		if items is None: return None
+				
+		last = None
+		for i in items:
+			if isinstance(i,ChoiceBlock) and isinstance(last,ChoiceBlock):
+				raise ValidationError("Consecutive choice blocks are not allowed")
+			last = i
 				
 		input.commit()
 		return SectionContent(items)
@@ -290,7 +283,7 @@ class Heading(object):
 		if Newline.parse(input) is None: return None
 
 		input.commit()			
-		return Heading(name)
+		return Heading(name.text)
 
 
 class QuoteMarker(object):
@@ -360,24 +353,39 @@ class ChoiceBlock(object):
 	
 	_choices = None
 	choices = property(lambda s: list(s._choices))
+	_feedback = None
+	feedback = property(lambda s: s._feedback)
 	
-	def __init__(self,choices):
+	def __init__(self,choices,feedback):
 		self._choices = choices
+		self._feedback = feedback
 		
 	def __repr__(self):
-		return "ChoiceBlock(%s)" % repr(self._choices)
+		return "ChoiceBlock(%s,%s)" % (
+			repr(self._choices),repr(self._feedback) )
 		
 	@staticmethod
 	def parse(input):
 		input.branch()
 		
-		choices = OneOrMore(Choice).parse(input)
-		if choices is None: return None
+		choices = []
+		flines = []
 		
-		if ZeroOrMore(BlankLine).parse(input) is None: return None
+		l = FirstChoice.parse(input)
+		if l is None: return None
+		choices.append(l)
+
+		while True:
+			l = Alternatives(BlankLine,Choice,FeedbackLine).parse(input)
+			if l is None:
+				break
+			elif isinstance(l,Choice):
+				choices.append(l)
+			elif isinstance(l,FeedbackLine):
+				flines.append(l.text)		
 		
 		input.commit()
-		return ChoiceBlock(choices)
+		return ChoiceBlock(choices," ".join(flines))
 	
 	
 class InstructionBlock(object):
@@ -404,15 +412,16 @@ class InstructionBlock(object):
 		
 		l = FirstInstructionLine.parse(input)
 		if l is None: return None
-		tlines.append(l.text.text)
+		tlines.append(l.text)
 		
 		while True:
 			l = Alternatives(BlankLine,InstructionLine,FeedbackLine).parse(input)
-			if l is None: break
-			if isinstance(l,InstructionLine):
-				tlines.append(l.text.text)
+			if l is None: 
+				break
+			elif isinstance(l,InstructionLine):
+				tlines.append(l.text)
 			elif isinstance(l,FeedbackLine):
-				flines.append(l.text.text)
+				flines.append(l.text)
 				
 		input.commit()
 		return InstructionBlock(" ".join(tlines)," ".join(flines))
@@ -442,47 +451,22 @@ class TextBlock(object):
 		
 		l = FirstTextLine.parse(input)
 		if l is None: return None
-		tlines.append(l.text.text)
+		tlines.append(l.text)
 		
 		while True:
 			l = Alternatives(BlankLine,TextLine,
 					FeedbackLine).parse(input)
-			if l is None: break
-			if isinstance(l,TextLine):
-				tlines.append(l.text.text)
+			if l is None: 
+				break
+			elif isinstance(l,TextLine):
+				tlines.append(l.text)
 			elif isinstance(l,FeedbackLine):
-				flines.append(l.text.text)
+				flines.append(l.text)
 					
 		input.commit()
 		return TextBlock(" ".join(tlines)," ".join(flines))
 	
 	
-class FeedbackBlock(object):
-	
-	_lines = None
-	lines = property(lambda s: list(s._lines))
-	
-	def __init__(self,lines):
-		self._lines = lines
-		
-	def __repr__(self):
-		return "FeedbackBlock(%s)" % repr(self._lines)
-		
-	@staticmethod
-	def parse(input):
-		input = input.branch()
-		
-		lines = OneOrMore(Sequence(
-			Not(Alternatives(InstructionLine,TextLine,Choice,Heading)),
-			FeedbackLine)).parse(input)
-		if lines is None: return None
-		
-		if ZeroOrMore(BlankLine).parse(input) is None: return None
-		
-		input.commit()
-		return FeedbackBlock([l[1] for l in lines])
-
-
 class TextLine(object):
 
 	_text = None
@@ -708,21 +692,25 @@ class FirstInstructionLineMarker(object):
 
 class Choice(object):
 
-	_marker = None
-	marker = property(lambda s: s._marker)
+	_mark = None
+	mark = property(lambda s: s._mark)
 	_description = None
 	description = property(lambda s: s._description)
 	_response = None
 	response = property(lambda s: s._response)
+	_goto = None
+	goto = property(lambda s: s._goto)
 
-	def __init__(self,marker,description,response):
-		self._marker = marker
+	def __init__(self,mark,description,response,goto):
+		self._mark = mark
 		self._description = description
 		self._response = response
+		self._goto = goto
 		
 	def __repr__(self):
-		return "Choice(%s,%s,%s)" % (repr(self._marker),
-			repr(self._description),repr(self._response))
+		return "Choice(%s,%s,%s,%s)" % ( repr(self._mark),
+			repr(self._description),repr(self._response),
+			repr(self._goto) )
 			
 	@staticmethod
 	def parse(input):
@@ -737,30 +725,67 @@ class Choice(object):
 		marker = ChoiceMarker.parse(input)
 		if marker is None: return None
 
-		Optional(LineWhitespace).parse(input)
-		
-		desc = ChoiceDescription.parse(input)
-		if desc is None: return None
-		
-		resp = Optional(ChoiceResponse).parse(input)
-		if resp is None: return None
-		
-		if Newline.parse(input) is None: return None
+		content = ChoiceContent.parse(input)
+		if content is None: return None
 		
 		input.commit()
-		return Choice(marker,desc,resp if resp is not False else None)
+		return Choice(marker.mark,content.description,
+			content.response,content.goto)
+		
+		
+class FirstChoice(object):
+
+	_mark = None
+	mark = property(lambda s: s._mark)
+	_description = None
+	description = property(lambda s: s._description)
+	_response = None
+	response = property(lambda s: s._response)
+	_goto = None
+	goto = property(lambda s: s._goto)
+
+	def __init__(self,mark,description,response,goto):
+		self._mark = mark
+		self._description = description
+		self._response = response
+		self._goto = goto
+		
+	def __repr__(self):
+		return "FirstChoice(%s,%s,%s,%s)" % ( repr(self._mark),
+			repr(self._description),repr(self._response),
+			repr(self._goto) )
+			
+	@staticmethod
+	def parse(input):
+		input = input.branch()
+		
+		Optional(QuoteMarker).parse(input)
+
+		if FirstTextLineMarker.parse(input) is None: return None
+
+		Optional(LineWhitespace).parse(input)
+		
+		marker = ChoiceMarker.parse(input)
+		if marker is None: return None
+
+		content = ChoiceContent.parse(input)
+		if content is None: return None
+		
+		input.commit()
+		return FirstChoice(marker.mark,content.description,
+			content.response,content.goto)
 		
 
 class ChoiceMarker(object):
 	
-	_text = None
-	text = property(lambda s: s._text)
+	_mark = None
+	mark = property(lambda s: s._mark)
 	
-	def __init__(self,text):
-		self._text = text
+	def __init__(self,mark):
+		self._mark = mark
 		
 	def __repr__(self):
-		return "ChoiceMarker(%s)" % repr(self._text)
+		return "ChoiceMarker(%s)" % repr(self._mark)
 		
 	@staticmethod
 	def parse(input):
@@ -770,13 +795,13 @@ class ChoiceMarker(object):
 		
 		Optional(LineWhitespace).parse(input)
 		
-		text = Optional(ChoiceMarkerText).parse(input)
-		if text is None: return None
+		mark = Optional(ChoiceMarkerMark).parse(input)
+		if mark is None: return None
 		
 		if ChoiceMarkerClose.parse(input) is None: return None
 		
 		input.commit()
-		return ChoiceMarker(text if text is not False else None)
+		return ChoiceMarker(mark.text if mark is not False else None)
 		
 
 class ChoiceMarkerOpen(object):
@@ -799,7 +824,7 @@ class ChoiceMarkerClose(object):
 		return ChoiceMarkerClose()
 	
 	
-class ChoiceMarkerText(object):
+class ChoiceMarkerMark(object):
 
 	_text = None
 	text = property(lambda s: s._text)
@@ -808,7 +833,7 @@ class ChoiceMarkerText(object):
 		self._text = text
 		
 	def __repr__(self):
-		return "ChoiceMarkerText(%s)" % self._text
+		return "ChoiceMarkerMark(%s)" % self._text
 		
 	@staticmethod
 	def parse(input):
@@ -818,19 +843,56 @@ class ChoiceMarkerText(object):
 		if i is None: return None			
 		
 		input.commit()
-		return ChoiceMarkerText("".join(i).strip())
+		return ChoiceMarkerMark("".join(i).strip())
+
+
+class ChoiceContent(object):
+
+	_description = None
+	description = property(lambda s: s._description)
+	_response = None
+	response = property(lambda s: s._response)
+	_goto = None
+	goto = property(lambda s: s._goto)
+
+	def __init__(self,description,response,goto):
+		self._description = description
+		self._response = response
+		self._goto = goto
+		
+	def __repr__(self):
+		return "ChoiceContent(%s,%s,%s)" % (
+			repr(self._description),repr(self._response),repr(self._goto) )
+		
+	@staticmethod
+	def parse(input):
+		input = input.branch()
+		
+		Optional(LineWhitespace).parse(input)
+		
+		desc = ChoiceDescription.parse(input)
+		if desc is None: return None
+		
+		resp = Optional(ChoiceResponse).parse(input)
+		
+		if Newline.parse(input) is None: return None
+		
+		input.commit()
+		return ChoiceContent(desc.text,
+			resp.description if resp is not False else None,
+			resp.goto if resp is not False else None)
 		
 	
 class ChoiceDescription(object):
 	
-	_parts = None
-	parts = property(lambda s: list(s._parts))
+	_text = None
+	text = property(lambda s: s._text)
 	
-	def __init__(self,parts):
-		self._parts = parts
+	def __init__(self,text):
+		self._text = text
 		
 	def __repr__(self):	
-		return "ChoiceDescription(%s)" % repr(self._parts)
+		return "ChoiceDescription(%s)" % repr(self._text)
 		
 	@staticmethod
 	def parse(input):
@@ -839,15 +901,15 @@ class ChoiceDescription(object):
 		parts = []
 		p = ChoiceDescPart.parse(input)
 		if p is None: return None
-		parts.append(p)
+		parts.append(p.text)
 		
 		ps = ZeroOrMore(Sequence(
 			ChoiceDescNewline,ChoiceDescPart)).parse(input)
 		if ps is None: return None
-		parts.extend([p[1::2][0] for p in ps])
+		parts.extend([p[1::2][0].text for p in ps])
 		
 		input.commit()
-		return ChoiceDescription(parts)
+		return ChoiceDescription(" ".join(parts))
 
 
 class ChoiceDescNewline(object):
@@ -930,8 +992,8 @@ class ChoiceResponse(object):
 			goto = result
 
 		input.commit()
-		return ChoiceResponse(desc if desc is not False else None,
-			goto if goto is not False else None)
+		return ChoiceResponse(desc.text if desc is not False else None,
+			goto.secname if goto is not False else None)
 			
 
 class ChoiceResponseSeparator(object):
@@ -947,14 +1009,14 @@ class ChoiceResponseSeparator(object):
 
 class ChoiceResponseDesc(object):
 
-	_parts = None
-	parts = property(lambda s: list(s._parts))
+	_text = None
+	text = property(lambda s: s._text)
 	
-	def __init__(self,parts):
-		self._parts = parts
+	def __init__(self,text):
+		self._text = text
 				
 	def __repr__(self):
-		return "ChoiceResponseDesc(%s)" % repr(self._parts)
+		return "ChoiceResponseDesc(%s)" % repr(self._text)
 				
 	@staticmethod
 	def parse(input):
@@ -963,15 +1025,15 @@ class ChoiceResponseDesc(object):
 		parts = []
 		p = ChoiceResponseDescPart.parse(input)
 		if p is None: return None
-		parts.append(p)
+		parts.append(p.text)
 		
 		ps = ZeroOrMore(Sequence(
 			ChoiceDescNewline,ChoiceResponseDescPart)).parse(input)
 		if ps is None: return None
-		parts.extend([p[1::2][0] for p in ps])
+		parts.extend([p[1::2][0].text for p in ps])
 		
 		input.commit()
-		return ChoiceResponseDesc(parts)
+		return ChoiceResponseDesc(" ".join(parts))
 				
 		
 class ChoiceResponseDescPart(object):
@@ -1003,14 +1065,14 @@ class ChoiceResponseDescPart(object):
 		
 class ChoiceGoto(object):
 		
-	_name = None
-	name = property(lambda s: s._name)
+	_secname = None
+	secname = property(lambda s: s._secname)
 		
-	def __init__(self,name):
-		self._name = name
+	def __init__(self,secname):
+		self._secname = secname
 		
 	def __repr__(self):
-		return "ChoiceGoto(%s)" % repr(self._name)
+		return "ChoiceGoto(%s)" % repr(self._secname)
 		
 	@staticmethod
 	def parse(input):
@@ -1022,13 +1084,13 @@ class ChoiceGoto(object):
 		
 		Optional(LineWhitespace).parse(input)
 		
-		name = Name.parse(input)
-		if name is None: return None
+		secname = Name.parse(input)
+		if secname is None: return None
 		
 		Optional(EndPunctuation).parse(input)
 		
 		input.commit()
-		return ChoiceGoto(name)
+		return ChoiceGoto(secname.text)
 		
 		
 class GotoMarker(object):
@@ -1080,7 +1142,7 @@ class FeedbackLine(object):
 		if Newline.parse(input) is None: return None
 		
 		input.commit()
-		return FeedbackLine(text)
+		return FeedbackLine(text.text)
 		
 
 class Alternatives(object):
@@ -1374,9 +1436,9 @@ Put here as a test
 """
 
 s = """\
-: This is a block of text
+:: This is a block of text
 lol wut
-: And this is another block
+:: And this is another block
 """
 
 if __name__ == "__main__":
