@@ -280,3 +280,40 @@ QM TLM LW CM CDR CRS CDN CRDP N
 P (N P)* ( N? S N? P (N P)* )?
 
 [*] Make ChoiceDescNewline a reused symbol.
+
+[?] Implications of making FirstTextLineMarker and TextLineMarker distinct by
+	nature of their definitions - i.e. using a not on second character
+- This would only be an issue where we prematurely disregard a line based on
+  its start marker
+- A FirstTextLineMarker could be disregarded because TextLineMarker disallows 
+  it, even though the line itself isn't a valid FirstTextLine.
+[?] Is this a problem?
+- Could be a blank line. But a blank line wouldn't be a valid TextLine either.
+[?] What about with choices, then?
+- Could disregard a FirstChoice. Obviously this is fine as it isn't a TextLine
+- Wouldn't disregard a Choice. But a choice block has to begin with a 
+  FirstTextLineMarker anyway.
+[!] So Choices get absorbed into TextBlocks if ChoiceBlock not started properly.
+    Might be nicer for user if Choice line was recognised and ValidationError
+    thrown
+[!] But on the other hand, this removes flexibility. User isn't permitted to
+	write a TextLine that looks like a Choice line.
+- But they can't write a FirstTextLine that looks like a FirstChoiceLine at all
+  because that's the syntax. 
+[*] I think its best to not try to be clever to make the syntax friendlier.
+    I'll stick to the rule of thumb that the more rules are involved, the 
+    less friendly it becomes
+[!] By this logic, I should allow TextLines and InstructionLines to be 
+	absorbed into feedback by removing 'nots' from them, because they 
+	shouldn't exist without block starts
+[?] Should non-absorbing rules be part of the FeedbackLine definition or should 
+	the relevant section/block definitions? 
+- Feedback lines will always preceed the start of other blocks and sections
+- Therefore the check for Headings, FirstTextLines, FirstInstructionLines and
+  FirstChoices *could* be moved into FeedbackLine. 
+- This presumes where FeedbackLine will be used
+- But as a result it reduces duplication in the logic which must be used around
+  the use of FeedbackLine for it to operaate as expected
+[*] I'd rather go with the (minor) duplication. It feels less magic.
+
+

@@ -1,6 +1,6 @@
 #!/usr/bin/python2
 
-# see TODO
+# see TODO!
 
 import sys
 import mock
@@ -927,8 +927,9 @@ class TestChoiceBlock(unittest.TestCase):
 		with self.assertRaises(AttributeError):
 			c.feedback = "wibble"
 	
+	# TODO working here
 	@mock_statics(dt,"FirstChoice.parse","Choice.parse","BlankLine.parse",
-			"FeedbackLine.parse")
+			"FeedbackLine.parse","StarterLine.parse")
 	def test_parse_returns_populated_choiceblock(self):
 		c1 = dt.FirstChoice("a","b","c","d")
 		c2 = dt.Choice("a","b","c","d")
@@ -2094,7 +2095,7 @@ class TestInstructionBlock(unittest.TestCase):
 			b.feedback = "weh"
 
 	@mock_statics(dt,"FirstInstructionLine.parse","InstructionLine.parse", 
-			"BlankLine.parse","FeedbackLine.parse")
+			"BlankLine.parse","FeedbackLine.parse","StarterLine.parse")
 	def test_parse_returns_instructionblock(self):
 		l1 = dt.FirstInstructionLine("foo")
 		l2 = dt.InstructionLine("bar")
@@ -2104,6 +2105,7 @@ class TestInstructionBlock(unittest.TestCase):
 		f1 = dt.FeedbackLine("blah")
 		f2 = dt.FeedbackLine("yadda")
 		dt.FeedbackLine.parse.side_effect = make_parse({"f":f1,"F":f2})
+		dt.StarterLine.parse.side_effect = make_parse({"s":object()})
 		result = dt.InstructionBlock.parse(MockInput("IfbFi$"))
 		self.assertTrue( isinstance(result,dt.InstructionBlock) )
 		self.assertTrue( hasattr(result,"text") )
@@ -2112,79 +2114,103 @@ class TestInstructionBlock(unittest.TestCase):
 		self.assertEquals("blah yadda", result.feedback)
 				
 	@mock_statics(dt,"FirstInstructionLine.parse", "InstructionLine.parse", 
-			"BlankLine.parse","FeedbackLine.parse")
+			"BlankLine.parse","FeedbackLine.parse","StarterLine.parse")
 	def test_parse_expects_firstinstructionline(self):
 		dt.FirstInstructionLine.parse.side_effect = make_parse({"I":dt.FirstInstructionLine("")})
 		dt.InstructionLine.parse.side_effect = make_parse({"i":dt.InstructionLine("")})
 		dt.BlankLine.parse.side_effect = make_parse({"b":dt.BlankLine()})
 		dt.FeedbackLine.parse.side_effect = make_parse({"f":dt.FeedbackLine("")})
+		dt.StarterLine.parse.side_effect = make_parse({"s":object()})
 		self.assertIsNone( dt.InstructionBlock.parse(MockInput("i$")) )
 		self.assertFalse( dt.InstructionLine.parse.called )
 		self.assertFalse( dt.BlankLine.parse.called )
 		self.assertFalse( dt.FeedbackLine.parse.called )
 		
 	@mock_statics(dt,"FirstInstructionLine.parse","InstructionLine.parse", 
-			"BlankLine.parse","FeedbackLine.parse")
+			"BlankLine.parse","FeedbackLine.parse","StarterLine.parse")
 	def test_parse_allows_multiple_instructionlines(self):
 		dt.FirstInstructionLine.parse.side_effect = make_parse({"I":dt.FirstInstructionLine("a")})
 		dt.InstructionLine.parse.side_effect = make_parse({"i":dt.InstructionLine("b")})
 		dt.BlankLine.parse.side_effect = make_parse({"b":dt.BlankLine()})
 		dt.FeedbackLine.parse.side_effect = make_parse({"f":dt.FeedbackLine("c")})
+		dt.StarterLine.parse.side_effect = make_parse({"s":object()})
 		result =  dt.InstructionBlock.parse(MockInput("Iii$"))
 		self.assertIsNotNone( result )
 		self.assertEquals(5, len(result.text) )
+		self.assertEquals(0, len(result.feedback))
 			
 	@mock_statics(dt,"FirstInstructionLine.parse","InstructionLine.parse", 
-			"BlankLine.parse","FeedbackLine.parse")
+			"BlankLine.parse","FeedbackLine.parse","StarterLine.parse")
 	def test_parse_allows_multiple_blank_lines(self):
 		dt.FirstInstructionLine.parse.side_effect = make_parse({"I":dt.FirstInstructionLine("a")})
 		dt.InstructionLine.parse.side_effect = make_parse({"i":dt.InstructionLine("b")})
 		dt.BlankLine.parse.side_effect = make_parse({"b":dt.BlankLine()})
 		dt.FeedbackLine.parse.side_effect = make_parse({"f":dt.FeedbackLine("c")})
+		dt.StarterLine.parse.side_effect = make_parse({"s":object()})
 		result = dt.InstructionBlock.parse(MockInput("Ibbbi$"))
 		self.assertIsNotNone( result )
 		self.assertEquals(3,len(result.text))
+		self.assertEquals(0,len(result.feedback))
 		
 	@mock_statics(dt,"FirstInstructionLine.parse","InstructionLine.parse", 
-			"BlankLine.parse","FeedbackLine.parse")
+			"BlankLine.parse","FeedbackLine.parse","StarterLine.parse")
 	def test_parse_allows_multiple_feedback_lines(self):
 		dt.FirstInstructionLine.parse.side_effect = make_parse({"I":dt.FirstInstructionLine("a")})
 		dt.InstructionLine.parse.side_effect = make_parse({"i":dt.InstructionLine("b")})
 		dt.BlankLine.parse.side_effect = make_parse({"b":dt.BlankLine()})
 		dt.FeedbackLine.parse.side_effect = make_parse({"f":dt.FeedbackLine("c")})
+		dt.StarterLine.parse.side_effect = make_parse({"s":object()})
 		result = dt.InstructionBlock.parse(MockInput("Ifff$"))
 		self.assertIsNotNone( result )
+		self.assertEquals(1,len(result.text))
 		self.assertEquals(5,len(result.feedback))
 		
 	@mock_statics(dt,"FirstInstructionLine.parse","InstructionLine.parse", 
-			"BlankLine.parse","FeedbackLine.parse")
+			"BlankLine.parse","FeedbackLine.parse","StarterLine.parse")
 	def test_parse_checks_instructionline_before_feedbackline(self):
 		dt.FirstInstructionLine.parse.side_effect = make_parse({"I":dt.FirstInstructionLine("a")})
 		dt.InstructionLine.parse.side_effect = make_parse({"i":dt.InstructionLine("b")})
 		dt.BlankLine.parse.side_effect = make_parse({"b":dt.BlankLine()})
 		dt.FeedbackLine.parse.side_effect = make_parse({"i":dt.FeedbackLine("c")})
+		dt.StarterLine.parse.side_effect = make_parse({"s":object()})
 		result = dt.InstructionBlock.parse(MockInput("Ii$"))
 		self.assertIsNotNone( result )
 		self.assertEquals(3,len(result.text))
+		self.assertEquals(0,len(result.feedback))
 		
 	@mock_statics(dt,"FirstInstructionLine.parse","InstructionLine.parse", 
-			"BlankLine.parse","FeedbackLine.parse")
+			"BlankLine.parse","FeedbackLine.parse","StarterLine.parse")
+	def test_parse_checks_starterline_before_feedbackline(self):
+		dt.FirstInstructionLine.parse.side_effect = make_parse({"I":dt.FirstInstructionLine("a")})
+		dt.InstructionLine.parse.side_effect = make_parse({"i":dt.InstructionLine("b")})
+		dt.BlankLine.parse.side_effect = make_parse({"b":dt.BlankLine()})
+		dt.FeedbackLine.parse.side_effect = make_parse({"f":dt.FeedbackLine("c")})
+		dt.StarterLine.parse.side_effect = make_parse({"f":object()})
+		result = dt.InstructionBlock.parse(MockInput("If$"))
+		self.assertIsNotNone( result )
+		self.assertEquals(1,len(result.text))
+		self.assertEquals(0,len(result.feedback))
+		
+	@mock_statics(dt,"FirstInstructionLine.parse","InstructionLine.parse", 
+			"BlankLine.parse","FeedbackLine.parse","StarterLine.parse")
 	def test_parse_consumes_input_on_success(self):
 		dt.FirstInstructionLine.parse.side_effect = make_parse({"I":dt.FirstInstructionLine("a")})
 		dt.InstructionLine.parse.side_effect = make_parse({"i":dt.InstructionLine("b")})
 		dt.BlankLine.parse.side_effect = make_parse({"b":dt.BlankLine()})
 		dt.FeedbackLine.parse.side_effect = make_parse({"f":dt.FeedbackLine("c")})
+		dt.StarterLine.parse.side_effect = make_parse({"s":object()})
 		i = MockInput("Ifbfib$")
 		dt.InstructionBlock.parse(i)
 		self.assertEquals(6,i.pos)
 		
 	@mock_statics(dt,"FirstInstructionLine.parse","InstructionLine.parse", 
-			"BlankLine.parse","FeedbackLine.parse")
+			"BlankLine.parse","FeedbackLine.parse","StarterLine.parse")
 	def test_parse_doesnt_consume_input_on_failure(self):
 		dt.FirstInstructionLine.parse.side_effect = make_parse({"I":dt.FirstInstructionLine("a")})
 		dt.InstructionLine.parse.side_effect = make_parse({"i":dt.InstructionLine("b")})
 		dt.BlankLine.parse.side_effect = make_parse({"b":dt.BlankLine()})
 		dt.FeedbackLine.parse.side_effect = make_parse({"f":dt.FeedbackLine("c")})
+		dt.StarterLine.parse.side_effect = make_parse({"s":object()})
 		i = MockInput("i$")
 		dt.InstructionBlock.parse(i)
 		self.assertEquals(0,i.pos)
@@ -2357,7 +2383,7 @@ class TestTextBlock(unittest.TestCase):
 			b.feedback = "weh"
 		
 	@mock_statics(dt,"TextLine.parse","BlankLine.parse","FeedbackLine.parse",
-			"FirstTextLine.parse")
+			"FirstTextLine.parse","StarterLine.parse")
 	def test_parse_returns_populated_textblock(self):
 		t1 = dt.FirstTextLine("foo")
 		t2 = dt.TextLine("bar")
@@ -2367,6 +2393,7 @@ class TestTextBlock(unittest.TestCase):
 		f1 = dt.FeedbackLine("blah")
 		f2 = dt.FeedbackLine("yadda")
 		dt.FeedbackLine.parse.side_effect = make_parse({"f":f1,"F":f2})
+		dt.StarterLine.parse.side_effect = make_parse({"s":object()})
 		result = dt.TextBlock.parse(MockInput("tfbFT$"))
 		self.assertTrue( isinstance(result,dt.TextBlock) )
 		self.assertTrue( hasattr(result,"text") )
@@ -2375,89 +2402,110 @@ class TestTextBlock(unittest.TestCase):
 		self.assertEquals("blah yadda", result.feedback)
 		
 	@mock_statics(dt,"TextLine.parse","BlankLine.parse","FeedbackLine.parse",
-			"FirstTextLine.parse") 
+			"FirstTextLine.parse","StarterLine.parse") 
 	def test_parse_expects_firsttextline(self):
 		dt.FirstTextLine.parse.side_effect = make_parse({"T":dt.FirstTextLine("")})
 		dt.TextLine.parse.side_effect = make_parse({"t":dt.TextLine("")})
 		dt.BlankLine.parse.side_effect = make_parse({"b":dt.BlankLine()})
 		dt.FeedbackLine.parse.side_effect = make_parse({"f":dt.FeedbackLine("")})
+		dt.StarterLine.parse.side_effect = make_parse({"s":object()})
 		self.assertIsNone( dt.TextBlock.parse(MockInput("t$")) )
 		self.assertFalse( dt.BlankLine.parse.called )
 		self.assertFalse( dt.TextLine.parse.called )
 		self.assertFalse( dt.FeedbackLine.parse.called )
 		
 	@mock_statics(dt,"TextLine.parse","BlankLine.parse","FeedbackLine.parse",
-			"FirstTextLine.parse") 
+			"FirstTextLine.parse","StarterLine.parse") 
 	def test_parse_allows_single_line(self):
 		dt.FirstTextLine.parse.side_effect = make_parse({"T":dt.FirstTextLine("")})
 		dt.TextLine.parse.side_effect = make_parse({"t":dt.TextLine("")})
 		dt.BlankLine.parse.side_effect = make_parse({"b":dt.BlankLine()})
 		dt.FeedbackLine.parse.side_effect = make_parse({"f":dt.FeedbackLine("")})
+		dt.StarterLine.parse.side_effect = make_parse({"s":object()})
 		self.assertIsNotNone( dt.TextBlock.parse(MockInput("T$")) )
 		
 	@mock_statics(dt,"TextLine.parse","BlankLine.parse","FeedbackLine.parse",
-			"FirstTextLine.parse")
+			"FirstTextLine.parse","StarterLine.parse")
 	def test_parse_allows_multiple_textlines(self):
 		dt.FirstTextLine.parse.side_effect = make_parse({"T":dt.FirstTextLine("a")})
 		dt.TextLine.parse.side_effect = make_parse({"t":dt.TextLine("b")})
 		dt.BlankLine.parse.side_effect = make_parse({"b":dt.BlankLine()})
 		dt.FeedbackLine.parse.side_effect = make_parse({"f":dt.FeedbackLine("")})
+		dt.StarterLine.parse.side_effect = make_parse({"s":object()})
 		result = dt.TextBlock.parse(MockInput("Ttt$"))
 		self.assertIsNotNone( result )
 		self.assertEquals(5, len(result.text) )
 		
 	@mock_statics(dt,"TextLine.parse","BlankLine.parse","FeedbackLine.parse",
-			"FirstTextLine.parse")
+			"FirstTextLine.parse","StarterLine.parse")
 	def test_parse_allows_multiple_blanklines(self):
 		dt.FirstTextLine.parse.side_effect = make_parse({"T":dt.FirstTextLine("a")})
 		dt.TextLine.parse.side_effect = make_parse({"t":dt.TextLine("b")})
 		dt.BlankLine.parse.side_effect = make_parse({"b":dt.BlankLine()})
 		dt.FeedbackLine.parse.side_effect = make_parse({"f":dt.FeedbackLine("")})
+		dt.StarterLine.parse.side_effect = make_parse({"s":object()})
 		result = dt.TextBlock.parse(MockInput("Tbbbt$"))
 		self.assertIsNotNone( result )
 		self.assertEquals( 3, len(result.text) )
 		
 	@mock_statics(dt,"TextLine.parse","BlankLine.parse","FeedbackLine.parse",
-			"FirstTextLine.parse")
+			"FirstTextLine.parse","StarterLine.parse")
 	def test_parse_allows_multiple_feedbacklines(self):
 		dt.FirstTextLine.parse.side_effect = make_parse({"T":dt.FirstTextLine("")})
 		dt.TextLine.parse.side_effect = make_parse({"t":dt.TextLine("")})
 		dt.BlankLine.parse.side_effect = make_parse({"b":dt.BlankLine()})
 		dt.FeedbackLine.parse.side_effect = make_parse({"f":dt.FeedbackLine("a")})
+		dt.StarterLine.parse.side_effect = make_parse({"s":object()})
 		result = dt.TextBlock.parse(MockInput("Tfff$")) 
 		self.assertIsNotNone( result )
 		self.assertEquals( 5, len(result.feedback) )
 
 	@mock_statics(dt,"TextLine.parse","BlankLine.parse","FeedbackLine.parse",
-			"FirstTextLine.parse")
+			"FirstTextLine.parse","StarterLine.parse")
 	def test_parse_checks_textline_before_feedbackline(self):
 		dt.FirstTextLine.parse.side_effect = make_parse({"T":dt.FirstTextLine("d")})
 		dt.TextLine.parse.side_effect = make_parse({"t":dt.TextLine("c")})
 		dt.BlankLine.parse.side_effect = make_parse({"b":dt.BlankLine()})
 		dt.FeedbackLine.parse.side_effect = make_parse({"t":dt.FeedbackLine("a")})
+		dt.StarterLine.parse.side_effect = make_parse({"s":object()})
 		result = dt.TextBlock.parse(MockInput("Tt$")) 
 		self.assertIsNotNone( result )
 		self.assertEquals( 3, len(result.text) )
 		self.assertEquals( 0, len(result.feedback) )
 		
 	@mock_statics(dt,"TextLine.parse","BlankLine.parse","FeedbackLine.parse",
-			"FirstTextLine.parse")
+			"FirstTextLine.parse","StarterLine.parse")
+	def test_parse_checks_starterline_before_feedbackline(self):
+		dt.FirstTextLine.parse.side_effect = make_parse({"T":dt.FirstTextLine("d")})
+		dt.TextLine.parse.side_effect = make_parse({"t":dt.TextLine("c")})
+		dt.BlankLine.parse.side_effect = make_parse({"b":dt.BlankLine()})
+		dt.FeedbackLine.parse.side_effect = make_parse({"f":dt.FeedbackLine("a")})
+		dt.StarterLine.parse.side_effect = make_parse({"f":object()})
+		result = dt.TextBlock.parse(MockInput("Tf$")) 
+		self.assertIsNotNone( result )
+		self.assertEquals( 1, len(result.text) )
+		self.assertEquals( 0, len(result.feedback) )
+		
+	@mock_statics(dt,"TextLine.parse","BlankLine.parse","FeedbackLine.parse",
+			"FirstTextLine.parse","StarterLine.parse")
 	def test_parse_consumes_input_on_success(self):
 		dt.FirstTextLine.parse.side_effect = make_parse({"T":dt.FirstTextLine("a")})
 		dt.TextLine.parse.side_effect = make_parse({"t":dt.TextLine("b")})
 		dt.BlankLine.parse.side_effect = make_parse({"b":dt.BlankLine("")})
 		dt.FeedbackLine.parse.side_effect = make_parse({"f":dt.FeedbackLine("")})
+		dt.StarterLine.parse.side_effect = make_parse({"s":object()})
 		i = MockInput("Ttf$")
 		dt.TextBlock.parse(i)
 		self.assertEquals(3,i.pos)
 		
 	@mock_statics(dt,"TextLine.parse","BlankLine.parse","FeedbackLine.parse",
-			"FirstTextLine.parse")
+			"FirstTextLine.parse","StarterLine.parse")
 	def test_parse_consumes_input_on_success(self):
 		dt.FirstTextLine.parse.side_effect = make_parse({"T":dt.FirstTextLine("")})
 		dt.TextLine.parse.side_effect = make_parse({"t":dt.TextLine("")})
 		dt.BlankLine.parse.side_effect = make_parse({"b":dt.BlankLine()})
 		dt.FeedbackLine.parse.side_effect = make_parse({"f":dt.FeedbackLine("")})
+		dt.StarterLine.parse.side_effect = make_parse({"s":object()})
 		i = MockInput("t$")
 		dt.TextBlock.parse(i)
 		self.assertEquals(0,i.pos)
@@ -2548,15 +2596,9 @@ class TestFeedbackLine(unittest.TestCase):
 		with self.assertRaises(AttributeError):
 			l.text = "bar"
 			
-	@mock_statics(dt,"QuoteMarker.parse","LineText.parse","Newline.parse",
-			"TextLineMarker.parse","InstructionLineMarker.parse",
-			"FirstTextLineMarker.parse", "FirstInstructionLineMarker.parse")
+	@mock_statics(dt,"QuoteMarker.parse","LineText.parse","Newline.parse")
 	def test_parse_returns_populated_feedbackline(self):
 		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
-		dt.InstructionLineMarker.parse.side_effect = make_parse({"i":object()})
-		dt.FirstInstructionLineMarker.parse.side_effect = make_parse({"I":object()})
-		dt.TextLineMarker.parse.side_effect = make_parse({"m":object()})
-		dt.FirstTextLineMarker.parse.side_effect = make_parse({"M":object()})
 		dt.LineText.parse.side_effect = make_parse({"t":dt.LineText("foo")})
 		dt.Newline.parse.side_effect = make_parse({"l":object()})
 		result = dt.FeedbackLine.parse(MockInput("qtl$"))
@@ -2564,126 +2606,40 @@ class TestFeedbackLine(unittest.TestCase):
 		self.assertTrue( hasattr(result,"text") )
 		self.assertEquals( "foo", result.text )
 	
-	@mock_statics(dt,"QuoteMarker.parse","LineText.parse","Newline.parse",
-			"TextLineMarker.parse","InstructionLineMarker.parse",
-			"FirstTextLineMarker.parse", "FirstInstructionLineMarker.parse")
+	@mock_statics(dt,"QuoteMarker.parse","LineText.parse","Newline.parse")
 	def test_parse_allows_no_quotemarker(self):
 		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
-		dt.InstructionLineMarker.parse.side_effect = make_parse({"i":object()})	
-		dt.FirstInstructionLineMarker.parse.side_effect = make_parse({"I":object()})
-		dt.TextLineMarker.parse.side_effect = make_parse({"m":object()})
-		dt.FirstTextLineMarker.parse.side_effect = make_parse({"M":object()})
 		dt.LineText.parse.side_effect = make_parse({"t":dt.LineText("a")})
 		dt.Newline.parse.side_effect = make_parse({"l":object()})
 		self.assertIsNotNone( dt.FeedbackLine.parse(MockInput("tl$")) )
 	
-	@mock_statics(dt,"QuoteMarker.parse","LineText.parse","Newline.parse",
-			"TextLineMarker.parse","InstructionLineMarker.parse",
-			"FirstTextLineMarker.parse", "FirstInstructionLineMarker.parse")
+	@mock_statics(dt,"QuoteMarker.parse","LineText.parse","Newline.parse")
 	def test_parse_expects_linetext(self):
 		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
-		dt.InstructionLineMarker.parse.side_effect = make_parse({"i":object()})	
-		dt.FirstInstructionLineMarker.parse.side_effect = make_parse({"I":object()})
-		dt.TextLineMarker.parse.side_effect = make_parse({"m":object()})
-		dt.FirstTextLineMarker.parse.side_effect = make_parse({"M":object()})
 		dt.LineText.parse.side_effect = make_parse({"t":dt.LineText("a")})
 		dt.Newline.parse.side_effect = make_parse({"l":object()})
 		self.assertIsNone( dt.FeedbackLine.parse(MockInput("ql$")) )
 		self.assertFalse( dt.Newline.parse.called )
 
-	@mock_statics(dt,"QuoteMarker.parse","LineText.parse","Newline.parse",
-			"TextLineMarker.parse","InstructionLineMarker.parse",
-			"FirstTextLineMarker.parse", "FirstInstructionLineMarker.parse")
-	def test_parse_checks_for_and_rejects_textlinemarker(self):
-		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
-		dt.InstructionLineMarker.parse.side_effect = make_parse({"i":object()})	
-		dt.FirstInstructionLineMarker.parse.side_effect = make_parse({"I":object()})
-		dt.LineText.parse.side_effect = make_parse({"t":dt.LineText("a")})
-		dt.TextLineMarker.parse.side_effect = make_parse({"t":object()})
-		dt.FirstTextLineMarker.parse.side_effect = make_parse({"T":object()})
-		dt.Newline.parse.side_effect = make_parse({"l":object()})
-		self.assertIsNone( dt.FeedbackLine.parse(MockInput("qtl$")) )
-		self.assertFalse( dt.Newline.parse.called )
-	
-	@mock_statics(dt,"QuoteMarker.parse","LineText.parse","Newline.parse",
-			"TextLineMarker.parse","InstructionLineMarker.parse",
-			"FirstTextLineMarker.parse", "FirstInstructionLineMarker.parse")
-	def test_parse_checks_for_and_rejects_instructionlinemarker(self):
-		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
-		dt.TextLineMarker.parse.side_effect = make_parse({"m":object()})		
-		dt.FirstTextLineMarker.parse.side_effect = make_parse({"M":object()})
-		dt.LineText.parse.side_effect = make_parse({"t":dt.LineText("a")})
-		dt.InstructionLineMarker.parse.side_effect = make_parse({"t":object()})
-		dt.FirstInstructionLineMarker.parse.side_effect = make_parse({"T":object()})
-		dt.Newline.parse.side_effect = make_parse({"l":object()})
-		self.assertIsNone( dt.FeedbackLine.parse(MockInput("qtl$")) )
-		self.assertFalse( dt.Newline.parse.called )
-	
-	@mock_statics(dt,"QuoteMarker.parse","LineText.parse","Newline.parse",
-			"TextLineMarker.parse","InstructionLineMarker.parse",
-			"FirstTextLineMarker.parse", "FirstInstructionLineMarker.parse")
-	def test_parse_checks_for_and_rejects_firstteextlinemarker(self):
-		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
-		dt.TextLineMarker.parse.side_effect = make_parse({"m":object()})		
-		dt.FirstTextLineMarker.parse.side_effect = make_parse({"t":object()})
-		dt.LineText.parse.side_effect = make_parse({"t":dt.LineText("a")})
-		dt.InstructionLineMarker.parse.side_effect = make_parse({"i":object()})
-		dt.FirstInstructionLineMarker.parse.side_effect = make_parse({"I":object()})
-		dt.Newline.parse.side_effect = make_parse({"l":object()})
-		self.assertIsNone( dt.FeedbackLine.parse(MockInput("qtl$")) )
-		self.assertFalse( dt.Newline.parse.called )
-	
-	@mock_statics(dt,"QuoteMarker.parse","LineText.parse","Newline.parse",
-			"TextLineMarker.parse","InstructionLineMarker.parse",
-			"FirstTextLineMarker.parse", "FirstInstructionLineMarker.parse")
-	def test_parse_checks_for_and_rejects_firstinstructionlinemarker(self):
-		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
-		dt.TextLineMarker.parse.side_effect = make_parse({"m":object()})		
-		dt.FirstTextLineMarker.parse.side_effect = make_parse({"M":object()})
-		dt.LineText.parse.side_effect = make_parse({"t":dt.LineText("a")})
-		dt.InstructionLineMarker.parse.side_effect = make_parse({"i":object()})
-		dt.FirstInstructionLineMarker.parse.side_effect = make_parse({"t":object()})
-		dt.Newline.parse.side_effect = make_parse({"l":object()})
-		self.assertIsNone( dt.FeedbackLine.parse(MockInput("qtl$")) )
-		self.assertFalse( dt.Newline.parse.called )
-	
-	@mock_statics(dt,"QuoteMarker.parse","LineText.parse","Newline.parse",
-			"TextLineMarker.parse","InstructionLineMarker.parse",
-			"FirstTextLineMarker.parse", "FirstInstructionLineMarker.parse")
+	@mock_statics(dt,"QuoteMarker.parse","LineText.parse","Newline.parse")
 	def test_parse_expects_newline(self):
 		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
-		dt.InstructionLineMarker.parse.side_effect = make_parse({"i":object()})	
-		dt.FirstInstructionLineMarker.parse.side_effect = make_parse({"I":object()})
-		dt.TextLineMarker.parse.side_effect = make_parse({"m":object()})
-		dt.FirstTextLineMarker.parse.side_effect = make_parse({"M":object()})
 		dt.LineText.parse.side_effect = make_parse({"t":dt.LineText("a")})
 		dt.Newline.parse.side_effect = make_parse({"l":object()})
 		self.assertIsNone( dt.FeedbackLine.parse(MockInput("qt$")) )
 	
-	@mock_statics(dt,"QuoteMarker.parse","LineText.parse","Newline.parse",
-			"TextLineMarker.parse","InstructionLineMarker.parse",
-			"FirstTextLineMarker.parse", "FirstInstructionLineMarker.parse")
+	@mock_statics(dt,"QuoteMarker.parse","LineText.parse","Newline.parse")
 	def test_parse_consumes_input_on_success(self):
 		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
-		dt.InstructionLineMarker.parse.side_effect = make_parse({"i":object()})	
-		dt.FirstInstructionLineMarker.parse.side_effect = make_parse({"I":object()})
-		dt.TextLineMarker.parse.side_effect = make_parse({"m":object()})
-		dt.FirstTextLineMarker.parse.side_effect = make_parse({"M":object()})
 		dt.LineText.parse.side_effect = make_parse({"t":dt.LineText("a")})
 		dt.Newline.parse.side_effect = make_parse({"l":object()})
 		i = MockInput("qtl$")
 		dt.FeedbackLine.parse(i)
 		self.assertEquals(3, i.pos)
 		
-	@mock_statics(dt,"QuoteMarker.parse","LineText.parse","Newline.parse",
-			"TextLineMarker.parse","InstructionLineMarker.parse",
-			"FirstTextLineMarker.parse", "FirstInstructionLineMarker.parse")
+	@mock_statics(dt,"QuoteMarker.parse","LineText.parse","Newline.parse")
 	def test_parse_doesnt_consume_input_on_failure(self):
 		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
-		dt.InstructionLineMarker.parse.side_effect = make_parse({"i":object()})
-		dt.FirstInstructionLineMarker.parse.side_effect = make_parse({"I":object()})
-		dt.TextLineMarker.parse.side_effect = make_parse({"m":object()})
-		dt.FirstTextLineMarker.parse.side_effect = make_parse({"M":object()})
 		dt.LineText.parse.side_effect = make_parse({"t":dt.LineText("a")})
 		dt.Newline.parse.side_effect = make_parse({"l":object()})
 		i = MockInput("qt$")
@@ -3155,6 +3111,103 @@ class TestChoiceContent(unittest.TestCase):
 		i = MockInput("wdr$")
 		dt.ChoiceContent.parse(i)
 		self.assertEquals(0,i.pos)
+
+
+class TestStarterLine(unittest.TestCase):
+
+	def test_construct(self):
+		dt.StarterLine("foo")
+	
+	def test_line_readable(self):
+		l = dt.StarterLine("foo")
+		self.assertEquals("foo",l.line)
 		
+	def test_line_not_writable(self):
+		l = dt.StarterLine("foo")
+		with self.assertRaises(AttributeError):
+			l.line = "bar"
+		
+	@mock_statics(dt,"FirstTextLine.parse","FirstInstructionLine.parse",
+			"FirstChoice.parse","Heading.parse")
+	def test_parse_returns_populated_starterline(self):
+		t = object()
+		dt.FirstTextLine.parse.side_effect = make_parse({"T":t})
+		dt.FirstInstructionLine.parse.side_effect = make_parse({"I":object()})
+		dt.FirstChoice.parse.side_effect = make_parse({"C":object()})
+		dt.Heading.parse.side_effect = make_parse({"h":object()})
+		result = dt.StarterLine.parse(MockInput("T$"))
+		self.assertTrue( isinstance(result,dt.StarterLine) )
+		self.assertTrue( hasattr(result,"line") )
+		self.assertEquals(t, result.line)
+	
+	@mock_statics(dt,"FirstTextLine.parse","FirstInstructionLine.parse",
+			"FirstChoice.parse","Heading.parse")	
+	def test_parse_expects_line(self):
+		dt.FirstTextLine.parse.side_effect = make_parse({"T":object()})
+		dt.FirstInstructionLine.parse.side_effect = make_parse({"I":object()})
+		dt.FirstChoice.parse.side_effect = make_parse({"C":object()})
+		dt.Heading.parse.side_effect = make_parse({"h":object()})
+		self.assertIsNone( dt.StarterLine.parse(MockInput("$")) )
+		
+	@mock_statics(dt,"FirstTextLine.parse","FirstInstructionLine.parse",
+			"FirstChoice.parse","Heading.parse")	
+	def test_parse_allows_firstinstructionline(self):
+		dt.FirstTextLine.parse.side_effect = make_parse({"T":object()})
+		dt.FirstInstructionLine.parse.side_effect = make_parse({"I":object()})
+		dt.FirstChoice.parse.side_effect = make_parse({"C":object()})
+		dt.Heading.parse.side_effect = make_parse({"h":object()})
+		self.assertIsNotNone( dt.StarterLine.parse(MockInput("I$")) )
+		
+	@mock_statics(dt,"FirstTextLine.parse","FirstInstructionLine.parse",
+			"FirstChoice.parse","Heading.parse")	
+	def test_parse_allows_firstchoice(self):
+		dt.FirstTextLine.parse.side_effect = make_parse({"T":object()})
+		dt.FirstInstructionLine.parse.side_effect = make_parse({"I":object()})
+		dt.FirstChoice.parse.side_effect = make_parse({"C":object()})
+		dt.Heading.parse.side_effect = make_parse({"h":object()})
+		self.assertIsNotNone( dt.StarterLine.parse(MockInput("C$")) )
+		
+	@mock_statics(dt,"FirstTextLine.parse","FirstInstructionLine.parse",
+			"FirstChoice.parse","Heading.parse")	
+	def test_parse_allows_heading(self):
+		dt.FirstTextLine.parse.side_effect = make_parse({"T":object()})
+		dt.FirstInstructionLine.parse.side_effect = make_parse({"I":object()})
+		dt.FirstChoice.parse.side_effect = make_parse({"C":object()})
+		dt.Heading.parse.side_effect = make_parse({"h":object()})
+		self.assertIsNotNone( dt.StarterLine.parse(MockInput("h$")) )
+		
+	@mock_statics(dt,"FirstTextLine.parse","FirstInstructionLine.parse",
+			"FirstChoice.parse","Heading.parse","TextLine.parse")	
+	def test_parse_rejects_non_starter(self):
+		dt.FirstTextLine.parse.side_effect = make_parse({"T":object()})
+		dt.TextLine.parse.side_effect = make_parse({"t":object()})
+		dt.FirstInstructionLine.parse.side_effect = make_parse({"I":object()})
+		dt.FirstChoice.parse.side_effect = make_parse({"C":object()})
+		dt.Heading.parse.side_effect = make_parse({"h":object()})
+		self.assertIsNone( dt.StarterLine.parse(MockInput("t$")) )
+		
+	@mock_statics(dt,"FirstTextLine.parse","FirstInstructionLine.parse",
+			"FirstChoice.parse","Heading.parse")	
+	def test_parse_consumes_input_on_success(self):
+		dt.FirstTextLine.parse.side_effect = make_parse({"T":object()})
+		dt.FirstInstructionLine.parse.side_effect = make_parse({"I":object()})
+		dt.FirstChoice.parse.side_effect = make_parse({"C":object()})
+		dt.Heading.parse.side_effect = make_parse({"h":object()})
+		i = MockInput("T$")
+		dt.StarterLine.parse(i)
+		self.assertEquals(1, i.pos)
+		
+	@mock_statics(dt,"FirstTextLine.parse","FirstInstructionLine.parse",
+			"FirstChoice.parse","Heading.parse","TextLine.parse")	
+	def test_parse_doesnt_consume_input_on_failure(self):
+		dt.FirstTextLine.parse.side_effect = make_parse({"T":object()})
+		dt.TextLine.parse.side_effect = make_parse({"t":object()})
+		dt.FirstInstructionLine.parse.side_effect = make_parse({"I":object()})
+		dt.FirstChoice.parse.side_effect = make_parse({"C":object()})
+		dt.Heading.parse.side_effect = make_parse({"h":object()})
+		i = MockInput("t$")
+		dt.StarterLine.parse(i)
+		self.assertEquals(0, i.pos)
+	
 unittest.main()
 

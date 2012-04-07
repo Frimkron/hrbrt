@@ -1,4 +1,4 @@
-# TODO: Headings absorbed as feedback into blocks
+# TODO: Section gotos will be absorbed into feedback too
 # TODO: Feedback not allowed at start of section
 # TODO: Recipient can break choices by inserting feedback in 
 #		the middle of choice descriptions/responses
@@ -25,9 +25,10 @@ FirstSection <- SectionContent
 Section <- Heading SectionContent
 SectionContent <- BlankLine* ( ChoiceBlock | InstructionBlock | TextBlock )+
 BlankLine <- QuoteMarker? LineWhitespace? Newline
-ChoiceBlock <- FirstChoice ( BlankLine | Choice | FeedbackLine )*
-InstructionBlock <- FirstInstructionLine ( BlankLine | InstructionLine | FeedbackLine )*
-TextBlock <- FirstTextLine ( BlankLine | TextLine | FeedbackLine )*
+ChoiceBlock <- FirstChoice ( BlankLine | Choice | !StarterLine FeedbackLine )*
+InstructionBlock <- FirstInstructionLine ( BlankLine | InstructionLine | !StarterLine FeedbackLine )*
+TextBlock <- FirstTextLine ( BlankLine | TextLine | !StarterLine FeedbackLine )*
+StarterLine <- FirstTextLine | FirstInstructionLine | Heading | FirstChoice
 QuoteMarker <- '([ \t]*>)+[ \t]*'
 LineWhitespace <- '[ \t]+'
 Newline <- '(\r\n|\r|\n)'
@@ -61,7 +62,7 @@ TextLineMarker <- ':' !':'
 FirstTextLine <- QuoteMarker? FirstTextLineMarker TextLineContent
 FirstTextLineMarker <- '::'
 TextLineContent <- LineWhitespace? LineText Newline
-FeedbackLine <- QuoteMarker? !( TextLineMarker | FirstTextLineMarker | InstructionLineMarker | FirstInstructionLineMarker ) LineText Newline
+FeedbackLine <- QuoteMarker? LineText Newline
 """
 
 ALL_CHARACTERS = (
@@ -420,13 +421,14 @@ class InstructionBlock(object):
 		tlines.append(l.text)
 		
 		while True:
-			l = Alternatives(BlankLine,InstructionLine,FeedbackLine).parse(input)
+			l = Alternatives(BlankLine,InstructionLine,
+				Sequence(Not(StarterLine),FeedbackLine)).parse(input)
 			if l is None: 
 				break
 			elif isinstance(l,InstructionLine):
 				tlines.append(l.text)
-			elif isinstance(l,FeedbackLine):
-				flines.append(l.text)
+			elif isinstance(l,list) and isinstance(l[1],FeedbackLine):
+				flines.append(l[1].text)
 				
 		input.commit()
 		return InstructionBlock(" ".join(tlines)," ".join(flines))
@@ -460,13 +462,13 @@ class TextBlock(object):
 		
 		while True:
 			l = Alternatives(BlankLine,TextLine,
-					FeedbackLine).parse(input)
+					Sequence(Not(StarterLine),FeedbackLine)).parse(input)
 			if l is None: 
 				break
 			elif isinstance(l,TextLine):
 				tlines.append(l.text)
-			elif isinstance(l,FeedbackLine):
-				flines.append(l.text)
+			elif isinstance(l,list) and isinstance(l[1],FeedbackLine):
+				flines.append(l[1].text)
 					
 		input.commit()
 		return TextBlock(" ".join(tlines)," ".join(flines))
@@ -1140,10 +1142,6 @@ class FeedbackLine(object):
 		
 		Optional(QuoteMarker).parse(input)
 
-		if( Not(Alternatives(FirstTextLineMarker,TextLineMarker,
-				FirstInstructionLineMarker,InstructionLineMarker))
-				.parse(input) is None): return None
-		
 		text = LineText.parse(input)
 		if text is None: return None
 		
@@ -1151,6 +1149,29 @@ class FeedbackLine(object):
 		
 		input.commit()
 		return FeedbackLine(text.text)
+
+
+class StarterLine(object):
+
+	_line = None
+	line = property(lambda s: s._line)
+
+	def __init__(self,line):
+		self._line = line
+		
+	def __repr__(self):
+		return "StarterLine(%s)" % repr(self._line)
+		
+	@staticmethod
+	def parse(input):
+		input = input.branch()
+		
+		line = Alternatives(FirstTextLine,FirstInstructionLine,
+			Heading,FirstChoice).parse(input)
+		if line is None: return None
+		
+		input.commit()
+		return StarterLine(line)
 		
 
 class Alternatives(object):
@@ -1447,14 +1468,8 @@ Put here as a test
 #				<ChoiceMarker> <LineWhitespace>? 
 
 s = """\
-:: This is a text block
-:  and so this 
-:: This is a new one
-== section ==
-:: [] And this is a choice -- GOTO foo
-:  [] block
-=== foo ===
-:: blah
+:: [] blah
+foobar
 """
 
 if __name__ == "__main__":
