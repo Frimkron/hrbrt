@@ -1,8 +1,5 @@
-# TODO: Section gotos will be absorbed into feedback too
-# TODO: Feedback not allowed at start of section
 # TODO: Recipient can break choices by inserting feedback in 
 #		the middle of choice descriptions/responses
-# TODO: Combine feedback from blocks into section-level feedback
 # TODO: Recipient may assume to read into next section 
 #		when there isn't a goto in a section. Force author to 
 #		have all paths lead to final section. Or else introduce
@@ -20,10 +17,27 @@
 # TODO: Markdown output :D
 
 """	
+(>	)(::)(	)([])( This is a description)
+(feedback)
+(>	)(:)(		)(which continues onto another line)
+feedback
+>	:		--
+feedback
+>	:		This is the respose
+feedback
+>	:		which also continues onto another line
+feedback
+>	:		GO TO foobar
+feedback
+>	:	[] Another choice
+feedback
+"""
+
+"""	
 Document <- FirstSection Section* '\x00'
 FirstSection <- SectionContent
 Section <- Heading SectionContent
-SectionContent <- BlankLine* ( ChoiceBlock | InstructionBlock | TextBlock )+
+SectionContent <- ( BlankLine | !StarterLine FeedbackLine )* ( ChoiceBlock | InstructionBlock | TextBlock )+
 BlankLine <- QuoteMarker? LineWhitespace? Newline
 ChoiceBlock <- FirstChoice ( BlankLine | Choice | !StarterLine FeedbackLine )*
 InstructionBlock <- FirstInstructionLine ( BlankLine | InstructionLine | !StarterLine FeedbackLine )*
@@ -232,22 +246,39 @@ class SectionContent(object):
 	
 	_items = None
 	items = property(lambda s: list(s._items))
+	_feedback = None
+	feedback = property(lambda s: s._feedback)
 	
-	def __init__(self,items):
+	def __init__(self,items,feedback):
 		self._items = items
+		self._feedback = feedback
 		
 	def __repr__(self):
-		return "SectionContent(%s)" % repr(self._items)
+		return "SectionContent(%s,%s)" % (
+			repr(self._items),repr(self._feedback) )
 		
 	@staticmethod
 	def parse(input):
 		input = input.branch()
 		
-		if ZeroOrMore(BlankLine).parse(input) is None: return None
+		items = []
+		flines = []
 		
-		items = OneOrMore(Alternatives(ChoiceBlock,InstructionBlock,
-				TextBlock)).parse(input)
-		if items is None: return None
+		while True:
+			l = Alternatives(BlankLine,
+					Sequence(Not(StarterLine),FeedbackLine)).parse(input)
+			if l is None:
+				break
+			elif isinstance(l,list) and isinstance(l[1],FeedbackLine):
+				flines.append(l[1].text)
+				
+		while True:
+			i = Alternatives(ChoiceBlock,InstructionBlock,
+				TextBlock).parse(input)
+			if i is None: break
+			items.append(i)
+			flines.append(i.feedback)
+		if len(items)==0: return None
 				
 		last = None
 		for i in items:
@@ -256,7 +287,7 @@ class SectionContent(object):
 			last = i
 				
 		input.commit()
-		return SectionContent(items)
+		return SectionContent(items," ".join(flines))
 		
 	
 class Heading(object):
@@ -382,13 +413,14 @@ class ChoiceBlock(object):
 		choices.append(l)
 
 		while True:
-			l = Alternatives(BlankLine,Choice,FeedbackLine).parse(input)
+			l = Alternatives(BlankLine,Choice,
+				Sequence(Not(StarterLine),FeedbackLine)).parse(input)
 			if l is None:
 				break
 			elif isinstance(l,Choice):
 				choices.append(l)
-			elif isinstance(l,FeedbackLine):
-				flines.append(l.text)		
+			elif isinstance(l,list) and isinstance(l[1],FeedbackLine):
+				flines.append(l[1].text)		
 		
 		input.commit()
 		return ChoiceBlock(choices," ".join(flines))
@@ -1468,8 +1500,14 @@ Put here as a test
 #				<ChoiceMarker> <LineWhitespace>? 
 
 s = """\
-:: [] blah
 foobar
+:: Blah
+== foo ==
+blah blah
+
+blah
+:: Stuff
+yadda
 """
 
 if __name__ == "__main__":
