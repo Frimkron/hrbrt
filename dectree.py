@@ -1,5 +1,6 @@
 # TODO: Recipient can break choices by inserting feedback in 
 #		the middle of choice descriptions/responses
+#		- descnewline should be able to include blank and feedbacklines
 # TODO: Recipient may assume to read into next section 
 #		when there isn't a goto in a section. Force author to 
 #		have all paths lead to final section. Or else introduce
@@ -15,23 +16,6 @@
 # TODO: GUI interactive mode for sender
 # TODO: Open document output
 # TODO: Markdown output :D
-
-"""	
-(>	)(::)(	)([])( This is a description)
-(feedback)
-(>	)(:)(		)(which continues onto another line)
-feedback
->	:		--
-feedback
->	:		This is the respose
-feedback
->	:		which also continues onto another line
-feedback
->	:		GO TO foobar
-feedback
->	:	[] Another choice
-feedback
-"""
 
 """	
 Document <- FirstSection Section* '\x00'
@@ -54,12 +38,12 @@ ChoiceMarkerOpen <- '['
 ChoiceMarkerMark <- '[a-zA-Z0-9_- \t`!"$%^&*()_+=[{};:'@#~,<.>/?\|]+'
 ChoiceMarkerClose <- ']'
 ChoiceDescription <- ChoiceDescPart ( ChoiceDescNewline ChoiceDescPart )*
-ChoiceDescNewline <- Newline QuoteMarker? TextLineMarker LineWhitespace? !ChoiceMarker
+ChoiceDescNewline <- Newline ( BlankLine | !( StarterLine | TextLine ) FeedbackLine )* QuoteMarker? TextLineMarker LineWhitespace? !ChoiceMarker
 ChoiceDescPart <- ( '[a-zA-Z0-9_ \t`!"$%^&*()_+=[{};:'@#~,<.>/?\|]+' | '-' !'-' )+
 ChoiceResponse <- ChoiceDescNewline? ChoiceResponseSeparator ( ChoiceDescNewline? ChoiceResponseDesc ChoiceGoto? | ChoiceGoto )
 ChoiceResponseSeparator <- '--'
 ChoiceResponseDesc <-- ChoiceResponseDescPart ( ChoiceDescNewline ChoiceReponseDescPart )*
-ChoiceResponseDescPart <- ( '[a-zABCDEFHIJKLMNOPQRSTUVWXYZZ0-9_ \t`!"$%^&*()_+=[{};:'@#~,<.>/?\|-]' | 'G' !'O TO' )+
+ChoiceResponseDescPart <- ( '[a-zABCDEFHIJKLMNOPQRSTUVWXYZ0-9_ \t`!"$%^&*()_+=[{};:'@#~,<.>/?\|-]' | 'G' !'O TO' )+
 ChoiceGoto <- ChoiceDescNewline? GotoMarker LineWhitespace? Name EndPunctuation?
 GotoMarker <- 'GO TO'
 EndPunctuation <- '[.,:;!?]+'
@@ -78,6 +62,7 @@ FirstTextLineMarker <- '::'
 TextLineContent <- LineWhitespace? LineText Newline
 FeedbackLine <- QuoteMarker? LineText Newline
 """
+
 
 ALL_CHARACTERS = (
 	"abcdefghijklmnopqrstuvwxyz"
@@ -895,15 +880,19 @@ class ChoiceContent(object):
 	response = property(lambda s: s._response)
 	_goto = None
 	goto = property(lambda s: s._goto)
+	_feedback = None
+	feedback = property(lambda s: s._feedback)
 
-	def __init__(self,description,response,goto):
+	def __init__(self,description,response,goto,feedback):
 		self._description = description
 		self._response = response
 		self._goto = goto
+		self._feedback = feedback
 		
 	def __repr__(self):
-		return "ChoiceContent(%s,%s,%s)" % (
-			repr(self._description),repr(self._response),repr(self._goto) )
+		return "ChoiceContent(%s,%s,%s,%s)" % (
+			repr(self._description),repr(self._response),
+			repr(self._goto),repr(self._feedback) )
 		
 	@staticmethod
 	def parse(input):
@@ -919,6 +908,8 @@ class ChoiceContent(object):
 		if Newline.parse(input) is None: return None
 		
 		input.commit()
+		
+		# TODO: working here. All these damn Nones...
 		return ChoiceContent(desc.text,
 			resp.description if resp is not False else None,
 			resp.goto if resp is not False else None)
@@ -928,18 +919,24 @@ class ChoiceDescription(object):
 	
 	_text = None
 	text = property(lambda s: s._text)
+	_feedback = None
+	feedback = property(lambda s: s._feedback)
 	
-	def __init__(self,text):
+	def __init__(self,text,feedback):
 		self._text = text
+		self._feedback = feedback
 		
 	def __repr__(self):	
-		return "ChoiceDescription(%s)" % repr(self._text)
+		return "ChoiceDescription(%s,%s)" % (
+			repr(self._text),repr(self._feedback) )
 		
 	@staticmethod
 	def parse(input):
 		input = input.branch()
 		
 		parts = []
+		flines = []
+		
 		p = ChoiceDescPart.parse(input)
 		if p is None: return None
 		parts.append(p.text)
@@ -947,19 +944,42 @@ class ChoiceDescription(object):
 		ps = ZeroOrMore(Sequence(
 			ChoiceDescNewline,ChoiceDescPart)).parse(input)
 		if ps is None: return None
-		parts.extend([p[1::2][0].text for p in ps])
+		parts.extend([p[1].text for p in ps])
+		flines.extend([p[0].feedback for p in ps])
 		
 		input.commit()
-		return ChoiceDescription(" ".join(parts))
+		return ChoiceDescription(" ".join(parts)," ".join(flines))
 
 
 class ChoiceDescNewline(object):
 
+	_feedback = None
+	feedback = property(lambda s: s._feedback)
+	
+	def __init__(self,feedback):
+		self._feedback = feedback
+
+	def __repr__(self):
+		return "ChoiceDescNewline(%s)" % repr(self._feedback)
+
 	@staticmethod
 	def parse(input):
 		input = input.branch()
+		
+		flines = []
 	
 		if Newline.parse(input) is None: return None
+
+		while True:
+			l = Alternatives(
+					BlankLine,
+					Sequence(
+						Not(Alternatives(StarterLine,TextLine)),
+						FeedbackLine)).parse(input)
+			if l is None:
+				break
+			elif isinstance(l,list) and isinstance(l[1],FeedbackLine):
+				flines.append(l[1].text)
 	
 		Optional(QuoteMarker).parse(input)
 		
@@ -970,7 +990,7 @@ class ChoiceDescNewline(object):
 		if Not(ChoiceMarker).parse(input) is None: return None
 		
 		input.commit()
-		return ChoiceDescNewline()		
+		return ChoiceDescNewline(" ".join(flines))		
 	
 	
 class ChoiceDescPart(object):
@@ -1002,14 +1022,17 @@ class ChoiceResponse(object):
 	description = property(lambda s: s._description)
 	_goto = None
 	goto = property(lambda s: s._goto)
+	_feedback = None
+	feedback = property(lambda s: s._feedback)
 	
-	def __init__(self,description,goto):
+	def __init__(self,description,goto,feedback):
 		self._description = description
 		self._goto = goto
+		self._feedback = feedback
 	
 	def __repr__(self):
-		return "ChoiceResponse(%s,%s)" % (
-			repr(self._description),repr(self._goto))
+		return "ChoiceResponse(%s,%s,%s)" % (
+			repr(self._description),repr(self._goto),repr(self._feedback) )
 	
 	@staticmethod
 	def parse(input):
@@ -1034,7 +1057,8 @@ class ChoiceResponse(object):
 
 		input.commit()
 		return ChoiceResponse(desc.text if desc is not False else None,
-			goto.secname if goto is not False else None)
+			goto.secname if goto is not False else None,
+			desc.feedback if desc is not False else None )
 			
 
 class ChoiceResponseSeparator(object):
@@ -1052,18 +1076,24 @@ class ChoiceResponseDesc(object):
 
 	_text = None
 	text = property(lambda s: s._text)
+	_feedback = None
+	feedback = property(lambda s: s._feedback)
 	
-	def __init__(self,text):
+	def __init__(self,text,feedback):
 		self._text = text
+		self._feedback = feedback
 				
 	def __repr__(self):
-		return "ChoiceResponseDesc(%s)" % repr(self._text)
+		return "ChoiceResponseDesc(%s,%s)" % (
+			repr(self._text),repr(self._feedback) )
 				
 	@staticmethod
 	def parse(input):
 		input = input.branch()
 		
 		parts = []
+		flines = []
+		
 		p = ChoiceResponseDescPart.parse(input)
 		if p is None: return None
 		parts.append(p.text)
@@ -1071,10 +1101,11 @@ class ChoiceResponseDesc(object):
 		ps = ZeroOrMore(Sequence(
 			ChoiceDescNewline,ChoiceResponseDescPart)).parse(input)
 		if ps is None: return None
-		parts.extend([p[1::2][0].text for p in ps])
+		parts.extend([p[1].text for p in ps])
+		flines.extend([p[0].feedback for p in ps])
 		
 		input.commit()
-		return ChoiceResponseDesc(" ".join(parts))
+		return ChoiceResponseDesc(" ".join(parts)," ".join(flines))
 				
 		
 class ChoiceResponseDescPart(object):
