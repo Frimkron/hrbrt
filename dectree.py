@@ -71,6 +71,45 @@ ALL_CHARACTERS = (
 	+"""`!"$%^&*()_-+=[{]}#~;:'@,<.>/?\\| \t"""
 )
 
+
+class Maybe(object):
+	
+	val = None
+	
+	def __init__(self,val):
+		if isinstance(val,Maybe):
+			val = val.val
+		self.val = val
+		
+	def __add__(self,other):
+		if isinstance(other,Maybe):
+			other = other.val
+		if other is not None:
+			if self.val is None:
+				return Maybe(other)
+			else:
+				return Maybe(self.val + other)
+		else:
+			return Maybe(self.val)
+		
+	def __radd__(self,other):
+		if isinstance(other,Maybe):
+			other = other.val
+		if other is not None:
+			if self.val is None:
+				return Maybe(other)
+			else:
+				return Maybe(other + self.val)
+		else:
+			return Maybe(self.val)
+			
+	def __getattr__(self,name):
+		if self.val is None:
+			return Maybe(None)
+		else:
+			return Maybe(getattr(self.val,name))
+
+
 class Input(object):
 	"""Immutable wrapper for the input string. Holds a 
 	position in the input. Holds a reference to the Input 
@@ -396,6 +435,8 @@ class ChoiceBlock(object):
 		l = FirstChoice.parse(input)
 		if l is None: return None
 		choices.append(l)
+		if l.feedback is not None:
+			flines.append(l.feedback)
 
 		while True:
 			l = Alternatives(BlankLine,Choice,
@@ -404,6 +445,8 @@ class ChoiceBlock(object):
 				break
 			elif isinstance(l,Choice):
 				choices.append(l)
+				if l.feedback is not None:
+					flines.append(l.feedback)
 			elif isinstance(l,list) and isinstance(l[1],FeedbackLine):
 				flines.append(l[1].text)		
 		
@@ -726,17 +769,20 @@ class Choice(object):
 	response = property(lambda s: s._response)
 	_goto = None
 	goto = property(lambda s: s._goto)
+	_feedback = None
+	feedback = property(lambda s: s._feedback)
 
-	def __init__(self,mark,description,response,goto):
+	def __init__(self,mark,description,response,goto,feedback):
 		self._mark = mark
 		self._description = description
 		self._response = response
 		self._goto = goto
+		self._feedback = feedback
 		
 	def __repr__(self):
-		return "Choice(%s,%s,%s,%s)" % ( repr(self._mark),
+		return "Choice(%s,%s,%s,%s,%s)" % ( repr(self._mark),
 			repr(self._description),repr(self._response),
-			repr(self._goto) )
+			repr(self._goto), repr(self._feedback) )
 			
 	@staticmethod
 	def parse(input):
@@ -756,7 +802,7 @@ class Choice(object):
 		
 		input.commit()
 		return Choice(marker.mark,content.description,
-			content.response,content.goto)
+			content.response,content.goto,content.feedback)
 		
 		
 class FirstChoice(object):
@@ -769,17 +815,20 @@ class FirstChoice(object):
 	response = property(lambda s: s._response)
 	_goto = None
 	goto = property(lambda s: s._goto)
+	_feedback = None
+	feedback = property(lambda s: s._feedback)
 
-	def __init__(self,mark,description,response,goto):
+	def __init__(self,mark,description,response,goto,feedback):
 		self._mark = mark
 		self._description = description
 		self._response = response
 		self._goto = goto
+		self._feedback = feedback
 		
 	def __repr__(self):
-		return "FirstChoice(%s,%s,%s,%s)" % ( repr(self._mark),
+		return "FirstChoice(%s,%s,%s,%s,%s)" % ( repr(self._mark),
 			repr(self._description),repr(self._response),
-			repr(self._goto) )
+			repr(self._goto),repr(self._feedback) )
 			
 	@staticmethod
 	def parse(input):
@@ -799,7 +848,7 @@ class FirstChoice(object):
 		
 		input.commit()
 		return FirstChoice(marker.mark,content.description,
-			content.response,content.goto)
+			content.response,content.goto,content.feedback)
 		
 
 class ChoiceMarker(object):
@@ -908,12 +957,16 @@ class ChoiceContent(object):
 		if Newline.parse(input) is None: return None
 		
 		input.commit()
-		
-		# TODO: working here. All these damn Nones...
+
+		fb = [desc.feedback]
+		if resp is not False: fb.append(resp.feedback)
+		fb = filter(lambda x: x is not None,fb)
+				
 		return ChoiceContent(desc.text,
 			resp.description if resp is not False else None,
-			resp.goto if resp is not False else None)
-		
+			resp.goto if resp is not False else None,
+			" ".join(fb) if len(fb)>0 else None)			
+	
 	
 class ChoiceDescription(object):
 	
@@ -1531,14 +1584,29 @@ Put here as a test
 #				<ChoiceMarker> <LineWhitespace>? 
 
 s = """\
-foobar
-:: Blah
-== foo ==
-blah blah
-
+::	blah
+:	yadda
+floogle
+::	[]	opt a
+alpha
+:			--
+beta
+:				test test
+gamma
+:			GO TO foo
+delta
+:	[]	opt b
+epsilon
+:			--
+t'other one
+:				123 123
+omega
+:			GO TO foo
 blah
-:: Stuff
-yadda
+== foo ==
+
+::	yadda
+:	blarg
 """
 
 if __name__ == "__main__":
