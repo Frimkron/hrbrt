@@ -1,6 +1,3 @@
-# TODO: Recipient can break choices by inserting feedback in 
-#		the middle of choice descriptions/responses
-#		- descnewline should be able to include blank and feedbacklines
 # TODO: Recipient may assume to read into next section 
 #		when there isn't a goto in a section. Force author to 
 #		have all paths lead to final section. Or else introduce
@@ -8,6 +5,7 @@
 #		user to stop reading (though an explicit end section is 
 #		just as easy to author)
 # TODO: Allow gotos at the end of sections.
+# TODO: Fix up whitespace in combined snippets, particularly feedback
 # TODO: Command line recipient usage 
 # TODO: Command line sender usage
 # TODO: Tidy up formal definition
@@ -198,14 +196,51 @@ class Document(object):
 		return doc
 		
 	@staticmethod
+	def _walk_section(sec,endsec,walked,sections):
+		
+		# check if already walked
+		if sec in walked: return False
+		
+		# iterate over choice blocks
+		for b in sec.content.items:
+			if isinstance(b,ChoiceBlock):
+				fallthrough = False
+				# iterate over choices
+				for c in b.choices:
+					if c.goto is None: 
+						# No goto means block falls through
+						fallthrough = True
+					else:
+						# Recurse to target section
+						newwalked = set(walked)
+						newwalked.add(sec)
+						if not Document._walk_section(
+								sections[c.goto],endsec,newwalked,sections):
+							# bad path - so return invalid
+							return False
+				# if block doesnt fall through, stop
+				if not fallthrough:
+					if sec is endsec:
+						# End section *must* fall through
+						return False
+					else:
+						# All paths were ok
+						return True
+		# TODO: working here
+		# if we got here, all paths were ok
+		return True
+
+		
+	@staticmethod
 	def _validate(doc):
 	
-		# Collect section names, checking for duplicates		
-		secnames = set([])
-		for n in [s.heading.name for s in doc.sections[1:]]:
-			if n in secnames:
+		# Collect sections into map, checking for duplicates		
+		sectionmap = {}
+		for s in doc.sections[1:]:
+			n = s.heading.name
+			if n in sectionmap:
 				raise ValidationError("Duplicate section name '%s'" % n)
-			secnames.add(n)
+			sectionmap[n] = s
 
 		# Iterate over goto references, checking sections exist			
 		for s in doc.sections:
@@ -214,9 +249,13 @@ class Document(object):
 					for c in b.choices:
 						if c.goto is not None:
 							n = c.goto
-							if n not in secnames:
+							if n not in sectionmap:
 								raise ValidationError("Goto references unknown section '%s'" % n)
-						
+								
+		# walk all goto paths
+		if not Document._walk_section(doc.sections[0],doc.sections[-1], set([]),sectionmap):
+			raise ValidationError("Not all paths end at last section")
+		
 
 class FirstSection(object):
 
@@ -1091,7 +1130,7 @@ class ChoiceResponse(object):
 	def parse(input):
 		input = input.branch()
 
-		Optional(ChoiceDescNewline).parse(input)
+		n1 = Optional(ChoiceDescNewline).parse(input)
 		
 		if ChoiceResponseSeparator.parse(input) is None: return None
 
@@ -1100,18 +1139,28 @@ class ChoiceResponse(object):
 			ChoiceResponseDesc,
 			Optional(ChoiceGoto)).parse(input)
 		if result is not None:
+			n2 = result[0]
 			desc = result[1]
 			goto = result[2]
 		else:
 			result = ChoiceGoto.parse(input)
 			if result is None: return None
+			n2 = False
 			desc = False
 			goto = result
 
+		flines = []
+		if n1 is not False: flines.append(n1.feedback)
+		if n2 is not False: flines.append(n2.feedback)
+		if desc is not False: flines.append(desc.feedback)
+		if goto is not False: flines.append(goto.feedback)
+		flines = filter(lambda x: x is not None,flines)
+		
 		input.commit()
-		return ChoiceResponse(desc.text if desc is not False else None,
+		return ChoiceResponse(
+			desc.text if desc is not False else None,
 			goto.secname if goto is not False else None,
-			desc.feedback if desc is not False else None )
+			" ".join(flines) if len(flines)>0 else None )
 			
 
 class ChoiceResponseSeparator(object):
@@ -1192,18 +1241,22 @@ class ChoiceGoto(object):
 		
 	_secname = None
 	secname = property(lambda s: s._secname)
+	_feedback = None
+	feedback = property(lambda s: s._feedback)
 		
-	def __init__(self,secname):
+	def __init__(self,secname,feedback):
 		self._secname = secname
+		self._feedback = feedback
 		
 	def __repr__(self):
-		return "ChoiceGoto(%s)" % repr(self._secname)
+		return "ChoiceGoto(%s,%s)" % (
+			repr(self._secname),repr(self._feedback) )
 		
 	@staticmethod
 	def parse(input):
 		input = input.branch()
 
-		Optional(ChoiceDescNewline).parse(input)
+		nl = Optional(ChoiceDescNewline).parse(input)
 		
 		if GotoMarker.parse(input) is None: return None
 		
@@ -1215,7 +1268,8 @@ class ChoiceGoto(object):
 		Optional(EndPunctuation).parse(input)
 		
 		input.commit()
-		return ChoiceGoto(secname.text)
+		return ChoiceGoto( secname.text,
+			nl.feedback if nl is not False else None )
 		
 		
 class GotoMarker(object):

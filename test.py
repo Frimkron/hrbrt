@@ -164,8 +164,15 @@ class TestDocument(unittest.TestCase):
 		d.sections[0] = "weh"
 		self.assertEquals("foo",d.sections[0])
 
-	@mock_statics(dt,"FirstSection.parse","Section.parse")
+	def setup_parse_methods(self):
+		dt.FirstSection.parse.side_effect = make_parse({"f":self.make_section(gotos=[["foo"]])})
+		dt.Section.parse.side_effect = make_parse({"s":self.make_section("foo",gotos=[])})
+
+	mock_parse_methods = mock_statics(dt,"FirstSection.parse","Section.parse")
+	
+	@mock_parse_methods
 	def test_parse_returns_populated_document(self):
+		self.setup_parse_methods()
 		s1 = self.make_section()
 		s2 = self.make_section("foo")
 		dt.FirstSection.parse.side_effect = make_parse({"f":s1})
@@ -175,43 +182,39 @@ class TestDocument(unittest.TestCase):
 		self.assertTrue( hasattr(result,"sections") )
 		self.assertEquals( [s1,s2], list(result.sections) )
 
-	@mock_statics(dt,"FirstSection.parse","Section.parse")
+	@mock_parse_methods
 	def test_parse_expects_firstsection(self):
-		dt.FirstSection.parse.side_effect = make_parse({"f":self.make_section()})
+		self.setup_parse_methods()
 		self.assertIsNone( dt.Document.parse(MockInput("s\x00",0,None)) )
 		self.assertFalse( dt.Section.parse.called )
 		
-	@mock_statics(dt,"FirstSection.parse","Section.parse")
+	@mock_parse_methods
 	def test_parse_allows_zero_sections(self):
-		dt.FirstSection.parse.side_effect = make_parse({"f":self.make_section()})
-		dt.Section.parse.side_effect = make_parse({"s":self.make_section("foo")})
+		self.setup_parse_methods()
 		self.assertIsNotNone( dt.Document.parse(MockInput("f\x00",0,None)) )
 		
-	@mock_statics(dt,"FirstSection.parse","Section.parse")
+	@mock_parse_methods
 	def test_parse_allows_multiple_sections(self):
+		self.setup_parse_methods()
 		secgen = (self.make_section(n) for n in ["one","two","three"])
-		dt.FirstSection.parse.side_effect = make_parse({"f":self.make_section()})
 		dt.Section.parse.side_effect = make_parse({"s":secgen.next})
 		self.assertIsNotNone( dt.Document.parse(MockInput("fsss\x00",0,None)) )
 		
-	@mock_statics(dt,"FirstSection.parse","Section.parse")
+	@mock_parse_methods
 	def test_parse_expects_char_0(self):
-		dt.FirstSection.parse.side_effect = make_parse({"f":self.make_section()})
-		dt.Section.parse.side_effect = make_parse({"s":self.make_section("foo")})
+		self.setup_parse_methods()
 		self.assertIsNone( dt.Document.parse(MockInput("fq",0,None)) )
 		
-	@mock_statics(dt,"FirstSection.parse","Section.parse")
+	@mock_parse_methods
 	def test_parse_consumes_input_on_success(self):
-		dt.FirstSection.parse.side_effect = make_parse({"f":self.make_section()})
-		dt.Section.parse.side_effect = make_parse({"s":self.make_section("foo")})
+		self.setup_parse_methods()
 		i = MockInput("fs\x00",0,None)
 		dt.Document.parse(i)
 		self.assertEquals(3, i.pos)
 		
-	@mock_statics(dt,"FirstSection.parse","Section.parse")
+	@mock_parse_methods
 	def test_parse_doesnt_consume_input_on_failure(self):
-		dt.FirstSection.parse.side_effect = make_parse({"f":self.make_section()})
-		dt.Section.parse.side_effect = make_parse({"s":self.make_section("foo")})
+		self.setup_parse_methods()
 		i = MockInput("fsq",0,None)
 		dt.Document.parse(i)
 		self.assertEquals(0, i.pos)
@@ -232,12 +235,12 @@ class TestDocument(unittest.TestCase):
 			h = dt.Heading(name)
 			return dt.Section(h,c)
 
-	@mock_statics(dt,"FirstSection.parse","Section.parse")	
+	@mock_parse_methods
 	def test_parse_throws_error_for_duplicate_section_names(self):
 	
-		s1 = self.make_section()
-		s2 = self.make_section("foobar")
-		s3 = self.make_section("foobar")
+		s1 = self.make_section(gotos=[["foobar"]])
+		s2 = self.make_section("foobar",gotos=[["foobar"]])
+		s3 = self.make_section("foobar",gotos=[])
 		
 		dt.FirstSection.parse.return_value = s1
 		dt.Section.parse.side_effect = [s2,s3,None]
@@ -245,22 +248,22 @@ class TestDocument(unittest.TestCase):
 		with self.assertRaises(dt.ValidationError):		
 			dt.Document.parse(MockInput("\x00"))
 			
-	@mock_statics(dt,"FirstSection.parse","Section.parse")
+	@mock_parse_methods
 	def test_parse_doesnt_throw_error_for_unique_section_names(self):
 	
-		s1 = self.make_section()
-		s2 = self.make_section("foobar")
-		s3 = self.make_section("wibble")
+		s1 = self.make_section(gotos=[["foobar"]])
+		s2 = self.make_section("foobar",gotos=[["wibble"]])
+		s3 = self.make_section("wibble",gotos=[])
 		
 		dt.FirstSection.parse.return_value = s1
 		dt.Section.parse.side_effect = [s2,s3,None]
 		
 		dt.Document.parse(MockInput("\x00"))
 		
-	@mock_statics(dt,"FirstSection.parse","Section.parse")
+	@mock_parse_methods
 	def test_parse_throws_error_for_invalid_goto_reference_in_first_section(self):
 		
-		s1 = self.make_section(gotos=[["nowhere"]])
+		s1 = self.make_section(gotos=[["nowhere","somewhere"]])
 		s2 = self.make_section("somewhere",gotos=[["anywhere"]])
 		s3 = self.make_section("anywhere",gotos=[])
 		
@@ -270,12 +273,12 @@ class TestDocument(unittest.TestCase):
 		with self.assertRaises(dt.ValidationError):
 			dt.Document.parse(MockInput("\x00"))
 
-	@mock_statics(dt,"FirstSection.parse","Section.parse")	
+	@mock_parse_methods
 	def test_parse_throws_error_for_invalid_goto_reference_in_section(self):
 		
 		s1 = self.make_section(gotos=[["somewhere"]])
-		s2 = self.make_section("somewhere",gotos=[])
-		s3 = self.make_section("anywhere",gotos=[["neverneverland","somewhere"]])
+		s2 = self.make_section("somewhere",gotos=["anywhere"])
+		s3 = self.make_section("anywhere",gotos=[["neverneverland","somewhere",None]])
 		
 		dt.FirstSection.parse.return_value = s1
 		dt.Section.parse.side_effect = [s2,s3,None]
@@ -283,8 +286,9 @@ class TestDocument(unittest.TestCase):
 		with self.assertRaises(dt.ValidationError):
 			dt.Document.parse(MockInput("\x00"))
 
-	@mock_statics(dt,"FirstSection.parse","Section.parse")		
+	@mock_parse_methods
 	def test_parse_doesnt_throw_error_for_valid_forward_goto_references(self):
+		self.setup_parse_methods()
 		
 		s1 = self.make_section(gotos=[["somewhere"]])
 		s2 = self.make_section("somewhere",gotos=[["anywhere"]])
@@ -295,29 +299,79 @@ class TestDocument(unittest.TestCase):
 		
 		dt.Document.parse(MockInput("\x00"))
 	
-	@mock_statics(dt,"FirstSection.parse","Section.parse")		
+	@mock_parse_methods
 	def test_parse_doesnt_throw_error_for_valid_backward_goto_references(self):
 				
-		s1 = self.make_section(gotos=[])
-		s2 = self.make_section("somewhere",gotos=[])
-		s3 = self.make_section("anywhere",gotos=[["somewhere"]])
+		s1 = self.make_section(gotos=["somewhere"])
+		s2 = self.make_section("somewhere",gotos=["anywhere"])
+		s3 = self.make_section("anywhere",gotos=[["somewhere",None]])
 		
 		dt.FirstSection.parse.return_value = s1
 		dt.Section.parse.side_effect = [s2,s3,None]
 		
 		dt.Document.parse(MockInput("\x00"))
-		
-	@mock_statics(dt,"FirstSection.parse","Section.parse")		
+
+	@mock_parse_methods		
 	def test_parse_doesnt_throws_error_for_self_goto_references(self):
 		
-		s1 = self.make_section(gotos=[])
-		s2 = self.make_section("somewhere",gotos=[["somewhere"]])
-		s3 = self.make_section("anywhere", gotos=[["anywhere"]])
+		s1 = self.make_section(gotos=[["somewhere"]])
+		s2 = self.make_section("somewhere",gotos=[["somewhere","anywhere"]])
+		s3 = self.make_section("anywhere",gotos=[])
 		
 		dt.FirstSection.parse.return_value = s1
 		dt.Section.parse.side_effect = [s2,s3,None]
 		
 		dt.Document.parse(MockInput("\x00"))
+	
+	@mock_parse_methods
+	def test_parse_throws_validation_error_for_incomplete_user_path_in_first_section(self):
+	
+		s1 = self.make_section(gotos=[[None,"the end"]])
+		s2 = self.make_section("the end",gotos=[])
+			
+		dt.FirstSection.parse.return_value = s1
+		dt.Section.parse.side_effect = [s2,None]
+		
+		with self.assertRaises(dt.ValidationError):
+			dt.Document.parse(MockInput("\x00"))
+		
+	@mock_parse_methods
+	def test_parse_throws_validation_error_for_incomplete_user_path_in_second_section(self):
+	
+		s1 = self.make_section(gotos=[["second","the end"]])
+		s2 = self.make_section("second",gotos=[["the end",None]])
+		s3 = self.make_section("the end",gotos=[])
+		
+		dt.FirstSection.parse.return_value = s1
+		dt.Section.parse.side_effect = [s2,s3,None]
+		
+		with self.assertRaises(dt.ValidationError):
+			dt.Document.parse(MockInput("\x00"))
+			
+	@mock_parse_methods
+	def test_parse_only_considers_last_choice_block_for_imcomplete_path(self):
+		
+		s1 = self.make_section(gotos=[["second",None],["second","the end"]])
+		s2 = self.make_section("second",gotos=[[None,"the end"],["the end","the end"]])
+		s3 = self.make_section("the end",gotos=[])
+		
+		dt.FirstSection.parse.return_value = s1
+		dt.Section.parse.side_effect = [s2,s3,None]
+		
+		dt.Document.parse(MockInput("\x00"))
+		
+	@mock_parse_methods
+	def test_parse_requires_dropout_choice_in_last_section(self):
+		
+		s1 = self.make_section(gotos=[["second"]])
+		s2 = self.make_section("second",gotos=[["the end"]])
+		s3 = self.make_section("the end",gotos=[["second","the end"]])
+		
+		dt.FirstSection.parse.return_value = s1
+		dt.Section.parse.side_effect = [s2,s3,None]
+		
+		with self.assertRaises(dt.ValidationError):
+			dt.Document.parse(MockInput("\x00"))
 		
 		
 class TestFirstSection(unittest.TestCase):
@@ -1629,10 +1683,10 @@ class TestChoiceResponse(unittest.TestCase):
 			r.feedback = "wibble"
 		
 	def setup_parse_methods(self):
-		dt.ChoiceDescNewline.parse.side_effect = make_parse({"n":object()})
+		dt.ChoiceDescNewline.parse.side_effect = make_parse({"n":dt.ChoiceDescNewline("z")})
 		dt.ChoiceResponseSeparator.parse.side_effect = make_parse({"s":object()})
 		dt.ChoiceResponseDesc.parse.side_effect = make_parse({"d":dt.ChoiceResponseDesc("a","g")})
-		dt.ChoiceGoto.parse.side_effect = make_parse({"g":dt.ChoiceGoto("b")})
+		dt.ChoiceGoto.parse.side_effect = make_parse({"g":dt.ChoiceGoto("b","c")})
 		
 	mock_parse_methods = mock_statics(dt,"ChoiceResponseSeparator.parse",
 		"ChoiceDescNewline.parse","ChoiceResponseDesc.parse","ChoiceGoto.parse")
@@ -1641,15 +1695,16 @@ class TestChoiceResponse(unittest.TestCase):
 	def test_parse_returns_populated_choiceresponse(self):
 		self.setup_parse_methods()
 		dt.ChoiceResponseDesc.parse.side_effect = make_parse({"d":dt.ChoiceResponseDesc("foo","wibble")})
-		dt.ChoiceGoto.parse.side_effect = make_parse({"g":dt.ChoiceGoto("bar")})
-		result = dt.ChoiceResponse.parse(MockInput("nsndg$"))
+		dt.ChoiceGoto.parse.side_effect = make_parse({"g":dt.ChoiceGoto("bar","blarg")})
+		dt.ChoiceDescNewline.parse.side_effect = make_parse({"n":dt.ChoiceDescNewline("jibber"),"N":dt.ChoiceDescNewline("jabber")})
+		result = dt.ChoiceResponse.parse(MockInput("nsNdg$"))
 		self.assertTrue( isinstance(result,dt.ChoiceResponse) )
 		self.assertTrue( hasattr(result,"description") )
 		self.assertEquals("foo", result.description)
 		self.assertTrue( hasattr(result,"goto") )
 		self.assertEquals("bar", result.goto)
 		self.assertTrue( hasattr(result,"feedback") )
-		self.assertEquals("wibble", result.feedback)
+		self.assertEquals("jibber jabber wibble blarg", result.feedback)
 
 	@mock_parse_methods		
 	def test_parse_allows_no_first_choicedescnewline(self):
@@ -1859,104 +1914,87 @@ class TestChoiceResponseDescPart(unittest.TestCase):
 class TestChoiceGoto(unittest.TestCase):
 
 	def test_construct(self):
-		dt.ChoiceGoto("foo")
+		dt.ChoiceGoto("foo","wibble")
 	
 	def test_secname_readable(self):
-		g = dt.ChoiceGoto("foo")
+		g = dt.ChoiceGoto("foo","wibble")
 		self.assertEquals("foo",g.secname)
 		
 	def test_secname_not_writable(self):
-		g = dt.ChoiceGoto("foo")
+		g = dt.ChoiceGoto("foo","wibble")
 		with self.assertRaises(AttributeError):
 			g.secname = "bar"
 			
-	@mock_statics(dt,"GotoMarker.parse","LineWhitespace.parse",
-			"Name.parse","EndPunctuation.parse","ChoiceDescNewline.parse")
-	def test_parse_returns_choicegoto(self):
-		dt.ChoiceDescNewline.parse.side_effect = make_parse({"l":object()})
+	def test_feedback_readable(self):	
+		g = dt.ChoiceGoto("foo","wibble")
+		self.assertEquals("wibble",g.feedback)
+		
+	def test_feedback_not_writable(self):
+		g = dt.ChoiceGoto("foo","wibble")
+		with self.assertRaises(AttributeError):
+			g.feedback = "blarg"
+			
+	def setup_parse_methods(self):
+		dt.ChoiceDescNewline.parse.side_effect = make_parse({"l":dt.ChoiceDescNewline("a")})
 		dt.GotoMarker.parse.side_effect = make_parse({"m":object()})
 		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
-		dt.Name.parse.side_effect = make_parse({"n":dt.Name("foobar")})
+		dt.Name.parse.side_effect = make_parse({"n":dt.Name("a")})
 		dt.EndPunctuation.parse.side_effect = make_parse({"e":object()})
+		
+	mock_parse_methods = mock_statics(dt,"GotoMarker.parse","LineWhitespace.parse",
+			"Name.parse","EndPunctuation.parse","ChoiceDescNewline.parse")
+			
+	@mock_parse_methods
+	def test_parse_returns_choicegoto(self):
+		self.setup_parse_methods()
+		dt.ChoiceDescNewline.parse.side_effect = make_parse({"l":dt.ChoiceDescNewline("jibber")})
+		dt.Name.parse.side_effect = make_parse({"n":dt.Name("foobar")})
 		result = dt.ChoiceGoto.parse(MockInput("lmwne$"))
 		self.assertTrue( isinstance(result,dt.ChoiceGoto) )
 		self.assertTrue( hasattr(result,"secname") )
 		self.assertEquals( "foobar", result.secname )
+		self.assertTrue( hasattr(result,"feedback") )
+		self.assertEquals( "jibber", result.feedback )
 
-	@mock_statics(dt,"GotoMarker.parse","LineWhitespace.parse",
-			"Name.parse","EndPunctuation.parse","ChoiceDescNewline.parse")
+	@mock_parse_methods
 	def test_parse_allows_no_choicedescnewline(self):
-		dt.ChoiceDescNewline.parse.side_effect = make_parse({"l":object()})
-		dt.GotoMarker.parse.side_effect = make_parse({"m":object()})
-		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
-		dt.Name.parse.side_effect = make_parse({"n":dt.Name("a")})
-		dt.EndPunctuation.parse.side_effect = make_parse({"e":object()})
+		self.setup_parse_methods()
 		self.assertIsNotNone( dt.ChoiceGoto.parse(MockInput("mwne$")) )
 
-	@mock_statics(dt,"GotoMarker.parse","LineWhitespace.parse",
-			"Name.parse","EndPunctuation.parse","ChoiceDescNewline.parse")
+	@mock_parse_methods
 	def test_parse_expects_gotomarker(self):
-		dt.ChoiceDescNewline.parse.side_effect = make_parse({"l":object()})
-		dt.GotoMarker.parse.side_effect = make_parse({"m":object()})
-		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
-		dt.Name.parse.side_effect = make_parse({"n":dt.Name("a")})
-		dt.EndPunctuation.parse.side_effect = make_parse({"e":object()})
+		self.setup_parse_methods()
 		self.assertIsNone( dt.ChoiceGoto.parse(MockInput("lwne$")) )
 		self.assertFalse( dt.LineWhitespace.parse.called )
 		self.assertFalse( dt.Name.parse.called )
 		self.assertFalse( dt.EndPunctuation.parse.called )
 		
-	@mock_statics(dt,"GotoMarker.parse","LineWhitespace.parse",
-			"Name.parse","EndPunctuation.parse","ChoiceDescNewline.parse")
+	@mock_parse_methods
 	def test_parse_allows_no_linewhitespace(self):
-		dt.ChoiceDescNewline.parse.side_effect = make_parse({"l":object()})
-		dt.GotoMarker.parse.side_effect = make_parse({"m":object()})
-		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
-		dt.Name.parse.side_effect = make_parse({"n":dt.Name("a")})
-		dt.EndPunctuation.parse.side_effect = make_parse({"e":object()})
+		self.setup_parse_methods()
 		self.assertIsNotNone( dt.ChoiceGoto.parse(MockInput("lmne$")) )
 		
-	@mock_statics(dt,"GotoMarker.parse","LineWhitespace.parse",
-			"Name.parse","EndPunctuation.parse","ChoiceDescNewline.parse")
+	@mock_parse_methods
 	def test_parse_expects_name(self):
-		dt.ChoiceDescNewline.parse.side_effect = make_parse({"l":object()})
-		dt.GotoMarker.parse.side_effect = make_parse({"m":object()})
-		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
-		dt.Name.parse.side_effect = make_parse({"n":dt.Name("a")})
-		dt.EndPunctuation.parse.side_effect = make_parse({"e":object()})
+		self.setup_parse_methods()
 		self.assertIsNone( dt.ChoiceGoto.parse(MockInput("lmwe$")) )
 		self.assertFalse( dt.EndPunctuation.parse.called )
 		
-	@mock_statics(dt,"GotoMarker.parse","LineWhitespace.parse",
-			"Name.parse","EndPunctuation.parse","ChoiceDescNewline.parse")
+	@mock_parse_methods
 	def test_parse_allows_no_endpunctuation(self):
-		dt.ChoiceDescNewline.parse.side_effect = make_parse({"l":object()})
-		dt.GotoMarker.parse.side_effect = make_parse({"m":object()})
-		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
-		dt.Name.parse.side_effect = make_parse({"n":dt.Name("a")})
-		dt.EndPunctuation.parse.side_effect = make_parse({"e":object()})
+		self.setup_parse_methods()
 		self.assertIsNotNone( dt.ChoiceGoto.parse(MockInput("lmwn$")) )
 		
-	@mock_statics(dt,"GotoMarker.parse","LineWhitespace.parse",
-			"Name.parse","EndPunctuation.parse","ChoiceDescNewline.parse")
+	@mock_parse_methods
 	def test_parse_consumes_input_on_success(self):
-		dt.ChoiceDescNewline.parse.side_effect = make_parse({"l":object()})
-		dt.GotoMarker.parse.side_effect = make_parse({"m":object()})
-		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
-		dt.Name.parse.side_effect = make_parse({"n":dt.Name("a")})
-		dt.EndPunctuation.parse.side_effect = make_parse({"e":object()})
+		self.setup_parse_methods()
 		i = MockInput("lmwne$")
 		dt.ChoiceGoto.parse(i)
 		self.assertEquals(5,i.pos)
 		
-	@mock_statics(dt,"GotoMarker.parse","LineWhitespace.parse",
-			"Name.parse","EndPunctuation.parse","ChoiceDescNewline.parse")
+	@mock_parse_methods
 	def test_parse_doesnt_consume_input_on_failure(self):
-		dt.ChoiceDescNewline.parse.side_effect = make_parse({"l":object()})
-		dt.GotoMarker.parse.side_effect = make_parse({"m":object()})
-		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
-		dt.Name.parse.side_effect = make_parse({"n":dt.Name("a")})
-		dt.EndPunctuation.parse.side_effect = make_parse({"e":object()})
+		self.setup_parse_methods()
 		i = MockInput("lmwq$")
 		dt.ChoiceGoto.parse(i)
 		self.assertEquals(0,i.pos)
