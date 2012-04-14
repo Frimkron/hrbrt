@@ -197,16 +197,25 @@ class Document(object):
 		
 	@staticmethod
 	def _walk_section(sec,endsec,walked,sections):
+		"""Walks the goto graph from this section. Returns True if section 
+		paths valid or False if section already walked. Raises ValidationError 
+		for invalid path."""
+		
+		sname = sec.heading.name if hasattr(sec,"heading") else "first"
 		
 		# check if already walked
-		if sec in walked: return False
+		if sec in walked:
+			return False
 		
 		# iterate over choice blocks
+		found_valid = False
+		found_any = False
 		for b in sec.content.items:
 			if isinstance(b,ChoiceBlock):
 				fallthrough = False
 				# iterate over choices
 				for c in b.choices:
+					found_any = True
 					if c.goto is None: 
 						# No goto means block falls through
 						fallthrough = True
@@ -214,22 +223,38 @@ class Document(object):
 						# Recurse to target section
 						newwalked = set(walked)
 						newwalked.add(sec)
-						if not Document._walk_section(
-								sections[c.goto],endsec,newwalked,sections):
-							# bad path - so return invalid
-							return False
+						if( Document._walk_section(
+								sections[c.goto],endsec,newwalked,sections) ):
+							found_valid = True
 				# if block doesnt fall through, stop
 				if not fallthrough:
+					# End section *must* fall through
 					if sec is endsec:
-						# End section *must* fall through
-						return False
-					else:
-						# All paths were ok
-						return True
-		# TODO: working here
-		# if we got here, all paths were ok
-		return True
-
+						raise ValidationError(('End section "%s" has no choices that '
+							+'reach end of document') % sname)
+					break
+		else:
+			# Fell through last block
+			# Only the end section may fall through
+			if sec is not endsec:
+				if not found_any:
+					raise ValidationError(('Section "%s" has no choices and '
+						+'so never reaches end of document') % sname)
+				else:
+					raise ValidationError(('Section "%s" has one or more choices '
+						+'that reach end of section and so never reach end of '
+						+'document') % sname)
+			else:
+				# end section fell through, so mission accomplished
+				return True
+		
+		# if section has no decidedly valid paths, return invalid
+		if not found_valid:
+			raise ValidationError(('Section "%s" has no choices that reach end of '
+				+'document') % sname)
+		
+		return True	
+		
 		
 	@staticmethod
 	def _validate(doc):
@@ -253,8 +278,7 @@ class Document(object):
 								raise ValidationError("Goto references unknown section '%s'" % n)
 								
 		# walk all goto paths
-		if not Document._walk_section(doc.sections[0],doc.sections[-1], set([]),sectionmap):
-			raise ValidationError("Not all paths end at last section")
+		Document._walk_section(doc.sections[0],doc.sections[-1], set([]),sectionmap)
 		
 
 class FirstSection(object):

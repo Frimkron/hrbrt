@@ -173,7 +173,7 @@ class TestDocument(unittest.TestCase):
 	@mock_parse_methods
 	def test_parse_returns_populated_document(self):
 		self.setup_parse_methods()
-		s1 = self.make_section()
+		s1 = self.make_section(gotos=[["foo"]])
 		s2 = self.make_section("foo")
 		dt.FirstSection.parse.side_effect = make_parse({"f":s1})
 		dt.Section.parse.side_effect = make_parse({"s":s2})
@@ -191,13 +191,19 @@ class TestDocument(unittest.TestCase):
 	@mock_parse_methods
 	def test_parse_allows_zero_sections(self):
 		self.setup_parse_methods()
+		dt.FirstSection.parse.side_effect = make_parse({"f":self.make_section(gotos=[])})
 		self.assertIsNotNone( dt.Document.parse(MockInput("f\x00",0,None)) )
 		
 	@mock_parse_methods
 	def test_parse_allows_multiple_sections(self):
 		self.setup_parse_methods()
-		secgen = (self.make_section(n) for n in ["one","two","three"])
-		dt.Section.parse.side_effect = make_parse({"s":secgen.next})
+		dt.FirstSection.parse.side_effect = make_parse({"f":self.make_section(gotos=[["one"]])})
+		secitr = iter([
+			self.make_section("one",gotos=[["two"]]),
+			self.make_section("two",gotos=[["three"]]),
+			self.make_section("three",gotos=[])
+		])
+		dt.Section.parse.side_effect = make_parse({"s":secitr.next})
 		self.assertIsNotNone( dt.Document.parse(MockInput("fsss\x00",0,None)) )
 		
 	@mock_parse_methods
@@ -277,7 +283,7 @@ class TestDocument(unittest.TestCase):
 	def test_parse_throws_error_for_invalid_goto_reference_in_section(self):
 		
 		s1 = self.make_section(gotos=[["somewhere"]])
-		s2 = self.make_section("somewhere",gotos=["anywhere"])
+		s2 = self.make_section("somewhere",gotos=[["anywhere"]])
 		s3 = self.make_section("anywhere",gotos=[["neverneverland","somewhere",None]])
 		
 		dt.FirstSection.parse.return_value = s1
@@ -302,8 +308,8 @@ class TestDocument(unittest.TestCase):
 	@mock_parse_methods
 	def test_parse_doesnt_throw_error_for_valid_backward_goto_references(self):
 				
-		s1 = self.make_section(gotos=["somewhere"])
-		s2 = self.make_section("somewhere",gotos=["anywhere"])
+		s1 = self.make_section(gotos=[["somewhere"]])
+		s2 = self.make_section("somewhere",gotos=[["anywhere"]])
 		s3 = self.make_section("anywhere",gotos=[["somewhere",None]])
 		
 		dt.FirstSection.parse.return_value = s1
@@ -373,6 +379,42 @@ class TestDocument(unittest.TestCase):
 		with self.assertRaises(dt.ValidationError):
 			dt.Document.parse(MockInput("\x00"))
 		
+	@mock_parse_methods
+	def test_parse_requires_choices_in_sections(self):
+		
+		s1 = self.make_section(gotos=[])
+		s2 = self.make_section("the end",gotos=[[None]])
+		
+		dt.FirstSection.parse.return_value = s1
+		dt.Section.parse.side_effect = [s2,None]
+		
+		with self.assertRaises(dt.ValidationError):
+			dt.Document.parse(MockInput("\x00"))
+			
+	@mock_parse_methods
+	def test_parse_allows_lack_of_choices_in_end_section(self):
+	
+		s1 = self.make_section(gotos=[["the end"]])
+		s2 = self.make_section("the end",gotos=[])
+		
+		dt.FirstSection.parse.return_value = s1
+		dt.Section.parse.side_effect = [s2,None]
+		
+		dt.Document.parse(MockInput("\x00"))
+			
+	@mock_parse_methods
+	def test_parse_defers_decision_on_looping_choices(self):
+		
+		s1 = self.make_section(gotos=[["foo"]])
+		s2 = self.make_section("foo",gotos=[["bar","end"]])
+		s3 = self.make_section("bar",gotos=[["foo"]])
+		s4 = self.make_section("end",gotos=[])
+			
+		dt.FirstSection.parse.return_value = s1
+		dt.Section.parse.side_effect = [s2,s3,s4,None]
+		
+		dt.Document.parse(MockInput("\x00"))
+			
 		
 class TestFirstSection(unittest.TestCase):
 
