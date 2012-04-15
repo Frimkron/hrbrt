@@ -317,3 +317,270 @@ P (N P)* ( N? S N? P (N P)* )?
 [*] I'd rather go with the (minor) duplication. It feels less magic.
 
 
+[?] How does the logic for this choice-walking work?
+
+  S ----> A <---> D --.
+  |       ^       ^   |
+  |       |  .----'   |
+  v       v /         |
+  B ----> C ----> E <-'
+
+
+S: A,B
+A: D,C
+B: C
+C: A,D,E
+D: A
+E 
+                    .-> S
+            .-> A --|   ^----.
+    .-> D --|       '-> C -> B
+E --|       '-----------^
+    '-------------------' 
+
+S
+|-- A
+    |-- D (valid)
+    |   |-- A (ongoing)
+    |   '-- E (valid)
+    '-- C (valid)
+        |-- D (valid)
+        |   |-- A (ongoing)
+        |   '-- E (valid)
+        '-- E (valid)
+
+- Ongoing loops are considered valid
+- When is a section not ongoing?
+- If a section consists *only* of choices which loop, *then* it is 
+  invalid
+[!] Nope - a section could *only* loop back to a section which then
+    leads to the end.
+- For goodness sake - a human could try all paths without issue, 
+  couldn't they?
+- A loop means it returns to a previous state
+- Choices either loop back, reach the end, or are invalid
+- We immediately stop for an invalid path - others either loop or reach
+  the end
+- Looping back is ok provided there is a valid path from this state
+- But that valid path might be after further loop backs.
+- A section is ok if each choice is either valid or loops back to 
+  a valid section
+- But there needs to be a further invalidity check.
+- At top of dependency chain there must be a valid path
+- Must be a valid path to satisfy dependency chain.
+- Dependencies will be sections currently on the stack
+- Are dependency loops possible?
+
+ .------.  
+ v      |  
+ A ---> B
+ |
+ v
+ E
+
+A
+|-- B (valid if A valid)
+|   '-- A (unknown)
+'-- E (valid)
+
+.---------.
+|         v
+|  A ---> B -.
+|  ^      |  |
+|  |      v  |
+'- D <--- C  |
+   ^         |        
+   '---------'
+
+A
+'-- B
+    |-- C
+    |   '-- D
+    |       |-- A (dep)
+    |       '-- B (dep)
+    '-- D        
+        |-- A (dep)
+        '-- B (dep)
+
+.---------.
+|         v
+|  A ---> B --.   E
+|  ^      |   |   ^
+|  |      v   |   |
+'- D <--- C <-^-- S
+   ^          |        
+   '----------'
+
+S (if E and C)
+|-- E (valid)
+'-- C (if D)
+    '-- D (if B and A)
+        |-- B (if C and D)
+        |   |-- C (?)
+        |   '-- D (?)
+        '-- A (if B)
+            '-- B (if C and D)
+                |-- C (?)
+                '-- D (?)
+
+- Every choice is a dependency, looped or not
+- Dependencies are chained
+- They are depending on that section having an end-reaching choice
+- A section is valid IF each of its choices are valid
+- A section's validity *depends* on *all* its choices being valid
+
+  S ---> A ---> E
+  ^      |
+  '------'
+
+A if S and E
+
+S
+'-- A
+    |-- E (valid)
+    '-- S (?)
+    
+S depends on A which depends on S
+[?] Is a section valid if it consists of loops and at least one valid
+    choice?
+    
+  S ---> A --.
+  |      ^   |
+  v      '---'
+  E
+
+S (invalid)
+|-- A (invalid)
+|   '-- A (invalid)
+'-- E
+
+- A loop is invalid if it's to a section having it's final choice
+  tested
+  
+                .------.
+                v      |
+  S ---> A ---> B ---> C
+  |      ^      |
+  v      '------'
+  E
+
+S (invalid)
+|-- A (invalid)
+|   '-- B (invalid)
+|       |-- C 
+|       |   '-- B (? choices remain)
+|       '-- A (final choice - invalid)
+
+  .------.      .------.
+  v      |      v      |
+  S ---> A ---> B ---> C
+  |      ^      |
+  v      '------'
+  E
+
+S
+|-- A
+|   |-- S (? choices remain)
+|   '-- B
+|       |-- C 
+|       |   '-- B (? choices remain)
+|       '-- A (final choice - invalid)
+
+[!] That ain't right.
+[*] There'a subtlety to consider. A section can depend on another 
+    section which in turn depends on another section. This chaining
+    of looped dependencies should be respected
+[*] There's a difference between testing last choice and the last 
+    chance to prove a section valid.
+[*] Last choice is only last chance if we are not waiting on another
+    dependency
+    
+  .------.      .------.
+  v      |      v      |
+  S ---> A ---> B ---> C
+  |    / ^      |
+  v   |  '------'
+  E   |
+      |      .------.
+      v      v      |
+      F ---> G ---> H <-.
+      ^      |      '---'
+      '------'
+
+S 
+|-- A   
+|   |-- S (?)
+|   |-- B 
+|   |   |-- C 
+|   |   |   | last chance   
+|   |   |   '-- B (?)
+|   |   | last chance
+|   |   '-- A (?)
+|   '-- F
+|       | last chance
+|       '-- G
+|           |-- F (?)
+|           | last chance   <-- we have dependency on F, but it's F's
+|           |                   last chance. Therefore last chance
+|           '-- H
+|               |-- H (?)
+|               | last chance <-- dep on H, but H's last chance
+|               '-- G (lc, invalid!)
+
+[*] it's section's last chance if no valid choice has yet been found 
+    and it has no other choices or dependencies with choices remaining
+
+  .------.      .------.
+  v      |      v      |
+  S ---> A ---> B ---> C
+  |    / ^      |
+  v   |  '------'
+  E   |
+  ^   |      .------.
+  |   v      v      |
+  '-- F ---> G ---> H <-.
+      ^      |      '---'
+      '------'
+
+S
+|-- A
+|   |-- S (?)
+|   |-- B
+|   |   |-- C
+|   |   |   '-- B (?)
+|   |   |lc
+|   |   '-- A (?)
+|   '-- F
+|       |-- G
+|       |   |-- F (?)
+|       |   '-- H
+|       |       |-- H (?)
+|       |       '-- G (?)
+|       |lc
+|       '-- E (valid)
+|lc
+'-- E (valid)
+
+ S ---> A ---> E
+ ^      |
+ '------'
+
+S
+|lc
+'-- A
+    |-- E (valid)
+    '-- S (?)
+    
+ S ---> A --.
+ |      ^   |
+ v      '---'
+ E
+
+S
+|-- A
+|   |lc
+|   '-- A (?) invalid
+
+[*] In addition to "walked" set, we need a "last-chance" set too.
+- This would be checked when a loop is encountered, and if in the 
+  last chance set, an error is raised 

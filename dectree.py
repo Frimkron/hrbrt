@@ -69,45 +69,6 @@ ALL_CHARACTERS = (
 	+"""`!"$%^&*()_-+=[{]}#~;:'@,<.>/?\\| \t"""
 )
 
-
-class Maybe(object):
-	
-	val = None
-	
-	def __init__(self,val):
-		if isinstance(val,Maybe):
-			val = val.val
-		self.val = val
-		
-	def __add__(self,other):
-		if isinstance(other,Maybe):
-			other = other.val
-		if other is not None:
-			if self.val is None:
-				return Maybe(other)
-			else:
-				return Maybe(self.val + other)
-		else:
-			return Maybe(self.val)
-		
-	def __radd__(self,other):
-		if isinstance(other,Maybe):
-			other = other.val
-		if other is not None:
-			if self.val is None:
-				return Maybe(other)
-			else:
-				return Maybe(other + self.val)
-		else:
-			return Maybe(self.val)
-			
-	def __getattr__(self,name):
-		if self.val is None:
-			return Maybe(None)
-		else:
-			return Maybe(getattr(self.val,name))
-
-
 class Input(object):
 	"""Immutable wrapper for the input string. Holds a 
 	position in the input. Holds a reference to the Input 
@@ -196,20 +157,30 @@ class Document(object):
 		return doc
 		
 	@staticmethod
-	def _walk_section(sec,endsec,walked,sections):
+	def _walk_section(sec,endsec,walked,lastchance,sections):
 		"""Walks the goto graph from this section. Returns True if section 
-		paths valid or False if section already walked. Raises ValidationError 
-		for invalid path."""
+		paths valid or False if unknown. Raises ValidationError for invalid path."""
 		
 		sname = sec.heading.name if hasattr(sec,"heading") else "first"
 		
+		# TODO: this is wrong - looping back to a section on its 
+		#       last chance isn't necessarily an error.
 		# check if already walked
 		if sec in walked:
-			return False
+			if sec in lastchance:
+				# if it was this section's last chance to find a valid
+				# path, the section is invalid
+				raise ValidationError(('End of document cannot be reached '
+					+'from section "%s"') % sname)
+			else:
+				# otherwise we're still waiting to find out if this 
+				# section is valid
+				return False
 		
 		# iterate over choice blocks
 		found_valid = False
 		found_any = False
+		has_leads = False
 		for b in sec.content.items:
 			if isinstance(b,ChoiceBlock):
 				fallthrough = False
@@ -223,31 +194,38 @@ class Document(object):
 						# Recurse to target section
 						newwalked = set(walked)
 						newwalked.add(sec)
+						newlchance = set(lastchance)
+						# TODO: need to add self to newlchance
+						# if last chance
 						if( Document._walk_section(
-								sections[c.goto],endsec,newwalked,sections) ):
+								sections[c.goto],endsec,newwalked,
+								newlchance,sections) ):
 							found_valid = True
+						else:
+							has_leads = True
 				# if block doesnt fall through, stop
 				if not fallthrough:
 					# End section *must* fall through
 					if sec is endsec:
-						raise ValidationError(('End section "%s" has no choices that '
-							+'reach end of document') % sname)
+						raise ValidationError(('End section "%s" has no '
+							+'choices that reach end of document') % sname)
 					break
 		else:
 			# Fell through last block
 			# Only the end section may fall through
 			if sec is not endsec:
 				if not found_any:
-					raise ValidationError(('Section "%s" has no choices and '
-						+'so never reaches end of document') % sname)
+					raise ValidationError(('Section "%s" has no choices '
+						+'and so never reaches end of document') % sname)
 				else:
-					raise ValidationError(('Section "%s" has one or more choices '
-						+'that reach end of section and so never reach end of '
-						+'document') % sname)
+					raise ValidationError(('Section "%s" has one or more '
+						+'choices that reach end of section and so never '
+						+'reach end of document') % sname)
 			else:
 				# end section fell through, so mission accomplished
 				return True
 		
+		# TODO: this is wrong
 		# if section has no decidedly valid paths, return invalid
 		if not found_valid:
 			raise ValidationError(('Section "%s" has no choices that reach end of '
