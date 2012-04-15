@@ -318,7 +318,7 @@ class TestDocument(unittest.TestCase):
 		dt.Document.parse(MockInput("\x00"))
 
 	@mock_parse_methods		
-	def test_parse_doesnt_throws_error_for_self_goto_references(self):
+	def test_parse_doesnt_throw_error_for_self_goto_references(self):
 		
 		s1 = self.make_section(gotos=[["somewhere"]])
 		s2 = self.make_section("somewhere",gotos=[["somewhere","anywhere"]])
@@ -326,6 +326,19 @@ class TestDocument(unittest.TestCase):
 		
 		dt.FirstSection.parse.return_value = s1
 		dt.Section.parse.side_effect = [s2,s3,None]
+		
+		dt.Document.parse(MockInput("\x00"))
+
+	@mock_parse_methods
+	def test_parse_doesnt_throw_error_for_indirectly_looping_goto_references(self):
+	
+		s1 = self.make_section(gotos=[["foo"]])
+		s2 = self.make_section("foo",gotos=[["end","bar"]])
+		s3 = self.make_section("bar",gotos=[["foo"]])
+		s4 = self.make_section("end",gotos=[])
+		
+		dt.FirstSection.parse.return_value = s1
+		dt.Section.parse.side_effect = [s2,s3,s4,None]
 		
 		dt.Document.parse(MockInput("\x00"))
 	
@@ -414,6 +427,35 @@ class TestDocument(unittest.TestCase):
 		dt.Section.parse.side_effect = [s2,s3,s4,None]
 		
 		dt.Document.parse(MockInput("\x00"))
+		
+	@mock_parse_methods
+	def test_parse_throws_validation_error_for_dead_end_self_loop(self):
+		
+		s1 = self.make_section(gotos=[["foo"]])
+		s2 = self.make_section("foo",gotos=[["bar","end"]])
+		s3 = self.make_section("bar",gotos=[["bar"]])
+		s4 = self.make_section("end",gotos=[])
+		
+		dt.FirstSection.parse.return_value = s1
+		dt.Section.parse.side_effect = [s2,s3,s4,None]
+		
+		with self.assertRaises(dt.ValidationError):
+			dt.Document.parse(MockInput("\x00"))
+			
+	@mock_parse_methods
+	def test_parse_throws_validation_error_for_dead_end_indirect_loop(self):
+	
+		s1 = self.make_section(gotos=[["foo"]])
+		s2 = self.make_section("foo",gotos=[["bar","end"]])
+		s3 = self.make_section("bar",gotos=[["weh"]])
+		s4 = self.make_section("weh",gotos=[["bar"]])
+		s5 = self.make_section("end",gotos=[])
+		
+		dt.FirstSection.parse.return_value = s1
+		dt.Section.parse.side_effect = [s2,s3,s4,s5,None]
+		
+		with self.assertRaises(dt.ValidationError):
+			dt.Document.parse(MockInput("\x00"))
 			
 		
 class TestFirstSection(unittest.TestCase):

@@ -1,9 +1,11 @@
+# TODO: Bug in path checking
 # TODO: Recipient may assume to read into next section 
 #		when there isn't a goto in a section. Force author to 
 #		have all paths lead to final section. Or else introduce
 #		some kind of END HERE syntax for explicitly telling the 
 #		user to stop reading (though an explicit end section is 
 #		just as easy to author)
+# TODO: Section need only contain heading name
 # TODO: Allow gotos at the end of sections.
 # TODO: Fix up whitespace in combined snippets, particularly feedback
 # TODO: Command line recipient usage 
@@ -158,58 +160,61 @@ class Document(object):
 		
 	@staticmethod
 	def _walk_section(sec,endsec,walked,lastchance,sections):
-		"""Walks the goto graph from this section. Returns True if section 
-		paths valid or False if unknown. Raises ValidationError for invalid path."""
+		"""Walks the goto graph from this section.
+		Raises ValidationError for invalid path."""
 		
 		sname = sec.heading.name if hasattr(sec,"heading") else "first"
 		
-		# TODO: this is wrong - looping back to a section on its 
-		#       last chance isn't necessarily an error.
-		# check if already walked
-		if sec in walked:
-			if sec in lastchance:
-				# if it was this section's last chance to find a valid
-				# path, the section is invalid
-				raise ValidationError(('End of document cannot be reached '
-					+'from section "%s"') % sname)
-			else:
-				# otherwise we're still waiting to find out if this 
-				# section is valid
-				return False
+		cbs = filter(lambda x: isinstance(x,ChoiceBlock), sec.content.items)
 		
-		# iterate over choice blocks
 		found_valid = False
 		found_any = False
-		has_leads = False
-		for b in sec.content.items:
-			if isinstance(b,ChoiceBlock):
-				fallthrough = False
-				# iterate over choices
-				for c in b.choices:
-					found_any = True
-					if c.goto is None: 
-						# No goto means block falls through
-						fallthrough = True
+		found_lead = False
+
+		# iterate over choice blocks
+		for b in cbs:
+			last_block = b is cbs[-1]
+			fallthrough = False
+			
+			# iterate over choices
+			for c in b.choices:
+				last_choice = last_block and c is b.choices[-1]
+				found_any = True
+				
+				if c.goto is None: 
+					# No goto means block falls through
+					fallthrough = True
+				else:
+					target = sections[c.goto]
+					
+					# Is target a loop?
+					if target in walked:
+						# it's a potential lead if this is not its 
+						# last chance
+						found_lead = not target in lastchance
 					else:
 						# Recurse to target section
 						newwalked = set(walked)
 						newwalked.add(sec)
+						# Section's last chance if it's reached the final choice
+						# with no valid paths or potential leads
 						newlchance = set(lastchance)
-						# TODO: need to add self to newlchance
-						# if last chance
-						if( Document._walk_section(
-								sections[c.goto],endsec,newwalked,
-								newlchance,sections) ):
-							found_valid = True
-						else:
-							has_leads = True
-				# if block doesnt fall through, stop
-				if not fallthrough:
-					# End section *must* fall through
-					if sec is endsec:
-						raise ValidationError(('End section "%s" has no '
-							+'choices that reach end of document') % sname)
-					break
+						if last_choice and not found_valid and not found_lead:
+							newlchance.add(sec)
+						
+						Document._walk_section(target,endsec,newwalked,
+								newlchance,sections)
+						
+						# Walk completed without error, so we found a valid path
+						found_valid = True
+							
+			# if block doesnt fall through, stop
+			if not fallthrough:
+				# End section *must* fall through
+				if sec is endsec:
+					raise ValidationError(('End section "%s" has no '
+						+'choices that reach end of document') % sname)
+				break
 		else:
 			# Fell through last block
 			# Only the end section may fall through
@@ -223,16 +228,15 @@ class Document(object):
 						+'reach end of document') % sname)
 			else:
 				# end section fell through, so mission accomplished
-				return True
+				return
 		
-		# TODO: this is wrong
-		# if section has no decidedly valid paths, return invalid
-		if not found_valid:
-			raise ValidationError(('Section "%s" has no choices that reach end of '
-				+'document') % sname)
+		# if no more opportunities to find a valid path, section is invalid
+		if not found_valid and not found_lead:
+			raise ValidationError(('Section "%s" has no choices that reach '
+				+'end of document') % sname)
 		
-		return True	
-		
+		# all ok
+		return 	
 		
 	@staticmethod
 	def _validate(doc):
@@ -254,9 +258,13 @@ class Document(object):
 							n = c.goto
 							if n not in sectionmap:
 								raise ValidationError("Goto references unknown section '%s'" % n)
+
+		import pdb
+		pdb.set_trace()
 								
 		# walk all goto paths
-		Document._walk_section(doc.sections[0],doc.sections[-1], set([]),sectionmap)
+		Document._walk_section(doc.sections[0],doc.sections[-1], 
+			set([]),set([]),sectionmap)
 		
 
 class FirstSection(object):
@@ -348,7 +356,8 @@ class SectionContent(object):
 		last = None
 		for i in items:
 			if isinstance(i,ChoiceBlock) and isinstance(last,ChoiceBlock):
-				raise ValidationError("Consecutive choice blocks are not allowed")
+				raise ValidationError("Consecutive choice blocks are not allowed. "
+					+"Separate with text block or instruction block")
 			last = i
 				
 		input.commit()
@@ -1640,29 +1649,29 @@ Put here as a test
 #				<ChoiceMarker> <LineWhitespace>? 
 
 s = """\
-::	blah
-:	yadda
-floogle
-::	[]	opt a
-alpha
-:			--
-beta
-:				test test
-gamma
-:			GO TO foo
-delta
-:	[]	opt b
-epsilon
-:			--
-t'other one
-:				123 123
-omega
-:			GO TO foo
-blah
-== foo ==
+::	[] one 		-- GO TO II
+:	[] two 		-- GO TO II
+:	[] three	-- GO TO III
 
-::	yadda
-:	blarg
+== II ==
+
+::	[] one 		-- GO TO II
+:	[] two		-- GO TO III
+
+== III ==
+
+::	[] one
+:	[] two
+
+%%	some filler text
+
+::	[] ay		-- GO TO II
+:	[] bee		-- GO TO III
+:	[] cee		-- GO TO II
+
+== IV ==
+
+::	end
 """
 
 if __name__ == "__main__":
