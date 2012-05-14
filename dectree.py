@@ -1695,7 +1695,7 @@ class DecTreeOutput(object):
 			choicestrs.append(":: %s" % self._visit_Choice(cblock.choices[0]))
 			for choice in cblock.choices[1:]:
 				choicestrs.append(":  %s" % self._visit_Choice(choice))
-			s += "\n".join(choicestrs)
+			s += "".join(choicestrs)
 		if cblock.feedback is not None and len(cblock.feedback)>0:
 			s += "\n"
 			flines = wrap_text(cblock.feedback,DecTreeOutput.LINE_WIDTH)
@@ -1706,21 +1706,21 @@ class DecTreeOutput(object):
 	def _visit_Choice(self,choice):
 		s = "[%s] " % (choice.mark if choice.mark is not None else "")
 		dlines = wrap_text(choice.description,DecTreeOutput.LINE_WIDTH-3,
-			start=len(s))
+			start=len(s)-3)
 		s += dlines[0]+"\n"
 		for line in dlines[1:]:
 			s += ":  %s\n" % line
 		if choice.response is not None or choice.goto is not None:			
-			l = ":  -- "
+			l = ":      -- "
 			s += l
 			if choice.response is not None:
 				rlines = wrap_text(choice.response,DecTreeOutput.LINE_WIDTH-3,
-					start=len(l))
+					start=len(l)-3)
 				s += rlines[0]+"\n"
 				for line in rlines[1:]:
 					s += ":  %s\n" % line
 				if choice.goto is not None:
-					s += ":  "
+					s += ":      "
 			if choice.goto is not None:
 				s += "GO TO %s\n" % choice.goto
 		return s
@@ -1793,7 +1793,7 @@ if __name__ == "__main__":
 	# write to output 
 	if args.output is None and args.input != "-":
 		outstream = open("%s.out.%s" % ( args.input[:args.input.rindex(".")]
-			if not "." in args.input else args.input, outformat.EXTENSIONS[0] ),"w")
+			if "." in args.input else args.input, outformat.EXTENSIONS[0] ),"w")
 	elif args.output is None and args.input == "-":
 		outstream = sys.stdout
 	elif args.output == "-":

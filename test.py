@@ -2067,14 +2067,24 @@ class TestChoiceResponse(unittest.TestCase):
 		result = dt.ChoiceResponse.parse(MockInput("sndg$"))
 		self.assertIsNone(result.feedback)
 
+	@mock_parse_methods
 	def test_parse_sets_none_for_no_responsedesc(self):
-		# TODO
+		self.setup_parse_methods()
+		result = dt.ChoiceResponse.parse(MockInput("sg$"))
+		self.assertIsNone(result.description)
 	
+	@mock_parse_methods
 	def test_parse_sets_none_for_empty_responsedesc(self):
-		# TODO
+		self.setup_parse_methods()
+		dt.ChoiceResponseDesc.parse.side_effect = make_parse({"d":dt.ChoiceResponseDesc("",None)})
+		result = dt.ChoiceResponse.parse(MockInput("sndg$"))
+		self.assertIsNone(result.description)
 		
-	def test_pars_sets_none_for_no_goto(self):
-		# TODO
+	@mock_parse_methods
+	def test_parse_sets_none_for_no_goto(self):
+		self.setup_parse_methods()
+		result = dt.ChoiceResponse.parse(MockInput("snd$"))
+		self.assertIsNone(result.goto)
 
 	@mock_parse_methods		
 	def test_parse_allows_no_first_choicedescnewline(self):
@@ -3713,28 +3723,30 @@ class TestDecTreeOutput(unittest.TestCase):
 					+"thingy") ],None) ])))
 
 	def test_format_handles_choice(self):
-		self.assertEquals(":: [X] blah blah\n:  -- yadda yadda\n:  GO TO wibble\n",
+		self.assertEquals(":: [X] blah blah\n:      -- yadda yadda\n"
+				+":      GO TO wibble\n",
 			dt.DecTreeOutput.format(dt.Document([
 				dt.FirstSection([ dt.ChoiceBlock([
 					dt.Choice("X","blah blah","yadda yadda","wibble",None)
 				],None) ],None) ])))
 
 	def test_format_handles_choice_no_mark(self):
-		self.assertEqual(":: [] blah blah\n:  -- yadda yadda\n:  GO TO wibble\n",
+		self.assertEqual(":: [] blah blah\n:      -- yadda yadda\n"
+				+":      GO TO wibble\n",
 			dt.DecTreeOutput.format(dt.Document([
 				dt.FirstSection([ dt.ChoiceBlock([
 					dt.Choice(None,"blah blah","yadda yadda","wibble",None)
 				],None) ],None) ])))
 
 	def test_format_handles_choice_no_response(self):
-		self.assertEqual(":: [X] blah blah\n:  -- GO TO wibble\n",
+		self.assertEqual(":: [X] blah blah\n:      -- GO TO wibble\n",
 			dt.DecTreeOutput.format(dt.Document([
 				dt.FirstSection([ dt.ChoiceBlock([
 					dt.Choice("X","blah blah",None,"wibble",None)
 				],None) ],None) ])))
 				
 	def test_format_handles_choice_no_goto(self):
-		self.assertEquals(":: [X] blah blah\n:  -- yadda yadda\n",
+		self.assertEquals(":: [X] blah blah\n:      -- yadda yadda\n",
 			dt.DecTreeOutput.format(dt.Document([
 				dt.FirstSection([ dt.ChoiceBlock([
 					dt.Choice("X","blah blah","yadda yadda",None,None)
@@ -3749,8 +3761,8 @@ class TestDecTreeOutput(unittest.TestCase):
 
 	def test_format_handles_choice_wrapped_description(self):
 		self.assertEquals(":: [X] This is a test to test long lines of text are "
-				+"wrapped properly onto the\n:  next line, okay?\n:  -- yadda yadda"
-				+"\n:  GO TO wibble\n",
+				+"wrapped properly onto the\n:  next line, okay?\n"
+				+":      -- yadda yadda\n:      GO TO wibble\n",
 			dt.DecTreeOutput.format(dt.Document([
 				dt.FirstSection([ dt.ChoiceBlock([
 					dt.Choice("X","This is a test to test long lines of text "
@@ -3758,14 +3770,23 @@ class TestDecTreeOutput(unittest.TestCase):
 						"yadda yadda","wibble",None) ],None) ],None)])))
 
 	def test_format_handles_choice_wrapped_response(self):
-		self.assertEquals(":: [X] blah\n:  -- This is a test to test long lines of "
+		self.assertEquals(":: [X] blah\n:      -- This is a test to test long lines of "
 				+"text are wrapped properly onto\n:  the next line, okay?"
-				+"\n:  GO TO wibble\n",
+				+"\n:      GO TO wibble\n",
 			dt.DecTreeOutput.format(dt.Document([
 				dt.FirstSection([ dt.ChoiceBlock([
 					dt.Choice("X","blah","This is a test to test long lines of text "
 						+"are wrapped properly onto the next line, okay?",
 						"wibble",None) ],None) ],None)])))
+
+	def test_format_handles_choiceblock_multiple_choices(self):
+		self.assertEquals(":: [X] foo\n:      -- bar\n:      GO TO wibble\n"
+				+":  [Y] weh\n:      -- meh\n:      GO TO yadda\n",
+			dt.DecTreeOutput.format(dt.Document([
+				dt.FirstSection([ dt.ChoiceBlock([
+					dt.Choice("X","foo","bar","wibble",None),
+					dt.Choice("Y","weh","meh","yadda",None)
+				],None) ],None) ])))
 
 	def test_format_handles_multiple_sections(self):
 		self.assertEquals(":: foo\n\n== dave ==\n\n:: bar\n",
