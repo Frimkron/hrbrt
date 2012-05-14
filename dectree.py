@@ -1,21 +1,18 @@
-# TODO: Bug in path checking
-# TODO: Recipient may assume to read into next section 
-#		when there isn't a goto in a section. Force author to 
-#		have all paths lead to final section. Or else introduce
-#		some kind of END HERE syntax for explicitly telling the 
-#		user to stop reading (though an explicit end section is 
-#		just as easy to author)
-# TODO: Section need only contain heading name
-# TODO: Allow gotos at the end of sections.
+#!/usr/bin/python2
+
+# TODO: Bug outputing choices with no response content
+# TODO: Ensure feedback is None not "" where none in document
 # TODO: Fix up whitespace in combined snippets, particularly feedback
 # TODO: Command line recipient usage 
 # TODO: Command line sender usage
-# TODO: Tidy up formal definition
+# TODO: Markdown output :D
+# TODO: Allow header line in syntax
+# TODO: Allow gotos at the end of sections.
 # TODO: Command line interactive mode
+# TODO: Tidy up formal definition
 # TODO: GUI interactive mode for recipient
 # TODO: GUI interactive mode for sender
 # TODO: Open document output
-# TODO: Markdown output :D
 
 """	
 Document <- FirstSection Section* '\x00'
@@ -62,6 +59,9 @@ FirstTextLineMarker <- '::'
 TextLineContent <- LineWhitespace? LineText Newline
 FeedbackLine <- QuoteMarker? LineText Newline
 """
+
+import json
+import re
 
 
 ALL_CHARACTERS = (
@@ -129,9 +129,16 @@ class Document(object):
 
 	_sections = None
 	sections = property(lambda s: list(s._sections))
+	_is_completed = False
+	is_completed = property(lambda s: s._is_completed)
 	
 	def __init__(self,sections):
 		self._sections = sections
+		self._is_completed = False
+		for s in sections:
+			if getattr(s,"is_completed",False):
+				self._is_completed = True
+				break
 		
 	def __repr__(self):
 		return "Document(%s)" % repr(self._sections)
@@ -159,58 +166,54 @@ class Document(object):
 		return doc
 		
 	@staticmethod
-	def _walk_section(sec,endsec,walked,lastchance,sections):
-		"""Walks the goto graph from this section.
-		Raises ValidationError for invalid path."""
+	def _walk_section(sec,endsec,path,lastlead,sections):
+		"""Walks the goto graph from this section. Raises 
+		ValidationError for invalid path. Returns True if 
+		path to end found."""
 		
-		sname = sec.heading.name if hasattr(sec,"heading") else "first"
-		
-		cbs = filter(lambda x: isinstance(x,ChoiceBlock), sec.content.items)
-		
+		sname = sec.heading if hasattr(sec,"heading") else "first"
+		cbs = filter(lambda x: isinstance(x,ChoiceBlock), sec.items)
 		found_valid = False
-		found_any = False
-		found_lead = False
+		
+		# end section is itself a valid path
+		# (at this point we assume it falls through)
+		if sec is endsec:
+			found_valid = True
+
+		# only the end section may be choiceless
+		if len(cbs)==0 and sec is not endsec:
+			raise ValidationError(('Section "%s" has no choice blocks and so '
+					+'cannot reach end of document') % sname)
 
 		# iterate over choice blocks
 		for b in cbs:
+		
 			last_block = b is cbs[-1]
-			fallthrough = False
+			gcs = filter(lambda c: c.goto is not None, b.choices)
 			
-			# iterate over choices
-			for c in b.choices:
-				last_choice = last_block and c is b.choices[-1]
-				found_any = True
+			# iterate over choices with gotos
+			for c in gcs:
+			
+				last_goto = last_block and c is gcs[-1]
+				target = sections[c.goto]
+				newpath = path+[sec]
+				newlastlead = ( len(newpath)-1 
+						if found_valid or not last_goto else lastlead )
 				
-				if c.goto is None: 
-					# No goto means block falls through
-					fallthrough = True
+				# Is target a loop?
+				if target in newpath:
+					# must be potential exit following the section
+					if newlastlead==-1 or newlastlead < newpath.index(target):
+						raise ValidationError('Dead-end loop found in section "%s"' % sname)	
 				else:
-					target = sections[c.goto]
-					
-					# Is target a loop?
-					if target in walked:
-						# it's a potential lead if this is not its 
-						# last chance
-						found_lead = not target in lastchance
-					else:
-						# Recurse to target section
-						newwalked = set(walked)
-						newwalked.add(sec)
-						# Section's last chance if it's reached the final choice
-						# with no valid paths or potential leads
-						newlchance = set(lastchance)
-						if last_choice and not found_valid and not found_lead:
-							newlchance.add(sec)
-						
-						Document._walk_section(target,endsec,newwalked,
-								newlchance,sections)
-						
-						# Walk completed without error, so we found a valid path
+					# Recurse to target section
+					if Document._walk_section(target,endsec,newpath,
+							newlastlead,sections):
 						found_valid = True
-							
+						
 			# if block doesnt fall through, stop
-			if not fallthrough:
-				# End section *must* fall through
+			if not any([c.goto is None for c in b.choices]):
+				# End section *must* fall all the way through
 				if sec is endsec:
 					raise ValidationError(('End section "%s" has no '
 						+'choices that reach end of document') % sname)
@@ -219,24 +222,11 @@ class Document(object):
 			# Fell through last block
 			# Only the end section may fall through
 			if sec is not endsec:
-				if not found_any:
-					raise ValidationError(('Section "%s" has no choices '
-						+'and so never reaches end of document') % sname)
-				else:
-					raise ValidationError(('Section "%s" has one or more '
-						+'choices that reach end of section and so never '
-						+'reach end of document') % sname)
-			else:
-				# end section fell through, so mission accomplished
-				return
-		
-		# if no more opportunities to find a valid path, section is invalid
-		if not found_valid and not found_lead:
-			raise ValidationError(('Section "%s" has no choices that reach '
-				+'end of document') % sname)
-		
-		# all ok
-		return 	
+				raise ValidationError(('Section "%s" has one or more '
+					+'choices that reach end of section and so never '
+					+'reach end of document') % sname)
+					
+		return found_valid
 		
 	@staticmethod
 	def _validate(doc):
@@ -244,39 +234,49 @@ class Document(object):
 		# Collect sections into map, checking for duplicates		
 		sectionmap = {}
 		for s in doc.sections[1:]:
-			n = s.heading.name
+			n = s.heading
 			if n in sectionmap:
 				raise ValidationError("Duplicate section name '%s'" % n)
 			sectionmap[n] = s
 
 		# Iterate over goto references, checking sections exist			
 		for s in doc.sections:
-			for b in s.content.items:
+			for b in s.items:
 				if isinstance(b,ChoiceBlock):
 					for c in b.choices:
 						if c.goto is not None:
 							n = c.goto
 							if n not in sectionmap:
 								raise ValidationError("Goto references unknown section '%s'" % n)
-
-		import pdb
-		pdb.set_trace()
-								
+																
 		# walk all goto paths
 		Document._walk_section(doc.sections[0],doc.sections[-1], 
-			set([]),set([]),sectionmap)
+			[],-1,sectionmap)
 		
 
 class FirstSection(object):
 
-	_content = None
-	content = property(lambda s: s._content)
+	_items = None
+	items = property(lambda s: list(s._items))
+	_feedback = None
+	feedback = property(lambda s: s._feedback)
+	_is_completed = False
+	is_completed = property(lambda s: s._is_completed)
 
-	def __init__(self,content):
-		self._content = content
+	def __init__(self,items,feedback):
+		self._items = items
+		self._feedback = feedback
+		self._is_completed = False
+		for i in items:
+			if getattr(i,"is_completed",False):
+				self._is_completed = True
+				break
+		if self.feedback is not None:
+			self._is_completed = True
 		
 	def __repr__(self):
-		return "FirstSection(%s)" % repr(self._content)
+		return "FirstSection(%s,%s)" % (
+			repr(self._items),repr(self._feedback) )
 		
 	@staticmethod
 	def parse(input):
@@ -284,22 +284,35 @@ class FirstSection(object):
 		cont = SectionContent.parse(input)
 		if cont is None: return None		
 		input.commit()
-		return FirstSection(cont)
+		return FirstSection(cont.items,cont.feedback)
 		
 		
 class Section(object):
 
 	_heading = None
 	heading = property(lambda s: s._heading)
-	_content = None
-	content = property(lambda s: s._content)
+	_items = None
+	items = property(lambda s: list(s._items))
+	_feedback = None
+	feedback = property(lambda s: s._feedback)
+	_is_completed = False
+	is_completed = property(lambda s: s._is_completed)
 	
-	def __init__(self,heading,content):
+	def __init__(self,heading,items,feedback):
 		self._heading = heading
-		self._content = content
+		self._items = items
+		self._feedback = feedback
+		self._is_completed = False
+		for i in items:
+			if getattr(i,"is_completed",False):
+				self._is_completed = True
+				break
+		if feedback is not None:
+			self._is_completed = True
 		
 	def __repr__(self):
-		return "Section(%s,%s)" % (repr(self._heading),repr(self._content))
+		return "Section(%s,%s,%s)" % (
+			repr(self._heading),repr(self._items),repr(self._feedback) )
 		
 	@staticmethod
 	def parse(input):
@@ -312,7 +325,7 @@ class Section(object):
 		if cont is None: return None
 		
 		input.commit()
-		return Section(head,cont)
+		return Section(head.name,cont.items,cont.feedback)
 		
 		
 class SectionContent(object):
@@ -350,7 +363,8 @@ class SectionContent(object):
 				TextBlock).parse(input)
 			if i is None: break
 			items.append(i)
-			flines.append(i.feedback)
+			if not isinstance(i,ChoiceBlock) and i.feedback is not None:
+				flines.append(i.feedback)
 		if len(items)==0: return None
 				
 		last = None
@@ -361,7 +375,8 @@ class SectionContent(object):
 			last = i
 				
 		input.commit()
-		return SectionContent(items," ".join(flines))
+		return SectionContent(items,
+			" ".join(flines) if len(flines)>0 else None )
 		
 	
 class Heading(object):
@@ -466,10 +481,19 @@ class ChoiceBlock(object):
 	choices = property(lambda s: list(s._choices))
 	_feedback = None
 	feedback = property(lambda s: s._feedback)
+	_is_completed = False
+	is_completed = property(lambda s: s._is_completed)
 	
 	def __init__(self,choices,feedback):
 		self._choices = choices
 		self._feedback = feedback
+		self._is_completed = False
+		for c in choices:
+			if c.mark is not None:
+				self._is_completed = True
+				break
+		if feedback is not None:
+			self._is_completed = True
 		
 	def __repr__(self):
 		return "ChoiceBlock(%s,%s)" % (
@@ -501,7 +525,8 @@ class ChoiceBlock(object):
 				flines.append(l[1].text)		
 		
 		input.commit()
-		return ChoiceBlock(choices," ".join(flines))
+		return ChoiceBlock(choices,
+			" ".join(flines) if len(flines)>0 else None)
 	
 	
 class InstructionBlock(object):
@@ -536,12 +561,13 @@ class InstructionBlock(object):
 			if l is None: 
 				break
 			elif isinstance(l,InstructionLine):
-				tlines.append(l.text)
+				tlines.append(l.text.strip())
 			elif isinstance(l,list) and isinstance(l[1],FeedbackLine):
-				flines.append(l[1].text)
+				flines.append(l[1].text.strip())
 				
 		input.commit()
-		return InstructionBlock(" ".join(tlines)," ".join(flines))
+		return InstructionBlock(" ".join(tlines),
+			" ".join(flines) if len(flines)>0 else None)
 		
 	
 class TextBlock(object):
@@ -576,12 +602,13 @@ class TextBlock(object):
 			if l is None: 
 				break
 			elif isinstance(l,TextLine):
-				tlines.append(l.text)
+				tlines.append(l.text.strip())
 			elif isinstance(l,list) and isinstance(l[1],FeedbackLine):
-				flines.append(l[1].text)
+				flines.append(l[1].text.strip())
 					
 		input.commit()
-		return TextBlock(" ".join(tlines)," ".join(flines))
+		return TextBlock( " ".join(tlines),
+			" ".join(flines) if len(flines)>0 else None )
 	
 	
 class TextLine(object):
@@ -703,7 +730,7 @@ class LineText(object):
 		if i is None: return None
 		
 		input.commit()
-		return LineText("".join(i)+" ")
+		return LineText("".join(i).strip())
 
 
 class BlankLine(object):
@@ -1042,16 +1069,18 @@ class ChoiceDescription(object):
 		
 		p = ChoiceDescPart.parse(input)
 		if p is None: return None
-		parts.append(p.text)
+		parts.append(p.text.strip())
 		
 		ps = ZeroOrMore(Sequence(
 			ChoiceDescNewline,ChoiceDescPart)).parse(input)
 		if ps is None: return None
 		parts.extend([p[1].text for p in ps])
-		flines.extend([p[0].feedback for p in ps])
+		flines.extend(filter(lambda x: x is not None,
+			[p[0].feedback for p in ps]))
 		
 		input.commit()
-		return ChoiceDescription(" ".join(parts)," ".join(flines))
+		return ChoiceDescription(" ".join(parts),
+			" ".join(flines) if len(flines)>0 else None)
 
 
 class ChoiceDescNewline(object):
@@ -1093,7 +1122,8 @@ class ChoiceDescNewline(object):
 		if Not(ChoiceMarker).parse(input) is None: return None
 		
 		input.commit()
-		return ChoiceDescNewline(" ".join(flines))		
+		return ChoiceDescNewline(
+			" ".join(flines) if len(flines)>0 else None )		
 	
 	
 class ChoiceDescPart(object):
@@ -1116,7 +1146,7 @@ class ChoiceDescPart(object):
 		if text is None: return None
 		input.commit()
 		return ChoiceDescPart("".join(
-				[t[0] if isinstance(t,list) else t for t in text]))
+				[t[0] if isinstance(t,list) else t for t in text]).strip())
 		
 	
 class ChoiceResponse(object):
@@ -1169,7 +1199,7 @@ class ChoiceResponse(object):
 		
 		input.commit()
 		return ChoiceResponse(
-			desc.text if desc is not False else None,
+			desc.text if desc is not False and len(desc.text)>0 else None,
 			goto.secname if goto is not False else None,
 			" ".join(flines) if len(flines)>0 else None )
 			
@@ -1201,7 +1231,7 @@ class ChoiceResponseDesc(object):
 			repr(self._text),repr(self._feedback) )
 				
 	@staticmethod
-	def parse(input):
+	def parse(input):	
 		input = input.branch()
 		
 		parts = []
@@ -1215,10 +1245,12 @@ class ChoiceResponseDesc(object):
 			ChoiceDescNewline,ChoiceResponseDescPart)).parse(input)
 		if ps is None: return None
 		parts.extend([p[1].text for p in ps])
-		flines.extend([p[0].feedback for p in ps])
+		flines.extend(filter(lambda s: s is not None, 
+			[p[0].feedback for p in ps]))
 		
 		input.commit()
-		return ChoiceResponseDesc(" ".join(parts)," ".join(flines))
+		return ChoiceResponseDesc(" ".join(parts),
+			" ".join(flines) if len(flines)>0 else None)
 				
 		
 class ChoiceResponseDescPart(object):
@@ -1245,7 +1277,7 @@ class ChoiceResponseDescPart(object):
 		if text is None: return None
 		input.commit()
 		return ChoiceResponseDescPart("".join(
-				[t[0] if isinstance(t,list) else t for t in text]))
+				[t[0] if isinstance(t,list) else t for t in text]).strip())
 		
 		
 class ChoiceGoto(object):
@@ -1502,197 +1534,274 @@ class Char(object):
 		return c
 
 
+def wrap_text(text,width,start=0):
+	lines = []
+	tokens = re.split("\s+",text)
+	ln = ""
+	ewidth = width-start
+	
+	while len(tokens) > 0:
+		tk = tokens[0]
+		
+		# break word if wider than width
+		if len(tk) > width:
+			w = ewidth-len(ln)-int(len(ln)>0)
+			bits = []
+			while len(tk) > w:
+				bit,tk = tk[:w],tk[w:]
+				bits.append(bit)
+				w = width
+			bits.append(tk)
+			tokens.pop(0)
+			tokens = bits+tokens
+			continue
+				
+		# wrap line if would go over width
+		addn = (" " if len(ln)>0 else "")+tk
+		if len(ln+addn) > ewidth:
+			lines.append(ln)
+			ln = ""
+			ewidth = width
+			continue
+			
+		ln += addn
+		tokens.pop(0)
+		
+	if len(ln) > 0:
+		lines.append(ln)
+	
+	return lines
+
+
+class JsonOutput(object):
+
+	EXTENSIONS = ["json","js"]
+
+	@staticmethod
+	def format(document):
+		return JsonOutput.INST._format(document)
+		
+	def _format(self,document):
+		obj = self._visit_Document(document)
+		return json.dumps(obj)
+		
+	def _visit(self,item):
+		fname = "_visit_%s" % type(item).__name__
+		return getattr(self,fname,lambda x: None)(item)
+		
+	def _visit_Document(self,doc):
+		seclist = []
+		for s in doc.sections:
+			seclist.append(self._visit(s))
+		return seclist
+		
+	def _visit_FirstSection(self,sec):
+		blocklist = []
+		for b in sec.items:
+			blocklist.append(self._visit(b))
+		return { "blocks": blocklist, "feedback": sec.feedback }
+		
+	def _visit_Section(self,sec):
+		blocklist = []
+		for b in sec.items:
+			blocklist.append(self._visit(b))
+		return { "name": sec.heading, "blocks": blocklist, 
+				"feedback": sec.feedback }
+				
+	def _visit_TextBlock(self,tblock):
+		return { "type": "text", "content": tblock.text }
+		
+	def _visit_InstructionBlock(self,iblock):
+		return { "type": "instructions", "content": iblock.text }
+		
+	def _visit_ChoiceBlock(self,cblock):
+		choicelist = []
+		for c in cblock.choices:
+			choicelist.append(self._visit_Choice(c))
+		return { "type": "choices", "content": choicelist,
+				"feedback": cblock.feedback }
+		
+	def _visit_Choice(self,choice):
+		return { "mark": choice.mark, "description": choice.description,
+				"response": choice.response, "goto": choice.goto }
+		
+JsonOutput.INST = JsonOutput()
+
+
 class HtmlOutput(object):
 	
-	def output(self,tree):
-		# TODO doctype
-		return "<html><body>%s</body></html>" % (
-			"".join(map(self._visit,tree.sections)) )
-		
-	def _visit(self,node,**kargs):
-		return getattr(self,"_do_%s" % type(node).__name__,
-				self._do_default)(node,**kargs)
-		
-	def _do_FirstSection(self,node):
-		return self._visit(node.content,secname="!first")
-		
-	def _do_Section(self,node):
-		name = node.heading.name.text.lower()
-		return self._visit(node.heading)+self._visit(node.content,secname=name)
+	EXTENSIONS = ["htm","html","xhtml"]
+	
+	@staticmethod
+	def format(document):
+		return "TODO: html output"
 
-	def _do_Heading(self,node):
-		return "<h2>%s</h2>" % self._escape(node.name.text)
+
+class DecTreeOutput(object):
+	
+	EXTENSIONS = ["dt"]
+	LINE_WIDTH = 79
+	
+	@staticmethod
+	def format(document):
+		return DecTreeOutput.INST._format(document)
 		
-	def _do_SectionContent(self,node,secname):
-		s = ""
-		for i,item in enumerate(node.items):
-			s += self._visit(item,blockid=secname+"_"+str(i))
+	def _format(self,doc):
+		s = "\n".join(map(self._visit,doc.sections))
 		return s
-	
-	def _do_TextBlock(self,node,blockid):
-		return "<p>%s</p>" % (
-			"".join(map(self._visit,node.lines)) )	
-	
-	def _do_TextLine(self,node):
-		return self._escape(node.text.text)
-	
-	def _do_InstructionBlock(self,node,blockid):
-		# TODO: comments may not contain '--'
-		return "<!-- %s -->" % (
-			"".join(map(self._visit,node.lines)) )
 		
-	def _do_InstructionLine(self,node):
-		return self._escape(node.text.text)
+	def _visit(self,item):
+		fname = "_visit_%s" % type(item).__name__
+		return getattr(self,fname,lambda x: None)(item)
 		
-	def _do_FeedbackBlock(self,node,blockid):
-		return '<p class="feedback">%s</p>' % (
-			"".join(map(self._visit,node.lines)) )
-		
-	def _do_FeedbackLine(self,node):
-		return self._escape(node.text.text)
-
-	def _do_ChoiceBlock(self,node,blockid):
+	def _visit_FirstSection(self,sec):
 		s = ""
-		for i,c in enumerate(node.choices):
-			s += self._visit(c,setname=blockid,choiceid=blockid+"_"+str(i))
-		return "<form>%s</form>" % s
+		s += "\n".join(map(self._visit,sec.items))
+		if sec.feedback is not None:
+			s += "\n"
+			flines = wrap_text(sec.feedback,DecTreeOutput.LINE_WIDTH)
+			for line in flines:
+				s += "%s\n" % line
+		return s
 		
-	def _do_Choice(self,node,setname,choiceid):
-		return ( ('<div><input id="%(choiceid)s" type="radio" name="%(setname)s" />'
-				+'<label for="%(choiceid)s">%(description)s</label></div>')
-				% { "choiceid":self._escape(choiceid), "setname":self._escape(setname),
-					"description":self._escape(self._visit(node.description)) } )
+	def _visit_Section(self,sec):
+		s = "== %s ==\n\n" % sec.heading
+		s += "\n".join(map(self._visit,sec.items))
+		if sec.feedback is not None:
+			s += "\n"
+			flines = wrap_text(sec.feedback,DecTreeOutput.LINE_WIDTH)
+			for line in flines:
+				s += "%s\n" % line
+		return s
 		
-	def _do_ChoiceDescription(self,node):
-		return "".join(map(self._visit,node.parts))
+	def _visit_TextBlock(self,text):
+		lines = wrap_text(text.text,width=DecTreeOutput.LINE_WIDTH-3)
+		s = ":: %s\n" % lines[0]
+		for line in lines[1:]:
+			s += ":  %s\n" % line
+		return s
 		
-	def _do_ChoiceDescPart(self,node):
-		return node.text
+	def _visit_InstructionBlock(self,instr):
+		lines = wrap_text(instr.text,width=DecTreeOutput.LINE_WIDTH-3)
+		s = "%%%% %s\n" % lines[0]
+		for line in lines[1:]:
+			s += "%%  %s\n" % line
+		return s
 		
-	def _do_default(self,node,**kargs):
-		return ""
+	def _visit_ChoiceBlock(self,cblock):
+		s = ""
+		if len(cblock.choices) > 0:
+			choicestrs = []
+			choicestrs.append(":: %s" % self._visit_Choice(cblock.choices[0]))
+			for choice in cblock.choices[1:]:
+				choicestrs.append(":  %s" % self._visit_Choice(choice))
+			s += "\n".join(choicestrs)
+		if cblock.feedback is not None and len(cblock.feedback)>0:
+			s += "\n"
+			flines = wrap_text(cblock.feedback,DecTreeOutput.LINE_WIDTH)
+			for line in flines:
+				s += "%s\n" % line
+		return s
 		
-	def _escape(self,text):
-		return ( text.replace("&","&amp;")
-				.replace("<","&lt;")
-				.replace(">","&gt;")
-				.replace('"',"&quot;") )
-  	
-	
-s = """\
-: Hi Alice,
+	def _visit_Choice(self,choice):
+		s = "[%s] " % (choice.mark if choice.mark is not None else "")
+		dlines = wrap_text(choice.description,DecTreeOutput.LINE_WIDTH-3,
+			start=len(s))
+		s += dlines[0]+"\n"
+		for line in dlines[1:]:
+			s += ":  %s\n" % line
+		if choice.response is not None or choice.goto is not None:			
+			l = ":  -- "
+			s += l
+			if choice.response is not None:
+				rlines = wrap_text(choice.response,DecTreeOutput.LINE_WIDTH-3,
+					start=len(l))
+				s += rlines[0]+"\n"
+				for line in rlines[1:]:
+					s += ":  %s\n" % line
+				if choice.goto is not None:
+					s += ":  "
+			if choice.goto is not None:
+				s += "GO TO %s\n" % choice.goto
+		return s
+		
+DecTreeOutput.INST = DecTreeOutput()
 
-%	Please put X in each box as appropriate and leave additional 
-%	comments on separate lines (without a : at the start).  You 
-%	can follow "GO TO <section>" instructions by searching for 
-%	"== <section>" using ctl+f, for example.
-    
-: Who's in charge of setting up the file server?
-    
-: [X] Me		-- GO TO me.
-: [] Frank	-- Tell him to pop in to have a chat with me when he's 
-:  				in tomorrow. GO TO end.
-: [] George	-- GO TO george 
-: [] Other	-- Let me know whos's in charge of the damn file server. 
-:  				GO TO end.
-
-Here is some feedback
-Put here as a test
-
-== Me ==
-    	
-: Did you get it up and running yet?
-    	
-: [] Yes it's up and running	-- GO TO server running.
-: [] No it's not ready yet	-- GO TO server not running.
-    
-
-== George ==
-
-: Is he on holiday?
-  	
-: [] Yes	-- Please could you take over from him. GO TO end.
-: [] No		-- Have him to contact me. GO TO end.
-    
-
-== Server Running ==
-    
-: Ok that's great! Thanks for getting that set up.
-    	
-: Is there a password?
-   	
-: [] Yes a password has been set	-- Leave it with Chris 
-:										on Tuesday GO TO end.
-: [] No, no password is set			-- Leave it like that and 
-:										I will set one. GO TO end.
-    
-== Server Not Running ==
-    	
-: Is Dianne busy?
-	
-: [] Yes she's occupied	-- Hand over the file server job to Ed GO TO end.
-: [] No she's not busy	-- Hand over the file server job to Dianne GO TO end.
-    
-: Are we still waiting on that hard disk from the supplier?
-    	
-: [] Yes, still waiting	-- Call them and ask what's taking so long. GO TO end.
-: [] Not waiting		-- Let me know what the problem is. GO TO end.
-    
-    
-== End ==
-    
-: Thanks,
-: Bob.
-"""
-
-# <Choice> ::= <QuoteMarker>? <FirstTextLineMarker> <LineWhitespace>?
-#				<ChoiceMarker> <LineWhitespace>? 
-
-s = """\
-::	[] one 		-- GO TO II
-:	[] two 		-- GO TO II
-:	[] three	-- GO TO III
-
-== II ==
-
-::	[] one 		-- GO TO II
-:	[] two		-- GO TO III
-
-== III ==
-
-::	[] one
-:	[] two
-
-%%	some filler text
-
-::	[] ay		-- GO TO II
-:	[] bee		-- GO TO III
-:	[] cee		-- GO TO II
-
-== IV ==
-
-::	end
-"""
 
 if __name__ == "__main__":
 
-	#import pdb
-	#pdb.set_trace()
+	import sys	
+	import argparse
+		
+	# parse arguments
+	ap = argparse.ArgumentParser(description="Parse decision tree documents")
+	ap.add_argument("input",help="file to read from or '-' for standard input")
+	ap.add_argument("-v","--validate",help="just validate input",action="store_true")
+	ap.add_argument("-r","--run",help="how to run file",choices=["cl","gui"])
+	ap.add_argument("-o","--output",help="file to write to or '-' for standard output")
+	ap.add_argument("-f","--format",help="output format",choices=["dectree","html","json"])
+	args = ap.parse_args()
+
+	# prepare input string	
+	if args.input == "-":
+		if args.run == "cl":
+			sys.exit("Can't combine standard input with command-line run mode")
+		instream = sys.stdin
+	else:
+		instream = open(args.input,"r")
 	
-	i = Input(s)
+	with instream:
+		instring = instream.read()
+		input = Input(instring)
+	
+	# parse input
 	try:
-		d = Document.parse(i)
-		if d is not None:
-			print d
-			#print HtmlOutput().output(d)
-		else:
-			p = i.get_deepest_pos()
-			print "Parse error near %s" % repr(s[p:p+100]+"...")
-			
-	except ValidationError as e:
-		print "Validation error: %s" % str(e)
+		document = Document.parse(input)
+		
+		if document is None:
+			p = input.get_deepest_pos()
+			sys.exit("Parse error near '%s'" % (instring[p:p+100]+"..."))
 	
-#	import argparse
-#	
-#	ap = argparse.ArgumentParser(description="Parse decision tree documents")
-#	ap.parse_args()
+	except ValidationError as e:
+		sys.exit("Validation error: %s" % str(e))
+
+	# if just validating, stop here
+	if args.validate:
+		print "Document is valid!"
+		sys.exit(0)
+	
+	# if necessary, run and add feedback to parse tree
+	if args.run is not None or args.output is None:
+		# TODO: run file
+		print "Running goes here"		
+	
+	# prepare output string
+	if args.output is not None and "." in args.output:
+		ext = args.output[args.output.rindex(".")+1:]
+	else:
+		ext = None
+
+	if args.format == "html" or ext in HtmlOutput.EXTENSIONS:
+		outformat = HtmlOutput
+	elif args.format == "json" or ext in JsonOutput.EXTENSIONS:
+		outformat = JsonOutput
+	else:		
+		outformat = DecTreeOutput
+
+	output = outformat.format(document)
+
+	# write to output 
+	if args.output is None and args.input != "-":
+		outstream = open("%s.out.%s" % ( args.input[:args.input.rindex(".")]
+			if not "." in args.input else args.input, outformat.EXTENSIONS[0] ),"w")
+	elif args.output is None and args.input == "-":
+		outstream = sys.stdout
+	elif args.output == "-":
+		outstream = sys.stdout
+	else:
+		outstream = open(args.output,"w")
+		
+	with outstream:
+		outstream.write(output)
+
+

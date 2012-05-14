@@ -1,0 +1,4 @@
+:: [] alpha -- GO TO foo
+:  [] beta -- blah GO TO foo
+== foo ==
+:: yo
