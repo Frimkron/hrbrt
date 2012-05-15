@@ -637,3 +637,37 @@ S
 	summary, too.
 [?] And do what with it? The program is for summarising a completed
 	dectree file - surely reading it in again is out of scope.
+
+		INPUT						PROCESS						OUTPUT
+		new	done	summ			quiz	review				new	done	summ
+dt		*	*				term	*		*			dt		*	*		*!	
+json	*	*		*		gui		*		*			json	*	*		*
+xml		*	*		*		http	*		*			xml		*	*		*
+														html	*	*		*
+														mkdn	*	*		*
+														odt		*	*		*
+														
+[*] Crazy idea, but the interactive summary could itself be a decision tree.
+- Would only work for the terminal version - otherwise I'd be forced into a 
+	clumsy terminal-like interface for the gui version
+- Ok, but decision tree could be a summary output, that's all I'm saying
+   
+ .-------------------.   .---------------------.
+ |                   v   |                     |
+ |        .-------> CONVERT --------.          |
+ |        |          ^   |          |          |
+ |    .---(----------'   '----------(----.     |
+ |    |   |                         |    v     |
+ |  NEW --(-------> QUIZ            |   NEW    |
+ |        |  edit    ^ |            |          |
+ |    .---(----------' '------------(----.     |
+ |    |   |                         |    v     |
+ '- DONE -(-------> REVIEW ------.  |   DONE <-'
+      |   |                      |  |
+      '---(----------.           |  |
+          |          v           |  |
+    SUMM -'         SUMM         |  '-> SUMM
+                     |           |       ^
+                     '-----------(-------'
+                                 |
+                                 '----> NILL                                       
