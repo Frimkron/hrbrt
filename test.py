@@ -701,7 +701,7 @@ class TestSection(unittest.TestCase):
 		dt.Section.parse(i)
 		self.assertEquals(0, i.pos)
 		
-	def test_is_completed_returns_true_for_completed_block(self):
+	def test_is_completed_returns_true_for_completed_choiceblock(self):
 		cb1 = mock.Mock()
 		cb1.is_completed = False
 		cb2 = mock.Mock()
@@ -717,7 +717,7 @@ class TestSection(unittest.TestCase):
 		s = dt.Section("dave",[cb1,cb2],"foobar")
 		self.assertEquals(True, s.is_completed)
 		
-	def test_is_completed_returns_false_for_no_completed_blocks_or_feedback(self):
+	def test_is_completed_returns_false_for_no_completed_choiceblocks_or_feedback(self):
 		cb1 = mock.Mock()
 		cb1.is_completed = False
 		cb2 = mock.Mock()

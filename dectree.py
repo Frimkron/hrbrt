@@ -1,8 +1,5 @@
 #!/usr/bin/python2
 
-# TODO: Bug outputing choices with no response content
-# TODO: Ensure feedback is None not "" where none in document
-# TODO: Fix up whitespace in combined snippets, particularly feedback
 # TODO: Command line recipient usage 
 # TODO: Command line sender usage
 # TODO: Markdown output :D
@@ -1773,7 +1770,7 @@ if __name__ == "__main__":
 	# if necessary, run and add feedback to parse tree
 	if args.run is not None or args.output is None:
 		# TODO: run file
-		print "Running goes here"		
+		print "Running goes here"
 	
 	# prepare output string
 	if args.output is not None and "." in args.output:

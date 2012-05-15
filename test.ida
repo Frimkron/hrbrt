@@ -588,3 +588,52 @@ S
 [!] No, that's not right.
 - A dependency simply isn't a potential lead if its in the last chance
   set.
+
+------
+
+[?] How should running work for complete/incomplete files?
+- Runs if run type specified, or no output file specified
+[?] Why - what's the significance of that default behaviour?
+- I think the intention was to provide a sensible default if the user 
+  specifies only an input file, i.e. dectree myfile.dt
+[*] Maybe the default behaviour should only be invoked if *no* options
+	are specified at all.
+	
+[!] Input/process/output is getting confused. There are multiple use
+	cases which are being mashed into each other
+- Use case: convert a questionaire to open document format (rare)
+- Use case: run and fill in a dectree file (likely)
+- Use case: summarise a completed dectree file (likely)
+
+[?] Does the format parameter govern how a fresh questionaire should be 
+	output, or how a completed questionaire should be summarized?
+- I guess there needs to be another option. 
+- It can be inferred that a completed document should be summarised
+[!] But this may not be the user's intention
+[!] There may be different output formats available for summarising and
+	converting
+[?] Need there be a difference?
+- It makes sense that a summary would look different. It could leave out
+	irrelevant tree nodes, for one thing.
+[?] Should the summary be a static file, or should the program act as an 
+	interactive viewer?
+- It would be nice to have the option of either producing a static 
+	report or viewing the results interactively.
+- A complex decision tree can be hard to explore without folding, etc.
+[?] But what could be displayed interactively that couldn't be shown in
+	a static report?
+
+[*] User is never going to want to run the file and output a summary. 
+	Output from a run is always going to be a dectree file which can
+	then be processed separately
+- And the only input format is dectree, of course.
+[!] What's the point of outputting the AST as json if it can't be read
+	in again?
+- I should have different input formats.
+- Regardless, the summary is going to be a pretty format rather than 
+	a machine-readable one.
+[?] Or is it? I could have a JSON or XML summary format. 
+- It would then be sensible for the program to be able to read this 
+	summary, too.
+[?] And do what with it? The program is for summarising a completed
+	dectree file - surely reading it in again is out of scope.
