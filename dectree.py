@@ -64,6 +64,7 @@ FeedbackLine <- QuoteMarker? LineText Newline
 
 import json
 import re
+import collections
 
 
 ALL_CHARACTERS = (
@@ -1753,6 +1754,85 @@ class DecTreeIO(object):
 DecTreeIO.INST = DecTreeIO()
 
 
+class CommandLineRunner(object):
+
+	FIRST = object()
+	END = object()
+	SecData = collections.namedtuple("SecData","section next")	
+
+	@staticmethod
+	def run(document):
+		CommandLineRunner.INST._run(document, 
+			sys.stdin, sys.stdout)
+		
+	def _run(self,document,ins,outs):
+		
+		# make map of section data
+		sections = {}
+		for i,s in enumerate(document.sections):
+			name = getattr(s,"name",CommandLineRunner.FIRST)
+			next = ( getattr(document.sections[i+1],"name",CommandLineRunner.FIRST)
+					if i<len(document.sections)-1 else CommandLineRunner.END )
+			sections[name] = CommandLineRunner.SecData(s,next)
+
+		sname = CommandLineRunner.FIRST
+
+		# walk section graph		
+		while sname != CommandLineRunner.END:
+			section,nextname = sections[sname]
+			sname = self._run_section(section,nextname,ins,outs)
+
+	def _run_section(self,section,nextname,ins,outs):
+		for block in section.blocks:
+			goto = self._run_block(block,ins,outs)
+			if goto is not None: return goto
+		return nextname
+
+	def _run_block(self,block,ins,outs):
+		hname = "_run_%s" % type(block).__name__
+		return getattr(self,hname,self._run_default)(block,ins,outs)
+
+	def _run_default(self,block,ins,outs):
+		return None
+		
+	def _run_TextBlock(self,block,ins,outs):
+		outs.write(block.text)
+		outs.write("\n\n")
+		ins.readline()
+		return None
+		
+	def _run_ChoiceBlock(self,block,ins,outs):
+		
+		while True:
+		
+			for i,c in enumerate(block.choices):
+				outs.write("%d) %s\n" % (i+1,c.description))
+			outs.write("\n> ")
+			
+			selstring = ins.readline()
+			try:
+				selnum = int(selstring)
+			except ValueError:
+				outs.write("\n\nEnter a number\n\n")
+				continue
+				
+			if selnum < 1 or selnum >= len(block.choices):
+				outs.write("\n\nInvalid choice\n\n")
+				continue
+				
+			break
+				
+		chosen = block.choices[selnum]
+			
+		if chosen.response is not None:
+			outs.write("\n\n%s\n\n" % chosen.response)
+	
+		if chosen.goto is not None:
+			return chosen.goto
+				
+		return None
+		
+
 if __name__ == "__main__":
 
 	import sys	
@@ -1801,8 +1881,13 @@ if __name__ == "__main__":
 	
 	# if necessary, run and add feedback to parse tree
 	if args.run is not None or (args.output is None and args.oformat is None):
-		# TODO: run file
-		print "Running goes here"
+		if args.run == "gui"
+			# TODO
+			pass
+		else:
+			runner = CommandLineRunner
+			
+		runner.run(document)
 	
 	# determine output format
 	if args.output is not None and "." in args.output:

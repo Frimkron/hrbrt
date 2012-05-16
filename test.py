@@ -3923,6 +3923,12 @@ class TestWrapText(unittest.TestCase):
 		self.assertEquals([],dt.wrap_text("",10))
 
 
+class TestCommandLineRunner(unittest.TestCase):
+
+	# TODO
+	pass
+	
+
 unittest.main()
 
 
