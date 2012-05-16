@@ -1,5 +1,6 @@
 #!/usr/bin/python2
 
+# TODO: Input formats (convert output classes to i/o classes)
 # TODO: Command line recipient usage 
 # TODO: Command line sender usage
 # TODO: Markdown output :D
@@ -1731,12 +1732,14 @@ if __name__ == "__main__":
 	import argparse
 		
 	# parse arguments
-	ap = argparse.ArgumentParser(description="Parse decision tree documents")
+	ap = argparse.ArgumentParser(description="Process decision tree documents")
 	ap.add_argument("input",help="file to read from or '-' for standard input")
+	ap.add_argument("-i","--iformat",help="input format",choices=["dectree","json","xml","sexp"])
 	ap.add_argument("-v","--validate",help="just validate input",action="store_true")
 	ap.add_argument("-r","--run",help="how to run file",choices=["cl","gui"])
-	ap.add_argument("-o","--output",help="file to write to or '-' for standard output")
-	ap.add_argument("-f","--format",help="output format",choices=["dectree","html","json"])
+	ap.add_argument("-o","--oformat",help="output format",choices=["dectree","json","xml","sexp","html","markdown","opendoc"])
+	ap.add_argument("output",help="file to write to or '-' for standard output",nargs="?")
+
 	args = ap.parse_args()
 
 	# prepare input string	
@@ -1752,6 +1755,7 @@ if __name__ == "__main__":
 		input = Input(instring)
 	
 	# parse input
+	# TODO: different input formats
 	try:
 		document = Document.parse(input)
 		
@@ -1769,6 +1773,7 @@ if __name__ == "__main__":
 	
 	# if necessary, run and add feedback to parse tree
 	if args.run is not None or args.output is None:
+		# TODO: output is none logic to be revised
 		# TODO: run file
 		print "Running goes here"
 	
@@ -1778,9 +1783,9 @@ if __name__ == "__main__":
 	else:
 		ext = None
 
-	if args.format == "html" or ext in HtmlOutput.EXTENSIONS:
+	if args.oformat == "html" or ext in HtmlOutput.EXTENSIONS:
 		outformat = HtmlOutput
-	elif args.format == "json" or ext in JsonOutput.EXTENSIONS:
+	elif args.oformat == "json" or ext in JsonOutput.EXTENSIONS:
 		outformat = JsonOutput
 	else:		
 		outformat = DecTreeOutput

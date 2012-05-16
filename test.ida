@@ -653,11 +653,11 @@ xml		*	*		*		http	*		*			xml		*	*		*
 - Ok, but decision tree could be a summary output, that's all I'm saying
    
  .-------------------.   .---------------------.
- |                   v   |                     |
- |        .-------> CONVERT --------.          |
- |        |          ^   |          |          |
- |    .---(----------'   '----------(----.     |
- |    |   |                         |    v     |
+ |                   v   |                     |     Functions:
+ |        .-------> CONVERT --------.          |       * Convert format of new/done/summary
+ |        |          ^   |          |          |       * Run new/done, producing done
+ |    .---(----------'   '----------(----.     |       * Browse done
+ |    |   |                         |    v     |       * Summarise done, producing summary
  |  NEW --(-------> QUIZ            |   NEW    |
  |        |  edit    ^ |            |          |
  |    .---(----------' '------------(----.     |
@@ -670,4 +670,30 @@ xml		*	*		*		http	*		*			xml		*	*		*
                      |           |       ^
                      '-----------(-------'
                                  |
-                                 '----> NILL                                       
+                                 '----> NILL
+                                 
+[?] What information would be stored in the summary format, then, that 
+	wouldn't be stored in the dectree AST?
+- I guess the summary would describe the user's path?
+- One idea for a summary format was to display the user's path as a 
+	dialogue, e.g:
+	
+<dtree>	How are you doing today?
+<user>	Pretty good
+<dtree>	That's great to hear. What's your favourite colour?
+<user>	Black.
+<dtree>	How dark. Cats or dogs?
+<user>	Cats.
+<dtree>	Meow! Do you prefer cake or burgers?
+<user>	Cake.
+<dtree>	Sweet tooth, eh? Well, thank for your responses.
+
+- But this is a pretty specific use case, I suppose.
+[*] For now, could simply use the dectree format for summary output.
+[*] Could also forgo the interactive review mode for the time being
+- So we're left with 2 operations: running and converting.
+- These can be covered by simply having an option for choosing how to
+	run the file (terminal/gui/none) and another for the output format
+	(dectree/json/xml/html/markdown/odt)
+- Oh - I'll also need an input format option too, if I'm to allow
+	reading of the AST from json/xml in addition to dt.
