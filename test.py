@@ -1,5 +1,6 @@
 #!/usr/bin/python2
 
+import io
 import sys
 import mock
 import unittest
@@ -3578,222 +3579,310 @@ class TestStarterLine(unittest.TestCase):
 		self.assertEquals(0, i.pos)
 
 
-class TestJsonOutput(unittest.TestCase):
+class TestJsonIO(unittest.TestCase):
 
 	def test_has_extensions(self):
-		dt.JsonOutput.EXTENSIONS[0]
+		dt.JsonIO.EXTENSIONS[0]
 
-	def test_format_doesnt_throw_error(self):
-		dt.JsonOutput.format(dt.Document([]))
+	def test_write_doesnt_throw_error(self):
+		s = io.BytesIO()
+		dt.JsonIO.write(dt.Document([]),s)
 		
-	def test_format_handles_document(self):
-		self.assertEquals('[]', dt.JsonOutput.format(dt.Document([])))
+	def test_write_handles_document(self):
+		s = io.BytesIO()
+		dt.JsonIO.write(dt.Document([]),s)
+		self.assertEquals('[]', s.getvalue())
 		
-	def test_format_handles_firstsection(self):
-		self.assertEquals('[{"blocks": [], "feedback": "foo"}]', 
-			dt.JsonOutput.format(
-				dt.Document([dt.FirstSection([],"foo")]) ) )
+	def test_write_handles_firstsection(self):
+		s = io.BytesIO()
+		dt.JsonIO.write( dt.Document([dt.FirstSection([],"foo")]),s )
+		self.assertEquals('[{"blocks": [], "feedback": "foo"}]', s.getvalue())
 	
-	def test_format_handles_section(self):
+	def test_write_handles_section(self):
+		s = io.BytesIO()
+		dt.JsonIO.write(dt.Document([dt.Section("bar",[],"foo")]),s ) 
 		self.assertEquals('[{"blocks": [], "name": "bar", "feedback": "foo"}]',
-			dt.JsonOutput.format(
-				dt.Document([dt.Section("bar",[],"foo")]) ) )
+			s.getvalue())
 
-	def test_format_handles_textblock(self):
+	def test_write_handles_textblock(self):
+		s = io.BytesIO()
+		dt.JsonIO.write(dt.Document([dt.FirstSection([dt.TextBlock("blah","yadda")],"")]),s ) 
 		self.assertEquals(
 			'[{"blocks": [{"content": "blah", "type": "text"}], "feedback": ""}]',
-			dt.JsonOutput.format(
-				dt.Document([dt.FirstSection([dt.TextBlock("blah","yadda")],"")]) ) )
+			s.getvalue() )
 				
-	def test_format_handles_instructionblock(self):
+	def test_write_handles_instructionblock(self):
+		s = io.BytesIO()
+		dt.JsonIO.write(
+				dt.Document([dt.FirstSection([dt.InstructionBlock("wibble","flibble")],"")]),s )
 		self.assertEquals(
 			'[{"blocks": [{"content": "wibble", "type": "instructions"}], "feedback": ""}]',
-			dt.JsonOutput.format(
-				dt.Document([dt.FirstSection([dt.InstructionBlock("wibble","flibble")],"")]) ) )
+			 s.getvalue())
 	
-	def test_format_handles_choiceblock(self):
+	def test_write_handles_choiceblock(self):
+		s = io.BytesIO()
+		dt.JsonIO.write(
+				dt.Document([dt.FirstSection([dt.ChoiceBlock([],"weh")],"")]),s )
 		self.assertEquals(
 			'[{"blocks": [{"content": [], "type": "choices", "feedback": "weh"}], "feedback": ""}]',
-			dt.JsonOutput.format(
-				dt.Document([dt.FirstSection([dt.ChoiceBlock([],"weh")],"")]) ) )
+			 s.getvalue())
 				
-	def test_format_handles_choice(self):
+	def test_write_handles_choice(self):
+		s = io.BytesIO()
+		dt.JsonIO.write(
+			dt.Document([dt.FirstSection([dt.ChoiceBlock([
+				dt.Choice("X","33","ok","home","great") ],"great")],"great")]), s ) 
 		self.assertEquals(
 			'[{"blocks": [{"content": ['
 			+'{"response": "ok", "goto": "home", "description": "33", "mark": "X"}'
 			+'], "type": "choices", "feedback": "great"}], "feedback": "great"}]',
-			dt.JsonOutput.format(
-				dt.Document([dt.FirstSection([dt.ChoiceBlock([
-					dt.Choice("X","33","ok","home","great") ],"great")],"great")]) ) )
+			s.getvalue() )
 					
 					
-class TestDecTreeOutput(unittest.TestCase):
+class TestDecTreeIO(unittest.TestCase):
 
 	def test_has_extensions(self):
-		dt.DecTreeOutput.EXTENSIONS[0]
+		dt.DecTreeIO.EXTENSIONS[0]
 		
-	def test_format_doesnt_throw_error(self):
-		dt.DecTreeOutput.format(dt.Document([]))
+	def test_write_doesnt_throw_error(self):
+		s = io.BytesIO()
+		dt.DecTreeIO.write(dt.Document([]),s)
 		
-	def test_format_handles_document(self):
-		self.assertEquals("", dt.DecTreeOutput.format(dt.Document([])))
+	def test_write_handles_document(self):
+		s = io.BytesIO()
+		dt.DecTreeIO.write(dt.Document([]),s)
+		self.assertEquals("", s.getvalue())
 		
-	def test_format_handles_firstsection(self):
-		self.assertEquals("\nthis is fab\n", dt.DecTreeOutput.format(dt.Document([
-			dt.FirstSection([],"this is fab") ])))
+	def test_write_handles_firstsection(self):
+		s = io.BytesIO()
+		dt.DecTreeIO.write(dt.Document([
+			dt.FirstSection([],"this is fab") ]), s )
+		self.assertEquals("\nthis is fab\n", s.getvalue())
 			
-	def test_format_handles_firstsection_feedback_wrap(self):
+	def test_write_handles_firstsection_feedback_wrap(self):
+		s = io.BytesIO()
+		dt.DecTreeIO.write(dt.Document([
+				dt.FirstSection([],"This is a test to test line wrapping "
+				+"and see if long lines are wrapped at some point") ]), s)
 		self.assertEquals("\nThis is a test to test line wrapping and see "
 			+"if long lines are wrapped at some\npoint\n",
-			dt.DecTreeOutput.format(dt.Document([
-				dt.FirstSection([],"This is a test to test line wrapping "
-				+"and see if long lines are wrapped at some point") ])))
+			s.getvalue() )
 			
-	def test_format_handles_section(self):
+	def test_write_handles_section(self):
+		s = io.BytesIO()
+		dt.DecTreeIO.write(dt.Document([
+				dt.Section("My Section",[],"excellent stuff") ]), s)
 		self.assertEquals("== My Section ==\n\n\nexcellent stuff\n", 
-			dt.DecTreeOutput.format(dt.Document([
-				dt.Section("My Section",[],"excellent stuff") ])))
+			s.getvalue() )
 				
-	def test_format_handles_section_feedback_wrap(self):
+	def test_write_handles_section_feedback_wrap(self):
+		s = io.BytesIO()
+		dt.DecTreeIO.write(dt.Document([
+			dt.Section("dave",[],"This is a test to test line wrapping "
+			+"and see if long lines are wrapped at some point") ]), s)
 		self.assertEquals("== dave ==\n\n\nThis is a test to test line wrapping and see "
 			+"if long lines are wrapped at some\npoint\n",
-			dt.DecTreeOutput.format(dt.Document([
-				dt.Section("dave",[],"This is a test to test line wrapping "
-				+"and see if long lines are wrapped at some point") ])))
+			s.getvalue())
 				
-	def test_format_handles_textblock(self):
-		self.assertEquals(":: This is a test\n",
-			dt.DecTreeOutput.format(dt.Document([
-				dt.FirstSection([ dt.TextBlock("This is a test",None) ],None) ])))
+	def test_write_handles_textblock(self):
+		s = io.BytesIO()
+		dt.DecTreeIO.write(dt.Document([
+			dt.FirstSection([ dt.TextBlock("This is a test",None) ],None) ]), s)
+		self.assertEquals(":: This is a test\n", s.getvalue())
 
-	def test_format_handles_textblock_line_wrap(self):
-		self.assertEquals(":: This is a test to test line wrapping and see "
-			+"if long lines are wrapped at\n:  some point\n",
-			dt.DecTreeOutput.format(dt.Document([
+	def test_write_handles_textblock_line_wrap(self):
+		s = io.BytesIO()
+		dt.DecTreeIO.write(dt.Document([
 				dt.FirstSection([ dt.TextBlock("This is a test to test line "
 					+"wrapping and see if long lines are wrapped at some "
-					+"point", None) ],None) ])))
+					+"point", None) ],None) ]), s)
+		self.assertEquals(":: This is a test to test line wrapping and see "
+			+"if long lines are wrapped at\n:  some point\n",
+			s.getvalue())
 
 	def test_formt_handles_firstsection_multiple_blocks(self):
+		s = io.BytesIO()
+		dt.DecTreeIO.write(dt.Document([
+			dt.FirstSection([ dt.TextBlock("Testing",None),
+				dt.TextBlock("More testing",None) ],None) ]), s)
 		self.assertEquals(":: Testing\n\n:: More testing\n",
-			dt.DecTreeOutput.format(dt.Document([
-				dt.FirstSection([ dt.TextBlock("Testing",None),
-					dt.TextBlock("More testing",None) ],None) ])))
+			s.getvalue())
 		
-	def test_format_handles_section_multiple_blocks(self):
+	def test_write_handles_section_multiple_blocks(self):
+		s = io.BytesIO()
+		dt.DecTreeIO.write(dt.Document([
+			dt.Section("dave",[ dt.TextBlock("Testing",None),
+				dt.TextBlock("More testing",None) ],None) ]), s)
 		self.assertEquals("== dave ==\n\n:: Testing\n\n:: More testing\n",
-			dt.DecTreeOutput.format(dt.Document([
-				dt.Section("dave",[ dt.TextBlock("Testing",None),
-					dt.TextBlock("More testing",None) ],None) ])))
+			s.getvalue())
 				
-	def test_format_handles_firstsection_block_and_feedback(self):
-		self.assertEquals(":: Test\n\nBlah blah\n",
-			dt.DecTreeOutput.format(dt.Document([
-				dt.FirstSection([ dt.TextBlock("Test",None) ], "Blah blah") ])))
+	def test_write_handles_firstsection_block_and_feedback(self):
+		s = io.BytesIO()
+		dt.DecTreeIO.write(dt.Document([
+			dt.FirstSection([ dt.TextBlock("Test",None) ], "Blah blah") ]), s)
+		self.assertEquals(":: Test\n\nBlah blah\n", s.getvalue())
 				
-	def test_format_handles_section_block_and_feedback(self):
-		self.assertEquals("== dave ==\n\n:: Test\n\nBlah blah\n",
-			dt.DecTreeOutput.format(dt.Document([
-				dt.Section("dave",[ dt.TextBlock("Test",None) ], "Blah blah") ])))
+	def test_write_handles_section_block_and_feedback(self):
+		s = io.BytesIO()
+		dt.DecTreeIO.write(dt.Document([
+			dt.Section("dave",[ dt.TextBlock("Test",None) ], "Blah blah") ]), s)
+		self.assertEquals("== dave ==\n\n:: Test\n\nBlah blah\n", s.getvalue() )
 
-	def test_format_handles_instructionblock(self):
-		self.assertEquals("%% This is a test\n",
-			dt.DecTreeOutput.format(dt.Document([
-				dt.FirstSection([ dt.InstructionBlock("This is a test",None) ],None) ])))
+	def test_write_handles_instructionblock(self):
+		s = io.BytesIO()
+		dt.DecTreeIO.write(dt.Document([
+			dt.FirstSection([ dt.InstructionBlock("This is a test",None) ],None) ]), s)
+		self.assertEquals("%% This is a test\n", s.getvalue() )
 
-	def test_format_handles_instructionblock_line_wrap(self):
+	def test_write_handles_instructionblock_line_wrap(self):
+		s = io.BytesIO()
+		dt.DecTreeIO.write(dt.Document([
+			dt.FirstSection([ dt.InstructionBlock("This is a test to test line "
+				+"wrapping and see if long lines are wrapped at some "
+				+"point", None) ],None) ]), s)
 		self.assertEquals("%% This is a test to test line wrapping and see "
 			+"if long lines are wrapped at\n%  some point\n",
-			dt.DecTreeOutput.format(dt.Document([
-				dt.FirstSection([ dt.InstructionBlock("This is a test to test line "
-					+"wrapping and see if long lines are wrapped at some "
-					+"point", None) ],None) ])))
+			s.getvalue())
 
-	def test_format_handles_choiceblock(self):
-		self.assertEquals("\nThis is a test\n",
-			dt.DecTreeOutput.format(dt.Document([
-				dt.FirstSection([ dt.ChoiceBlock([], "This is a test") ],None)])))
+	def test_write_handles_choiceblock(self):
+		s = io.BytesIO()
+		dt.DecTreeIO.write(dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([], "This is a test") ],None)]), s)
+		self.assertEquals("\nThis is a test\n", s.getvalue())
 
-	def test_format_handles_choiceblock_feedback_wrap(self):
+	def test_write_handles_choiceblock_feedback_wrap(self):
+		s = io.BytesIO()
+		dt.DecTreeIO.write(dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([], "This is a test to see if "
+				+"long lines are wrapped at some point by the line wrapping "
+				+"thingy") ],None) ]), s)
 		self.assertEquals("\nThis is a test to see if long lines are wrapped "
-				+"at some point by the line\nwrapping thingy\n",
-			dt.DecTreeOutput.format(dt.Document([
-				dt.FirstSection([ dt.ChoiceBlock([], "This is a test to see if "
-					+"long lines are wrapped at some point by the line wrapping "
-					+"thingy") ],None) ])))
+			+"at some point by the line\nwrapping thingy\n",
+			s.getvalue())
 
-	def test_format_handles_choice(self):
+	def test_write_handles_choice(self):
+		s = io.BytesIO()
+		dt.DecTreeIO.write(dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([
+				dt.Choice("X","blah blah","yadda yadda","wibble",None)
+			],None) ],None) ]), s)
 		self.assertEquals(":: [X] blah blah\n:      -- yadda yadda\n"
-				+":      GO TO wibble\n",
-			dt.DecTreeOutput.format(dt.Document([
-				dt.FirstSection([ dt.ChoiceBlock([
-					dt.Choice("X","blah blah","yadda yadda","wibble",None)
-				],None) ],None) ])))
+				+":      GO TO wibble\n", s.getvalue())
 
-	def test_format_handles_choice_no_mark(self):
+	def test_write_handles_choice_no_mark(self):
+		s = io.BytesIO()
+		dt.DecTreeIO.write(dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([
+				dt.Choice(None,"blah blah","yadda yadda","wibble",None)
+			],None) ],None) ]), s)
 		self.assertEqual(":: [] blah blah\n:      -- yadda yadda\n"
-				+":      GO TO wibble\n",
-			dt.DecTreeOutput.format(dt.Document([
-				dt.FirstSection([ dt.ChoiceBlock([
-					dt.Choice(None,"blah blah","yadda yadda","wibble",None)
-				],None) ],None) ])))
+				+":      GO TO wibble\n", s.getvalue() )
 
-	def test_format_handles_choice_no_response(self):
+	def test_write_handles_choice_no_response(self):
+		s = io.BytesIO()
+		dt.DecTreeIO.write(dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([
+				dt.Choice("X","blah blah",None,"wibble",None)
+			],None) ],None) ]), s)
 		self.assertEqual(":: [X] blah blah\n:      -- GO TO wibble\n",
-			dt.DecTreeOutput.format(dt.Document([
-				dt.FirstSection([ dt.ChoiceBlock([
-					dt.Choice("X","blah blah",None,"wibble",None)
-				],None) ],None) ])))
+			s.getvalue())
 				
-	def test_format_handles_choice_no_goto(self):
+	def test_write_handles_choice_no_goto(self):
+		s = io.BytesIO()
+		dt.DecTreeIO.write(dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([
+				dt.Choice("X","blah blah","yadda yadda",None,None)
+			],None) ],None) ]), s)
 		self.assertEquals(":: [X] blah blah\n:      -- yadda yadda\n",
-			dt.DecTreeOutput.format(dt.Document([
-				dt.FirstSection([ dt.ChoiceBlock([
-					dt.Choice("X","blah blah","yadda yadda",None,None)
-				],None) ],None) ])))
+			s.getvalue())
 				
-	def test_format_handles_choice_no_response_or_goto(self):
-		self.assertEquals(":: [X] blah blah\n",
-			dt.DecTreeOutput.format(dt.Document([
-				dt.FirstSection([ dt.ChoiceBlock([
-					dt.Choice("X","blah blah",None,None,None)
-				],None) ],None) ])))
+	def test_write_handles_choice_no_response_or_goto(self):
+		s = io.BytesIO()
+		dt.DecTreeIO.write(dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([
+				dt.Choice("X","blah blah",None,None,None)
+			],None) ],None) ]), s)
+		self.assertEquals(":: [X] blah blah\n", s.getvalue())
 
-	def test_format_handles_choice_wrapped_description(self):
+	def test_write_handles_choice_wrapped_description(self):
+		s = io.BytesIO()
+		dt.DecTreeIO.write(dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([
+				dt.Choice("X","This is a test to test long lines of text "
+					+"are wrapped properly onto the next line, okay?",
+					"yadda yadda","wibble",None) ],None) ],None)]), s)
 		self.assertEquals(":: [X] This is a test to test long lines of text are "
-				+"wrapped properly onto the\n:  next line, okay?\n"
-				+":      -- yadda yadda\n:      GO TO wibble\n",
-			dt.DecTreeOutput.format(dt.Document([
-				dt.FirstSection([ dt.ChoiceBlock([
-					dt.Choice("X","This is a test to test long lines of text "
-						+"are wrapped properly onto the next line, okay?",
-						"yadda yadda","wibble",None) ],None) ],None)])))
+			+"wrapped properly onto the\n:  next line, okay?\n"
+			+":      -- yadda yadda\n:      GO TO wibble\n",
+			s.getvalue())
 
-	def test_format_handles_choice_wrapped_response(self):
+	def test_write_handles_choice_wrapped_response(self):
+		s = io.BytesIO()
+		dt.DecTreeIO.write(dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([
+				dt.Choice("X","blah","This is a test to test long lines of text "
+					+"are wrapped properly onto the next line, okay?",
+					"wibble",None) ],None) ],None)]), s)
 		self.assertEquals(":: [X] blah\n:      -- This is a test to test long lines of "
-				+"text are wrapped properly onto\n:  the next line, okay?"
-				+"\n:      GO TO wibble\n",
-			dt.DecTreeOutput.format(dt.Document([
-				dt.FirstSection([ dt.ChoiceBlock([
-					dt.Choice("X","blah","This is a test to test long lines of text "
-						+"are wrapped properly onto the next line, okay?",
-						"wibble",None) ],None) ],None)])))
+			+"text are wrapped properly onto\n:  the next line, okay?"
+			+"\n:      GO TO wibble\n", s.getvalue())
 
-	def test_format_handles_choiceblock_multiple_choices(self):
-		self.assertEquals(":: [X] foo\n:      -- bar\n:      GO TO wibble\n"
-				+":  [Y] weh\n:      -- meh\n:      GO TO yadda\n",
-			dt.DecTreeOutput.format(dt.Document([
+	def test_write_handles_choiceblock_multiple_choices(self):
+		s = io.BytesIO()
+		dt.DecTreeIO.write(dt.Document([
 				dt.FirstSection([ dt.ChoiceBlock([
 					dt.Choice("X","foo","bar","wibble",None),
 					dt.Choice("Y","weh","meh","yadda",None)
-				],None) ],None) ])))
+				],None) ],None) ]), s)
+		self.assertEquals(":: [X] foo\n:      -- bar\n:      GO TO wibble\n"
+			+":  [Y] weh\n:      -- meh\n:      GO TO yadda\n",
+			s.getvalue())
 
-	def test_format_handles_multiple_sections(self):
-		self.assertEquals(":: foo\n\n== dave ==\n\n:: bar\n",
-			dt.DecTreeOutput.format(dt.Document([
-				dt.FirstSection([ dt.TextBlock("foo",None) ],None),
-				dt.Section("dave",[ dt.TextBlock("bar",None) ],None) ])))
+	def test_write_handles_multiple_sections(self):
+		s = io.BytesIO()
+		dt.DecTreeIO.write(dt.Document([
+			dt.FirstSection([ dt.TextBlock("foo",None) ],None),
+			dt.Section("dave",[ dt.TextBlock("bar",None) ],None) ]), s)
+		self.assertEquals(":: foo\n\n== dave ==\n\n:: bar\n", s.getvalue())
 
+	@mock_statics(dt,"Document.parse")
+	def test_read_invokes_parse_with_input_obj(self):
+		s = io.BytesIO("test")
+		dt.DecTreeIO.read(s)
+		self.assertTrue( dt.Document.parse.called )
+		self.assertEquals( 1, len(dt.Document.parse.call_args_list) )
+		self.assertEquals( 0, len(dt.Document.parse.call_args[1]) )
+		self.assertEquals( 1, len(dt.Document.parse.call_args[0]) )
+		self.assertTrue( isinstance(dt.Document.parse.call_args[0][0], dt.Input) )
+
+	@mock_statics(dt,"Document.parse")
+	def test_read_constructs_input_with_stream_contents(self):
+		s = io.BytesIO("test")
+		dt.DecTreeIO.read(s)
+		i = dt.Document.parse.call_args[0][0]
+		self.assertEquals( "test\x00", i._data )
+
+	@mock_statics(dt,"Document.parse")
+	def test_read_returns_parse_result(self):
+		m = mock.Mock()
+		dt.Document.parse.return_value = m
+		s = io.BytesIO("test")
+		self.assertEquals(m, dt.DecTreeIO.read(s) )
+		
+	@mock_statics(dt,"Document.parse")
+	def test_read_throws_inputerror_for_parse_error(self):
+		dt.Document.parse.return_value = None
+		s = io.BytesIO("test")
+		with self.assertRaises(dt.InputError):
+			dt.DecTreeIO.read(s)
+	
+	@mock_statics(dt,"Document.parse")
+	def test_read_throws_inputerror_for_validation_error(self):
+		dt.Document.parse.side_effect = dt.ValidationError("test")
+		s = io.BytesIO("blah")
+		with self.assertRaises(dt.InputError):
+			dt.DecTreeIO.read(s)
+	
 
 class TestWrapText(unittest.TestCase):
 

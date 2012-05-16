@@ -697,3 +697,13 @@ xml		*	*		*		http	*		*			xml		*	*		*
 	(dectree/json/xml/html/markdown/odt)
 - Oh - I'll also need an input format option too, if I'm to allow
 	reading of the AST from json/xml in addition to dt.
+
+[!] Currently validation is done in Document.parse, but if I'm accepting
+	different input formats, these will need the same validation logic
+	applied to them too.
+- Need to separate parsing and validating. Parsing and decoding json
+	both result in an AST, which must then be validated.
+- They're sort of the same thing, though. A json structure would still 
+	have to be validated, of a sort, to ensure the structure is correct
+[*] Stuff that is format-agnostic should be re-used, i.e. the stuff I
+	already consider to be validation.

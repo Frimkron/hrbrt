@@ -1,16 +1,20 @@
 #!/usr/bin/python2
 
-# TODO: Input formats (convert output classes to i/o classes)
 # TODO: Command line recipient usage 
-# TODO: Command line sender usage
-# TODO: Markdown output :D
+# TODO: Validation should be a separate step from parsing, so
+#		other formats can use the same validation logic
 # TODO: Allow header line in syntax
+# TODO: Markdown output :D
 # TODO: Allow gotos at the end of sections.
-# TODO: Command line interactive mode
 # TODO: Tidy up formal definition
 # TODO: GUI interactive mode for recipient
-# TODO: GUI interactive mode for sender
 # TODO: Open document output
+# TODO: S-Exp output
+# TODO: S-Exp input
+# TODO: XML output
+# TODO: XML input
+# TODO: JSON input
+# TODO: HTML output
 
 """	
 Document <- FirstSection Section* '\x00'
@@ -1571,17 +1575,21 @@ def wrap_text(text,width,start=0):
 	return lines
 
 
-class JsonOutput(object):
+class InputError(Exception):
+	pass
+
+
+class JsonIO(object):
 
 	EXTENSIONS = ["json","js"]
 
 	@staticmethod
-	def format(document):
-		return JsonOutput.INST._format(document)
+	def write(document,stream):
+		JsonIO.INST._write(document,stream)
 		
-	def _format(self,document):
+	def _write(self,document,stream):
 		obj = self._visit_Document(document)
-		return json.dumps(obj)
+		stream.write(json.dumps(obj))
 		
 	def _visit(self,item):
 		fname = "_visit_%s" % type(item).__name__
@@ -1623,30 +1631,49 @@ class JsonOutput(object):
 		return { "mark": choice.mark, "description": choice.description,
 				"response": choice.response, "goto": choice.goto }
 		
-JsonOutput.INST = JsonOutput()
+JsonIO.INST = JsonIO()
 
 
-class HtmlOutput(object):
+class HtmlIO(object):
 	
 	EXTENSIONS = ["htm","html","xhtml"]
 	
 	@staticmethod
-	def format(document):
-		return "TODO: html output"
+	def write(document,stream):
+		# TODO
+		pass
 
 
-class DecTreeOutput(object):
+class DecTreeIO(object):
 	
 	EXTENSIONS = ["dt"]
 	LINE_WIDTH = 79
 	
 	@staticmethod
-	def format(document):
-		return DecTreeOutput.INST._format(document)
+	def read(stream):
+		return DecTreeIO.INST._read(stream)
+	
+	@staticmethod
+	def write(document,stream):
+		DecTreeIO.INST._write(document,stream)
 		
-	def _format(self,doc):
-		s = "\n".join(map(self._visit,doc.sections))
-		return s
+	def _read(self,stream):
+		instring = stream.read()
+		input = Input(instring)
+		try:
+			document = Document.parse(input)
+			
+			if document is None:
+				p = input.get_deepest_pos()
+				raise InputError("Parse error near '%s'" % (instring[p:p+100]+"..."))
+		
+			return document
+			
+		except ValidationError as e:
+			raise InputError("Validation error: %s" % str(e))
+				
+	def _write(self,doc,stream):
+		stream.write( "\n".join(map(self._visit,doc.sections)) )
 		
 	def _visit(self,item):
 		fname = "_visit_%s" % type(item).__name__
@@ -1657,7 +1684,7 @@ class DecTreeOutput(object):
 		s += "\n".join(map(self._visit,sec.items))
 		if sec.feedback is not None:
 			s += "\n"
-			flines = wrap_text(sec.feedback,DecTreeOutput.LINE_WIDTH)
+			flines = wrap_text(sec.feedback,DecTreeIO.LINE_WIDTH)
 			for line in flines:
 				s += "%s\n" % line
 		return s
@@ -1667,20 +1694,20 @@ class DecTreeOutput(object):
 		s += "\n".join(map(self._visit,sec.items))
 		if sec.feedback is not None:
 			s += "\n"
-			flines = wrap_text(sec.feedback,DecTreeOutput.LINE_WIDTH)
+			flines = wrap_text(sec.feedback,DecTreeIO.LINE_WIDTH)
 			for line in flines:
 				s += "%s\n" % line
 		return s
 		
 	def _visit_TextBlock(self,text):
-		lines = wrap_text(text.text,width=DecTreeOutput.LINE_WIDTH-3)
+		lines = wrap_text(text.text,width=DecTreeIO.LINE_WIDTH-3)
 		s = ":: %s\n" % lines[0]
 		for line in lines[1:]:
 			s += ":  %s\n" % line
 		return s
 		
 	def _visit_InstructionBlock(self,instr):
-		lines = wrap_text(instr.text,width=DecTreeOutput.LINE_WIDTH-3)
+		lines = wrap_text(instr.text,width=DecTreeIO.LINE_WIDTH-3)
 		s = "%%%% %s\n" % lines[0]
 		for line in lines[1:]:
 			s += "%%  %s\n" % line
@@ -1696,14 +1723,14 @@ class DecTreeOutput(object):
 			s += "".join(choicestrs)
 		if cblock.feedback is not None and len(cblock.feedback)>0:
 			s += "\n"
-			flines = wrap_text(cblock.feedback,DecTreeOutput.LINE_WIDTH)
+			flines = wrap_text(cblock.feedback,DecTreeIO.LINE_WIDTH)
 			for line in flines:
 				s += "%s\n" % line
 		return s
 		
 	def _visit_Choice(self,choice):
 		s = "[%s] " % (choice.mark if choice.mark is not None else "")
-		dlines = wrap_text(choice.description,DecTreeOutput.LINE_WIDTH-3,
+		dlines = wrap_text(choice.description,DecTreeIO.LINE_WIDTH-3,
 			start=len(s)-3)
 		s += dlines[0]+"\n"
 		for line in dlines[1:]:
@@ -1712,7 +1739,7 @@ class DecTreeOutput(object):
 			l = ":      -- "
 			s += l
 			if choice.response is not None:
-				rlines = wrap_text(choice.response,DecTreeOutput.LINE_WIDTH-3,
+				rlines = wrap_text(choice.response,DecTreeIO.LINE_WIDTH-3,
 					start=len(l)-3)
 				s += rlines[0]+"\n"
 				for line in rlines[1:]:
@@ -1723,7 +1750,7 @@ class DecTreeOutput(object):
 				s += "GO TO %s\n" % choice.goto
 		return s
 		
-DecTreeOutput.INST = DecTreeOutput()
+DecTreeIO.INST = DecTreeIO()
 
 
 if __name__ == "__main__":
@@ -1742,29 +1769,30 @@ if __name__ == "__main__":
 
 	args = ap.parse_args()
 
-	# prepare input string	
+	# determine input format
+	if "." in args.input:
+		ext = args.input[args.input.rindex(".")+1:]
+	else:
+		ext = None
+		
+	if args.iformat == "json" or ext in JsonIO.EXTENSIONS:
+		informat = JsonIO
+	else:		
+		informat = DecTreeIO
+
+	# read from input stream
 	if args.input == "-":
 		if args.run == "cl":
 			sys.exit("Can't combine standard input with command-line run mode")
 		instream = sys.stdin
 	else:
 		instream = open(args.input,"r")
-	
-	with instream:
-		instring = instream.read()
-		input = Input(instring)
-	
-	# parse input
-	# TODO: different input formats
-	try:
-		document = Document.parse(input)
-		
-		if document is None:
-			p = input.get_deepest_pos()
-			sys.exit("Parse error near '%s'" % (instring[p:p+100]+"..."))
-	
-	except ValidationError as e:
-		sys.exit("Validation error: %s" % str(e))
+
+	try:	
+		with instream:
+			document = informat.read(instream)
+	except InputError as e:
+		sys.exit(str(e))
 
 	# if just validating, stop here
 	if args.validate:
@@ -1772,27 +1800,24 @@ if __name__ == "__main__":
 		sys.exit(0)
 	
 	# if necessary, run and add feedback to parse tree
-	if args.run is not None or args.output is None:
-		# TODO: output is none logic to be revised
+	if args.run is not None or (args.output is None and args.oformat is None):
 		# TODO: run file
 		print "Running goes here"
 	
-	# prepare output string
+	# determine output format
 	if args.output is not None and "." in args.output:
 		ext = args.output[args.output.rindex(".")+1:]
 	else:
 		ext = None
 
-	if args.oformat == "html" or ext in HtmlOutput.EXTENSIONS:
-		outformat = HtmlOutput
-	elif args.oformat == "json" or ext in JsonOutput.EXTENSIONS:
-		outformat = JsonOutput
+	if args.oformat == "html" or ext in HtmlIO.EXTENSIONS:
+		outformat = HtmlIO
+	elif args.oformat == "json" or ext in JsonIO.EXTENSIONS:
+		outformat = JsonIO
 	else:		
-		outformat = DecTreeOutput
-
-	output = outformat.format(document)
-
-	# write to output 
+		outformat = DecTreeIO
+	
+	# write to output stream
 	if args.output is None and args.input != "-":
 		outstream = open("%s.out.%s" % ( args.input[:args.input.rindex(".")]
 			if "." in args.input else args.input, outformat.EXTENSIONS[0] ),"w")
@@ -1802,8 +1827,8 @@ if __name__ == "__main__":
 		outstream = sys.stdout
 	else:
 		outstream = open(args.output,"w")
-		
+	
 	with outstream:
-		outstream.write(output)
+		outformat.write(document,outstream)
 
 
