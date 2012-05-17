@@ -1767,11 +1767,13 @@ class CommandLineRunner(object):
 		
 	def _run(self,document,ins,outs):
 		
+		if len(document.sections)==0: return
+		
 		# make map of section data
 		sections = {}
 		for i,s in enumerate(document.sections):
-			name = getattr(s,"name",CommandLineRunner.FIRST)
-			next = ( getattr(document.sections[i+1],"name",CommandLineRunner.FIRST)
+			name = getattr(s,"heading",CommandLineRunner.FIRST)
+			next = ( getattr(document.sections[i+1],"heading",CommandLineRunner.FIRST)
 					if i<len(document.sections)-1 else CommandLineRunner.END )
 			sections[name] = CommandLineRunner.SecData(s,next)
 
@@ -1783,7 +1785,10 @@ class CommandLineRunner(object):
 			sname = self._run_section(section,nextname,ins,outs)
 
 	def _run_section(self,section,nextname,ins,outs):
-		for block in section.blocks:
+		if hasattr(section,"heading"):
+			outs.write(section.heading.capitalize()+"\n"
+				+"-"*len(section.heading)+"\n\n")
+		for block in section.items:
 			goto = self._run_block(block,ins,outs)
 			if goto is not None: return goto
 		return nextname
@@ -1816,13 +1821,13 @@ class CommandLineRunner(object):
 				outs.write("\n\nEnter a number\n\n")
 				continue
 				
-			if selnum < 1 or selnum >= len(block.choices):
+			if selnum < 1 or selnum > len(block.choices):
 				outs.write("\n\nInvalid choice\n\n")
 				continue
 				
 			break
 				
-		chosen = block.choices[selnum]
+		chosen = block.choices[selnum-1]
 			
 		if chosen.response is not None:
 			outs.write("\n\n%s\n\n" % chosen.response)
@@ -1831,6 +1836,8 @@ class CommandLineRunner(object):
 			return chosen.goto
 				
 		return None
+		
+CommandLineRunner.INST = CommandLineRunner()
 		
 
 if __name__ == "__main__":
@@ -1881,7 +1888,7 @@ if __name__ == "__main__":
 	
 	# if necessary, run and add feedback to parse tree
 	if args.run is not None or (args.output is None and args.oformat is None):
-		if args.run == "gui"
+		if args.run == "gui":
 			# TODO
 			pass
 		else:

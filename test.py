@@ -3925,9 +3925,63 @@ class TestWrapText(unittest.TestCase):
 
 class TestCommandLineRunner(unittest.TestCase):
 
-	# TODO
-	pass
+	def setUp(self):
+		self.r = dt.CommandLineRunner()
+		self.i = io.BytesIO()
+		self.o = io.BytesIO()
+
+	def do_run(self,doc,input):
+		i = io.BytesIO(input)
+		o = io.BytesIO()
+		dt.CommandLineRunner()._run(doc,i,o)
+		return o.getvalue()
+
+	def test_can_run(self):
+		self.do_run( dt.Document([]), "" )
 	
+	def test_prints_textblock(self):
+		result = self.do_run( dt.Document([
+			dt.FirstSection([
+				dt.TextBlock("This is a test",None)
+			],None) ]), "" )
+		self.assertEquals("This is a test\n\n", result)
+
+	def test_doesnt_print_instructionblock(self):
+		result = self.do_run( dt.Document([
+			dt.FirstSection([
+				dt.InstructionBlock("This is a test",None)
+			],None) ]), "" )
+		self.assertEquals("",result)
+		
+	def test_prints_choiceblock(self):
+		result = self.do_run( dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([
+				dt.Choice(None,"alpha",None,None,None),
+				dt.Choice(None,"beta",None,None,None)
+			],None) ],None) ]), "1\n" )
+		self.assertEquals("1) alpha\n2) beta\n\n> ", result)
+
+	def test_prints_choice_response(self):
+		result = self.do_run( dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([
+				dt.Choice(None,"alpha","Where on earth",None,None),
+				dt.Choice(None,"beta","is Carmen Sandiego",None,None)
+			],None) ],None) ]), "2\n" )
+		self.assertEquals("1) alpha\n2) beta\n\n> "
+			+"\n\nis Carmen Sandiego\n\n", result)
+	
+	def test_prints_section_title(self):
+		result = self.do_run( dt.Document([
+			dt.FirstSection([],None),
+			dt.Section("kittens",[],None) ]),"" )
+		self.assertEquals("Kittens\n-------\n\n", result)
+
+	def test_advances_sections(self):
+		result = self.do_run( dt.Document([
+			dt.FirstSection([],None),
+			dt.Section("pirates",[],None),
+			dt.Section("ninjas",[],None) ]),"" )
+		self.assertEquals("Pirates\n-------\n\nNinjas\n------\n\n", result)
 
 unittest.main()
 
