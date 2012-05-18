@@ -3959,7 +3959,34 @@ class TestCommandLineRunner(unittest.TestCase):
 				dt.Choice(None,"alpha",None,None,None),
 				dt.Choice(None,"beta",None,None,None)
 			],None) ],None) ]), "1\n" )
-		self.assertEquals("1) alpha\n2) beta\n\n> ", result)
+		self.assertEquals("1) alpha\n2) beta\n\n> \n\n", result)
+
+	def test_validates_choice_selection_too_low(self):
+		result = self.do_run( dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([
+				dt.Choice(None,"alpha",None,None,None),
+				dt.Choice(None,"beta",None,None,None)
+			],None) ],None) ]), "0\n1\n" )
+		self.assertEquals("1) alpha\n2) beta\n\n> \n\n"
+			+"Invalid choice\n\n1) alpha\n2) beta\n\n> \n\n", result)
+
+	def test_validates_choice_selection_too_high(self):
+		result = self.do_run( dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([
+				dt.Choice(None,"alpha",None,None,None),
+				dt.Choice(None,"beta",None,None,None)
+			],None) ],None) ]), "3\n1\n" )
+		self.assertEquals("1) alpha\n2) beta\n\n> \n\n"
+			+"Invalid choice\n\n1) alpha\n2) beta\n\n> \n\n", result)
+
+	def test_validates_choice_selection_non_numeric(self):
+		result = self.do_run( dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([
+				dt.Choice(None,"alpha",None,None,None),
+				dt.Choice(None,"beta",None,None,None)
+			],None) ],None) ]), "foo\n1\n" )
+		self.assertEquals("1) alpha\n2) beta\n\n> \n\n"
+			+"Enter a number\n\n1) alpha\n2) beta\n\n> \n\n", result)
 
 	def test_prints_choice_response(self):
 		result = self.do_run( dt.Document([
@@ -3967,8 +3994,8 @@ class TestCommandLineRunner(unittest.TestCase):
 				dt.Choice(None,"alpha","Where on earth",None,None),
 				dt.Choice(None,"beta","is Carmen Sandiego",None,None)
 			],None) ],None) ]), "2\n" )
-		self.assertEquals("1) alpha\n2) beta\n\n> "
-			+"\n\nis Carmen Sandiego\n\n", result)
+		self.assertEquals("1) alpha\n2) beta\n\n> \n\n"
+			+"is Carmen Sandiego\n\n", result)
 	
 	def test_prints_section_title(self):
 		result = self.do_run( dt.Document([
@@ -3982,6 +4009,24 @@ class TestCommandLineRunner(unittest.TestCase):
 			dt.Section("pirates",[],None),
 			dt.Section("ninjas",[],None) ]),"" )
 		self.assertEquals("Pirates\n-------\n\nNinjas\n------\n\n", result)
+		
+	def test_follows_gotos(self):
+		result = self.do_run( dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([
+				dt.Choice(None,"alpha",None,"blarg",None),
+			],None) ],None),
+			dt.Section("foobar",[ dt.ChoiceBlock([
+				dt.Choice(None,"apple",None,"blarg",None),
+			],None) ],None),
+			dt.Section("blarg",[ dt.ChoiceBlock([
+				dt.Choice(None,"aberdeen",None,"foobar",None),
+				dt.Choice(None,"birmingham",None,None,None),
+			],None) ],None) ]), "1\n1\n1\n2\n" )
+		self.assertEquals("1) alpha\n\n> "
+			+"\n\nBlarg\n-----\n\n1) aberdeen\n2) birmingham\n\n> "
+			+"\n\nFoobar\n------\n\n1) apple\n\n> "
+			+"\n\nBlarg\n-----\n\n1) aberdeen\n2) birmingham\n\n> \n\n", result)
+
 
 unittest.main()
 

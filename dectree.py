@@ -1,5 +1,8 @@
 #!/usr/bin/python2
 
+# TODO: Logic for whether to run should consider if stdio used
+# TODO: Runner shouldn't drop through sections
+# TODO: Validation for section names should be case insensitive
 # TODO: Command line recipient usage 
 # TODO: Validation should be a separate step from parsing, so
 #		other formats can use the same validation logic
@@ -1815,14 +1818,15 @@ class CommandLineRunner(object):
 			outs.write("\n> ")
 			
 			selstring = ins.readline()
+			outs.write("\n\n")
 			try:
 				selnum = int(selstring)
 			except ValueError:
-				outs.write("\n\nEnter a number\n\n")
+				outs.write("Enter a number\n\n")
 				continue
 				
 			if selnum < 1 or selnum > len(block.choices):
-				outs.write("\n\nInvalid choice\n\n")
+				outs.write("Invalid choice\n\n")
 				continue
 				
 			break
@@ -1830,7 +1834,7 @@ class CommandLineRunner(object):
 		chosen = block.choices[selnum-1]
 			
 		if chosen.response is not None:
-			outs.write("\n\n%s\n\n" % chosen.response)
+			outs.write("%s\n\n" % chosen.response)
 	
 		if chosen.goto is not None:
 			return chosen.goto
