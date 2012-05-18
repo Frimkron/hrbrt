@@ -1514,6 +1514,12 @@ class TestFirstChoice(unittest.TestCase):
 		i = MockInput("qtwm$")
 		dt.FirstChoice.parse(i)
 		self.assertEquals(0,i.pos)
+		
+	def test_can_set_mark(self):
+		c = dt.FirstChoice(None,"foo",None,None,None)
+		self.assertEquals(None, c.mark)
+		c.set_mark("blah")
+		self.assertEquals("blah", c.mark)
 		  	
 
 class TestChoice(unittest.TestCase):
@@ -1656,6 +1662,12 @@ class TestChoice(unittest.TestCase):
 		i = MockInput("qtwm$")
 		dt.Choice.parse(i)
 		self.assertEquals(0,i.pos)
+		
+	def test_can_set_mark(self):
+		c = dt.Choice(None,"foo","bar","weh",None)
+		self.assertEquals(None,c.mark)
+		c.set_mark("lol")
+		self.assertEquals("lol",c.mark)
 
 
 class TestTextLineMarker(unittest.TestCase):
@@ -3944,7 +3956,18 @@ class TestCommandLineRunner(unittest.TestCase):
 			dt.FirstSection([
 				dt.TextBlock("This is a test",None)
 			],None) ]), "" )
-		self.assertEquals("This is a test\n\n", result)
+		self.assertEquals("This is a test\n\n[enter]\n\n", result)
+
+	def test_invokes_readline_after_printing_textblock(self):
+		log = []
+		def record(text): log.append(text)
+		i = mock.Mock()
+		i.readline.side_effect = lambda: record("readline")
+		o = mock.Mock()
+		o.write.side_effect = lambda s: record("write %s" % s)
+		d = dt.Document([ dt.FirstSection([ dt.TextBlock("Foobar",None) ],None) ])
+		dt.CommandLineRunner()._run(d,i,o)
+		self.assertEquals(["write Foobar\n\n","write [enter]","readline","write \n\n"],log)
 
 	def test_doesnt_print_instructionblock(self):
 		result = self.do_run( dt.Document([
@@ -3968,7 +3991,7 @@ class TestCommandLineRunner(unittest.TestCase):
 				dt.Choice(None,"beta",None,None,None)
 			],None) ],None) ]), "0\n1\n" )
 		self.assertEquals("1) alpha\n2) beta\n\n> \n\n"
-			+"Invalid choice\n\n1) alpha\n2) beta\n\n> \n\n", result)
+			+"Invalid choice\n\n> \n\n", result)
 
 	def test_validates_choice_selection_too_high(self):
 		result = self.do_run( dt.Document([
@@ -3977,7 +4000,7 @@ class TestCommandLineRunner(unittest.TestCase):
 				dt.Choice(None,"beta",None,None,None)
 			],None) ],None) ]), "3\n1\n" )
 		self.assertEquals("1) alpha\n2) beta\n\n> \n\n"
-			+"Invalid choice\n\n1) alpha\n2) beta\n\n> \n\n", result)
+			+"Invalid choice\n\n> \n\n", result)
 
 	def test_validates_choice_selection_non_numeric(self):
 		result = self.do_run( dt.Document([
@@ -3986,7 +4009,7 @@ class TestCommandLineRunner(unittest.TestCase):
 				dt.Choice(None,"beta",None,None,None)
 			],None) ],None) ]), "foo\n1\n" )
 		self.assertEquals("1) alpha\n2) beta\n\n> \n\n"
-			+"Enter a number\n\n1) alpha\n2) beta\n\n> \n\n", result)
+			+"Enter a number\n\n> \n\n", result)
 
 	def test_prints_choice_response(self):
 		result = self.do_run( dt.Document([
@@ -3996,21 +4019,23 @@ class TestCommandLineRunner(unittest.TestCase):
 			],None) ],None) ]), "2\n" )
 		self.assertEquals("1) alpha\n2) beta\n\n> \n\n"
 			+"is Carmen Sandiego\n\n", result)
+
+	def test_follows_goto_forwards(self):
+		result = self.do_run( dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([
+				dt.Choice(None,"foo",None,"flibble",None)
+			],None), ],None),
+			dt.Section("flibble",[],None) ]), "1\n" )
 	
 	def test_prints_section_title(self):
 		result = self.do_run( dt.Document([
-			dt.FirstSection([],None),
-			dt.Section("kittens",[],None) ]),"" )
-		self.assertEquals("Kittens\n-------\n\n", result)
-
-	def test_advances_sections(self):
-		result = self.do_run( dt.Document([
-			dt.FirstSection([],None),
-			dt.Section("pirates",[],None),
-			dt.Section("ninjas",[],None) ]),"" )
-		self.assertEquals("Pirates\n-------\n\nNinjas\n------\n\n", result)
+			dt.FirstSection([ dt.ChoiceBlock([
+				dt.Choice(None,"foo",None,"kittens",None)
+			],None) ],None),
+			dt.Section("kittens",[],None) ]),"1\n" )
+		self.assertEquals("1) foo\n\n> \n\nKittens\n-------\n\n", result)
 		
-	def test_follows_gotos(self):
+	def test_follows_gotos_backwards(self):
 		result = self.do_run( dt.Document([
 			dt.FirstSection([ dt.ChoiceBlock([
 				dt.Choice(None,"alpha",None,"blarg",None),
@@ -4026,7 +4051,27 @@ class TestCommandLineRunner(unittest.TestCase):
 			+"\n\nBlarg\n-----\n\n1) aberdeen\n2) birmingham\n\n> "
 			+"\n\nFoobar\n------\n\n1) apple\n\n> "
 			+"\n\nBlarg\n-----\n\n1) aberdeen\n2) birmingham\n\n> \n\n", result)
-
+			
+	def test_records_selected_choice_in_document(self):
+		d = dt.Document([ dt.FirstSection([ dt.ChoiceBlock([
+			dt.Choice(None,"foo",None,None,None),
+			dt.Choice(None,"bar",None,None,None) ],None) ],None) ])
+		self.assertEquals(None,d.sections[0].items[0].choices[0].mark)
+		self.assertEquals(None,d.sections[0].items[0].choices[1].mark)
+		self.do_run(d,"2\n")
+		self.assertEquals(None,d.sections[0].items[0].choices[0].mark)
+		self.assertEquals("X",d.sections[0].items[0].choices[1].mark)
+		
+	def test_overwrites_existing_selected_choice_in_document(self):
+		d = dt.Document([ dt.FirstSection([ dt.ChoiceBlock([
+			dt.Choice("X","foo",None,None,None),
+			dt.Choice(None,"bar",None,None,None) ],None) ],None) ])
+		self.assertEquals("X",d.sections[0].items[0].choices[0].mark)
+		self.assertEquals(None,d.sections[0].items[0].choices[1].mark)
+		self.do_run(d,"2\n")
+		self.assertEquals(None,d.sections[0].items[0].choices[0].mark)
+		self.assertEquals("X",d.sections[0].items[0].choices[1].mark)
+		
 
 unittest.main()
 

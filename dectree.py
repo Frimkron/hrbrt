@@ -1,9 +1,6 @@
 #!/usr/bin/python2
 
-# TODO: Logic for whether to run should consider if stdio used
-# TODO: Runner shouldn't drop through sections
 # TODO: Validation for section names should be case insensitive
-# TODO: Command line recipient usage 
 # TODO: Validation should be a separate step from parsing, so
 #		other formats can use the same validation logic
 # TODO: Allow header line in syntax
@@ -866,6 +863,9 @@ class Choice(object):
 		return "Choice(%s,%s,%s,%s,%s)" % ( repr(self._mark),
 			repr(self._description),repr(self._response),
 			repr(self._goto), repr(self._feedback) )
+
+	def set_mark(self,mark):
+		self._mark = mark
 			
 	@staticmethod
 	def parse(input):
@@ -912,6 +912,9 @@ class FirstChoice(object):
 		return "FirstChoice(%s,%s,%s,%s,%s)" % ( repr(self._mark),
 			repr(self._description),repr(self._response),
 			repr(self._goto),repr(self._feedback) )
+
+	def set_mark(self,mark):
+		self._mark = mark
 			
 	@staticmethod
 	def parse(input):
@@ -1760,8 +1763,6 @@ DecTreeIO.INST = DecTreeIO()
 class CommandLineRunner(object):
 
 	FIRST = object()
-	END = object()
-	SecData = collections.namedtuple("SecData","section next")	
 
 	@staticmethod
 	def run(document):
@@ -1772,29 +1773,27 @@ class CommandLineRunner(object):
 		
 		if len(document.sections)==0: return
 		
-		# make map of section data
+		# make map of sections
 		sections = {}
 		for i,s in enumerate(document.sections):
 			name = getattr(s,"heading",CommandLineRunner.FIRST)
-			next = ( getattr(document.sections[i+1],"heading",CommandLineRunner.FIRST)
-					if i<len(document.sections)-1 else CommandLineRunner.END )
-			sections[name] = CommandLineRunner.SecData(s,next)
+			sections[name] = s
 
 		sname = CommandLineRunner.FIRST
 
 		# walk section graph		
-		while sname != CommandLineRunner.END:
-			section,nextname = sections[sname]
-			sname = self._run_section(section,nextname,ins,outs)
+		while sname is not None:
+			section = sections[sname]
+			sname = self._run_section(section,ins,outs)
 
-	def _run_section(self,section,nextname,ins,outs):
+	def _run_section(self,section,ins,outs):
 		if hasattr(section,"heading"):
 			outs.write(section.heading.capitalize()+"\n"
 				+"-"*len(section.heading)+"\n\n")
 		for block in section.items:
 			goto = self._run_block(block,ins,outs)
 			if goto is not None: return goto
-		return nextname
+		return None
 
 	def _run_block(self,block,ins,outs):
 		hname = "_run_%s" % type(block).__name__
@@ -1804,19 +1803,20 @@ class CommandLineRunner(object):
 		return None
 		
 	def _run_TextBlock(self,block,ins,outs):
-		outs.write(block.text)
-		outs.write("\n\n")
+		outs.write(block.text+"\n\n")
+		outs.write("[enter]")
 		ins.readline()
+		outs.write("\n\n")
 		return None
 		
 	def _run_ChoiceBlock(self,block,ins,outs):
 		
-		while True:
-		
-			for i,c in enumerate(block.choices):
+		for i,c in enumerate(block.choices):
 				outs.write("%d) %s\n" % (i+1,c.description))
-			outs.write("\n> ")
-			
+		outs.write("\n")
+		
+		while True:
+			outs.write("> ")
 			selstring = ins.readline()
 			outs.write("\n\n")
 			try:
@@ -1832,6 +1832,9 @@ class CommandLineRunner(object):
 			break
 				
 		chosen = block.choices[selnum-1]
+		
+		for c in block.choices:
+			c.set_mark("X" if c is chosen else None)
 			
 		if chosen.response is not None:
 			outs.write("%s\n\n" % chosen.response)
@@ -1891,7 +1894,8 @@ if __name__ == "__main__":
 		sys.exit(0)
 	
 	# if necessary, run and add feedback to parse tree
-	if args.run is not None or (args.output is None and args.oformat is None):
+	if args.run is not None or (
+			args.output is None and args.oformat is None and args.input != "-"):
 		if args.run == "gui":
 			# TODO
 			pass
