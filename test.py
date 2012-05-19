@@ -4236,6 +4236,235 @@ class TestMarkdownIO(unittest.TestCase):
 			dt.Section("dave",[ dt.TextBlock("bar",None) ],None) ]), s)
 		self.assertEquals("foo\n\ndave\n----\n\nbar\n", s.getvalue())
 
+class TestXmlIO(unittest.TestCase):
+
+	def test_has_extensions(self):
+		dt.XmlIO.EXTENSIONS[0]
+		
+	def test_write_doesnt_throw_error(self):
+		s = io.BytesIO()
+		dt.XmlIO.write(dt.Document([]),s)
+		
+	def test_write_handles_document(self):
+		s = io.BytesIO()
+		dt.XmlIO.write(dt.Document([]),s)
+		self.assertEquals("<dectree />", s.getvalue())
+		
+	def test_write_handles_firstsection(self):
+		s = io.BytesIO()
+		dt.XmlIO.write(dt.Document([
+			dt.FirstSection([],'this "is" <fab>') ]), s )
+		self.assertEquals(
+			"<dectree>\n"
+			+"	<section>\n"
+			+"		<blocks />\n"
+			+"		<feedback>this &quot;is&quot; &lt;fab&gt;</feedback>\n"
+			+"	</section>\n"
+			+"</dectree>", 
+			s.getvalue())
+					
+	def test_write_handles_section(self):
+		s = io.BytesIO()
+		dt.XmlIO.write(dt.Document([
+				dt.Section('My <"> Section',[],'excellent "stuff" >_<') ]), s)
+		self.assertEquals(
+			"<dectree>\n"
+			+"	<section>\n"
+			+"		<name>My &lt;&quot;&gt; Section</name>\n"
+			+"		<feedback>excellent &quot;stuff&quot; &gt;_&lt;</feedback>\n"
+			+"	</section>\n"
+			+"</dectree>", 
+			s.getvalue() )
+				
+	def test_write_handles_textblock(self):
+		s = io.BytesIO()
+		dt.XmlIO.write(dt.Document([
+			dt.FirstSection([ dt.TextBlock('This is "a" <<test>>',None) ],None) ]), s)
+		self.assertEquals(
+			"<dectree>\n"
+			+"	<section>\n"
+			+"		<blocks>\n"
+			+"			<text>This is &quot;a&quot; &lt;&lt;test&gt;&gt;</text>\n"
+			+"		</blocks>\n"
+			+"	</section>\n"
+			+"</dectree>", s.getvalue())
+
+	def test_formt_handles_firstsection_multiple_blocks(self):
+		s = io.BytesIO()
+		dt.XmlIO.write(dt.Document([
+			dt.FirstSection([ dt.TextBlock("Testing",None),
+				dt.TextBlock("More testing",None) ],None) ]), s)
+		self.assertEquals(
+			"<dectree>\n"
+			+"	<section>\n"
+			+"		<blocks>\n"
+			+"			<text>Testing</text>\n"
+			+"			<text>More testing</text>\n"
+			+"		</blocks>\n"
+			+"	</section>\n"
+			+"</dectree>", s.getvalue())
+		
+	def test_write_handles_section_multiple_blocks(self):
+		s = io.BytesIO()
+		dt.XmlIO.write(dt.Document([
+			dt.Section("dave",[ dt.TextBlock("Testing",None),
+				dt.TextBlock("More testing",None) ],None) ]), s)
+		self.assertEquals(
+			"<dectree>\n"
+			+"	<section>\n"
+			+"		<name>dave</name>\n"
+			+"		<blocks>\n"
+			+"			<text>Testing</text>\n"
+			+"			<text>More testing</text>\n"
+			+"		</blocks>\n"
+			+"	</section>\n"
+			+"</dectree>", s.getvalue())
+				
+	def test_write_handles_firstsection_block_and_feedback(self):
+		s = io.BytesIO()
+		dt.XmlIO.write(dt.Document([
+			dt.FirstSection([ dt.TextBlock("Test",None) ], "Blah blah") ]), s)
+		self.assertEquals(
+			"<dectree>\n"
+			+"	<section>\n"
+			+"		<blocks>\n"
+			+"			<text>Test</text>\n"
+			+"		</blocks>\n"
+			+"		<feedback>Blah blah</feedback>\n"
+			+"	</section>\n"
+			+"</dectree>", s.getvalue())
+				
+	def test_write_handles_section_block_and_feedback(self):
+		s = io.BytesIO()
+		dt.XmlIO.write(dt.Document([
+			dt.Section("dave",[ dt.TextBlock("Test",None) ], "Blah blah") ]), s)
+		self.assertEquals(
+			"<dectree>\n"
+			+"	<section>\n"
+			+"		<blocks>\n"
+			+"			<text>Test</text>\n"
+			+"		</blocks>\n"
+			+"		<feedback>Blah blah</feedback>\n"
+			+"	</section>\n"
+			+"</dectree>", s.getvalue() )
+
+	def test_write_handles_instructionblock(self):
+		s = io.BytesIO()
+		dt.XmlIO.write(dt.Document([
+			dt.FirstSection([ dt.InstructionBlock('This is >a< "test"',None) ],None) ]), s)
+		self.assertEquals(
+			"<dectree>\n"
+			+"	<section>\n"
+			+"		<blocks>\n"
+			+"			<instructions>This is &gt;a&lt; &quot;test&quot;</instructions>"
+			+"		</blocks>\n"
+			+"	</section>\n"
+			+"</dectree>", s.getvalue() )
+
+	def test_write_handles_choiceblock(self):
+		s = io.BytesIO()
+		dt.XmlIO.write(dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([], '<This> is "a" test') ],None)]), s)
+		self.assertEquals(
+			"<dectree>\n"
+			+"	<section>\n"
+			+"		<blocks>\n"
+			+"			<choice>\n"
+			+"				<feedback>&lt;This&gt; is &quot;a&quot; test</feedback>\n"
+			+"			</choice>\n"
+			+"		</blocks>\n"
+			+"	</section>\n"
+			+"</dectree>", s.getvalue())
+
+	def test_write_handles_choice(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([
+				dt.Choice("X","blah blah","yadda yadda","wibble",None)
+			],None) ],None) ]), s)
+		self.assertEquals("- **[X] [blah blah](#wibble)** _yadda yadda_\n", s.getvalue())
+
+	def test_write_formats_goto_link(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([
+				dt.Choice("X","blah blah","yadda yadda","99 Bottles of Beer",None)
+			],None) ],None) ]), s)
+		self.assertEquals("- **[X] [blah blah](#bottles-of-beer)** _yadda yadda_\n", s.getvalue())
+
+	def test_write_handles_choice_no_mark(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([
+				dt.Choice(None,"blah blah","yadda yadda","wibble",None)
+			],None) ],None) ]), s)
+		self.assertEqual("- **[] [blah blah](#wibble)** _yadda yadda_\n", s.getvalue() )
+
+	def test_write_handles_choice_no_response(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([
+				dt.Choice("X","blah blah",None,"wibble",None)
+			],None) ],None) ]), s)
+		self.assertEqual("- **[X] [blah blah](#wibble)**\n", s.getvalue())
+				
+	def test_write_handles_choice_no_goto(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([
+				dt.Choice("X","blah blah","yadda yadda",None,None)
+			],None) ],None) ]), s)
+		self.assertEquals("- **[X] blah blah** _yadda yadda_\n",
+			s.getvalue())
+				
+	def test_write_handles_choice_no_response_or_goto(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([
+				dt.Choice("X","blah blah",None,None,None)
+			],None) ],None) ]), s)
+		self.assertEquals("- **[X] blah blah**\n", s.getvalue())
+
+	def test_write_handles_choice_wrapped_description(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([
+				dt.Choice("X","This is a test to test long lines of text "
+					+"are wrapped properly onto the next line, okay?",
+					"yadda yadda","wibble",None) ],None) ],None)]), s)
+		self.assertEquals("- **[X] [This is a test to test long lines of text are "
+			+"wrapped properly onto\n  the next line, okay?](#wibble)** "
+			+"_yadda yadda_\n",s.getvalue())
+
+	def test_write_handles_choice_wrapped_response(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([
+				dt.Choice("X","blah","This is a test to test long lines of text "
+					+"are wrapped properly onto the next line, okay?",
+					"wibble",None) ],None) ],None)]), s)
+		self.assertEquals("- **[X] [blah](#wibble)** _This is a test to test long lines of "
+			+"text are\n  wrapped properly onto the next line, okay?_\n",
+			s.getvalue())
+
+	def test_write_handles_choiceblock_multiple_choices(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+				dt.FirstSection([ dt.ChoiceBlock([
+					dt.Choice("X","foo","bar","wibble",None),
+					dt.Choice("Y","weh","meh","yadda",None),
+				],None) ],None) ]), s)
+		self.assertEquals("- **[X] [foo](#wibble)** _bar_\n"
+			+"- **[Y] [weh](#yadda)** _meh_\n",
+			s.getvalue())
+
+	def test_write_handles_multiple_sections(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+			dt.FirstSection([ dt.TextBlock("foo",None) ],None),
+			dt.Section("dave",[ dt.TextBlock("bar",None) ],None) ]), s)
+		self.assertEquals("foo\n\ndave\n----\n\nbar\n", s.getvalue())
+
 unittest.main()
 
 
