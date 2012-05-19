@@ -1,20 +1,17 @@
 #!/usr/bin/python2
 
-# TODO: Validation for section names should be case insensitive
-# TODO: Validation should be a separate step from parsing, so
-#		other formats can use the same validation logic
-# TODO: Allow header line in syntax
 # TODO: Markdown output :D
-# TODO: Allow gotos at the end of sections.
-# TODO: Tidy up formal definition
+# TODO: JSON input
 # TODO: GUI interactive mode for recipient
-# TODO: Open document output
-# TODO: S-Exp output
-# TODO: S-Exp input
 # TODO: XML output
 # TODO: XML input
-# TODO: JSON input
 # TODO: HTML output
+# TODO: S-Exp output
+# TODO: S-Exp input
+# TODO: Allow gotos at the end of sections.
+# TODO: Allow header line in syntax
+# TODO: Open document output
+# TODO: Tidy up formal definition
 
 """	
 Document <- FirstSection Section* '\x00'
@@ -126,7 +123,7 @@ class Input(object):
 
 class ValidationError(Exception):
 	pass
-
+	
 
 class Document(object):
 
@@ -163,18 +160,15 @@ class Document(object):
 		
 		input.commit()
 		doc = Document(items)
-		
-		Document._validate(doc)
-		
+				
 		return doc
 		
-	@staticmethod
-	def _walk_section(sec,endsec,path,lastlead,sections):
+	def _walk_section(self,sec,endsec,path,lastlead,sections):
 		"""Walks the goto graph from this section. Raises 
 		ValidationError for invalid path. Returns True if 
 		path to end found."""
 		
-		sname = sec.heading if hasattr(sec,"heading") else "first"
+		sname = sec.heading.lower() if hasattr(sec,"heading") else "first"
 		cbs = filter(lambda x: isinstance(x,ChoiceBlock), sec.items)
 		found_valid = False
 		
@@ -198,7 +192,7 @@ class Document(object):
 			for c in gcs:
 			
 				last_goto = last_block and c is gcs[-1]
-				target = sections[c.goto]
+				target = sections[c.goto.lower()]
 				newpath = path+[sec]
 				newlastlead = ( len(newpath)-1 
 						if found_valid or not last_goto else lastlead )
@@ -210,7 +204,7 @@ class Document(object):
 						raise ValidationError('Dead-end loop found in section "%s"' % sname)	
 				else:
 					# Recurse to target section
-					if Document._walk_section(target,endsec,newpath,
+					if self._walk_section(target,endsec,newpath,
 							newlastlead,sections):
 						found_valid = True
 						
@@ -231,30 +225,36 @@ class Document(object):
 					
 		return found_valid
 		
-	@staticmethod
-	def _validate(doc):
+	def _validate(self):
 	
 		# Collect sections into map, checking for duplicates		
 		sectionmap = {}
-		for s in doc.sections[1:]:
-			n = s.heading
+		for s in self.sections[1:]:
+			n = s.heading.lower()
 			if n in sectionmap:
 				raise ValidationError("Duplicate section name '%s'" % n)
 			sectionmap[n] = s
 
 		# Iterate over goto references, checking sections exist			
-		for s in doc.sections:
+		for s in self.sections:
 			for b in s.items:
 				if isinstance(b,ChoiceBlock):
 					for c in b.choices:
 						if c.goto is not None:
-							n = c.goto
+							n = c.goto.lower()
 							if n not in sectionmap:
-								raise ValidationError("Goto references unknown section '%s'" % n)
+								raise ValidationError("Go-to references unknown section '%s'" % n)
 																
 		# walk all goto paths
-		Document._walk_section(doc.sections[0],doc.sections[-1], 
+		self._walk_section(self.sections[0],self.sections[-1], 
 			[],-1,sectionmap)
+		
+	def validate(self):
+		try:
+			self._validate()
+		except ValidationError as e:
+			return str(e)
+		return None
 		
 
 class FirstSection(object):
@@ -1667,18 +1667,15 @@ class DecTreeIO(object):
 	def _read(self,stream):
 		instring = stream.read()
 		input = Input(instring)
-		try:
-			document = Document.parse(input)
 			
-			if document is None:
-				p = input.get_deepest_pos()
-				raise InputError("Parse error near '%s'" % (instring[p:p+100]+"..."))
+		document = Document.parse(input)
+			
+		if document is None:
+			p = input.get_deepest_pos()
+			raise InputError("Parse error near '%s'" % (instring[p:p+100]+"..."))
 		
-			return document
-			
-		except ValidationError as e:
-			raise InputError("Validation error: %s" % str(e))
-				
+		return document
+							
 	def _write(self,doc,stream):
 		stream.write( "\n".join(map(self._visit,doc.sections)) )
 		
@@ -1760,6 +1757,18 @@ class DecTreeIO(object):
 DecTreeIO.INST = DecTreeIO()
 
 
+class MarkdownIO(object):
+	
+	EXTENSIONS = ["md","markdown"]
+	LINE_WIDTH = 79
+	
+	@staticmethod
+	def write(document,stream):
+		MarkdownIO.INST._write(document,stream)
+	
+MarkdownIO.INST = MarkdownIO()
+
+
 class CommandLineRunner(object):
 
 	FIRST = object()
@@ -1776,7 +1785,7 @@ class CommandLineRunner(object):
 		# make map of sections
 		sections = {}
 		for i,s in enumerate(document.sections):
-			name = getattr(s,"heading",CommandLineRunner.FIRST)
+			name = s.heading.lower() if hasattr(s,"heading") else CommandLineRunner.FIRST			
 			sections[name] = s
 
 		sname = CommandLineRunner.FIRST
@@ -1788,7 +1797,7 @@ class CommandLineRunner(object):
 
 	def _run_section(self,section,ins,outs):
 		if hasattr(section,"heading"):
-			outs.write(section.heading.capitalize()+"\n"
+			outs.write(section.heading+"\n"
 				+"-"*len(section.heading)+"\n\n")
 		for block in section.items:
 			goto = self._run_block(block,ins,outs)
@@ -1840,7 +1849,7 @@ class CommandLineRunner(object):
 			outs.write("%s\n\n" % chosen.response)
 	
 		if chosen.goto is not None:
-			return chosen.goto
+			return chosen.goto.lower()
 				
 		return None
 		
@@ -1887,6 +1896,11 @@ if __name__ == "__main__":
 			document = informat.read(instream)
 	except InputError as e:
 		sys.exit(str(e))
+
+	# validate document
+	vfail = document.validate()
+	if vfail:
+		sys.exit(vfail)
 
 	# if just validating, stop here
 	if args.validate:

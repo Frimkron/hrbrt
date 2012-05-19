@@ -251,235 +251,189 @@ class TestDocument(unittest.TestCase):
 		else:
 			return dt.Section(name,bs,"")
 
-	@mock_parse_methods
-	def test_parse_throws_error_for_duplicate_section_names(self):
+	def test_validate_returns_error_for_duplicate_section_names(self):
 	
 		s1 = self.make_section(gotos=[["foobar"]])
 		s2 = self.make_section("foobar",gotos=[["foobar"]])
 		s3 = self.make_section("foobar",gotos=[])
+		d = dt.Document([s1,s2,s3])
+		self.assertEquals("Duplicate section name 'foobar'", 
+			d.validate() )
 		
-		dt.FirstSection.parse.return_value = s1
-		dt.Section.parse.side_effect = [s2,s3,None]
+	def test_validate_uses_case_insensitive_section_names(self):
 		
-		with self.assertRaises(dt.ValidationError):		
-			dt.Document.parse(MockInput("\x00"))
-			
-	@mock_parse_methods
-	def test_parse_doesnt_throw_error_for_unique_section_names(self):
+		s1 = self.make_section(gotos=[["foobar"]])
+		s2 = self.make_section("foobar",gotos=[["foobar"]])
+		s3 = self.make_section("FoObAr",gotos=[])
+		d = dt.Document([s1,s2,s3])
+		self.assertEqual("Duplicate section name 'foobar'",
+			d.validate() )
+							
+	def test_validate_doesnt_return_error_for_unique_section_names(self):
 	
 		s1 = self.make_section(gotos=[["foobar"]])
 		s2 = self.make_section("foobar",gotos=[["wibble"]])
 		s3 = self.make_section("wibble",gotos=[])
+		d = dt.Document([s1,s2,s3])
+		self.assertIsNone( d.validate() )
 		
-		dt.FirstSection.parse.return_value = s1
-		dt.Section.parse.side_effect = [s2,s3,None]
-		
-		dt.Document.parse(MockInput("\x00"))
-		
-	@mock_parse_methods
-	def test_parse_throws_error_for_invalid_goto_reference_in_first_section(self):
+	def test_validate_returns_error_for_invalid_goto_reference_in_first_section(self):
 		
 		s1 = self.make_section(gotos=[["nowhere","somewhere"]])
 		s2 = self.make_section("somewhere",gotos=[["anywhere"]])
 		s3 = self.make_section("anywhere",gotos=[])
+		d = dt.Document([s1,s2,s3])
+		self.assertEquals("Go-to references unknown section 'nowhere'",
+			d.validate() )
+	
+	def test_validate_uses_case_insensitive_gotos_in_first_section(self):
 		
-		dt.FirstSection.parse.return_value = s1
-		dt.Section.parse.side_effect = [s2,s3,None]
+		s1 = self.make_section(gotos=[["sOmEwHeRe"]])
+		s2 = self.make_section("SoMeWhErE",gotos=[["anywhere"]])
+		s3 = self.make_section("anywhere",gotos=[])
+		d = dt.Document([s1,s2,s3])
+		self.assertIsNone( d.validate() )
 		
-		with self.assertRaises(dt.ValidationError):
-			dt.Document.parse(MockInput("\x00"))
-
-	@mock_parse_methods
-	def test_parse_throws_error_for_invalid_goto_reference_in_section(self):
+	def test_validate_returns_error_for_invalid_goto_reference_in_section(self):
 		
 		s1 = self.make_section(gotos=[["somewhere"]])
 		s2 = self.make_section("somewhere",gotos=[["anywhere"]])
 		s3 = self.make_section("anywhere",gotos=[["neverneverland","somewhere",None]])
+		d = dt.Document([s1,s2,s3])
+		self.assertEquals("Go-to references unknown section 'neverneverland'",
+			d.validate() )
+			
+	def test_validate_uses_case_insensitive_gotos_in_section(self):
 		
-		dt.FirstSection.parse.return_value = s1
-		dt.Section.parse.side_effect = [s2,s3,None]
-		
-		with self.assertRaises(dt.ValidationError):
-			dt.Document.parse(MockInput("\x00"))
-
-	@mock_parse_methods
-	def test_parse_doesnt_throw_error_for_valid_forward_goto_references(self):
-		self.setup_parse_methods()
+		s1 = self.make_section(gotos=[["somewhere"]])
+		s2 = self.make_section("somewhere",gotos=[["AnYwHeRe"]])
+		s3 = self.make_section("aNyWhErE",gotos=[["somewhere",None]])
+		d = dt.Document([s1,s2,s3])
+		self.assertIsNone( d.validate() )
+				
+	def test_validate_doesnt_return_error_for_valid_forward_goto_references(self):
 		
 		s1 = self.make_section(gotos=[["somewhere"]])
 		s2 = self.make_section("somewhere",gotos=[["anywhere"]])
 		s3 = self.make_section("anywhere",gotos=[])
-		
-		dt.FirstSection.parse.return_value = s1
-		dt.Section.parse.side_effect = [s2,s3,None]
-		
-		dt.Document.parse(MockInput("\x00"))
+		d = dt.Document([s1,s2,s3])
+		self.assertIsNone( d.validate() )
 	
-	@mock_parse_methods
-	def test_parse_doesnt_throw_error_for_valid_backward_goto_references(self):
+	def test_validate_doesnt_return_error_for_valid_backward_goto_references(self):
 				
 		s1 = self.make_section(gotos=[["somewhere"]])
 		s2 = self.make_section("somewhere",gotos=[["anywhere"]])
 		s3 = self.make_section("anywhere",gotos=[["somewhere",None]])
-		
-		dt.FirstSection.parse.return_value = s1
-		dt.Section.parse.side_effect = [s2,s3,None]
-		
-		dt.Document.parse(MockInput("\x00"))
+		d = dt.Document([s1,s2,s3])
+		self.assertIsNone( d.validate() )
 
-	@mock_parse_methods		
-	def test_parse_doesnt_throw_error_for_self_goto_references(self):
+	def test_validate_doesnt_return_error_for_self_goto_references(self):
 		
 		s1 = self.make_section(gotos=[["somewhere"]])
 		s2 = self.make_section("somewhere",gotos=[["somewhere","anywhere"]])
 		s3 = self.make_section("anywhere",gotos=[])
-		
-		dt.FirstSection.parse.return_value = s1
-		dt.Section.parse.side_effect = [s2,s3,None]
-		
-		dt.Document.parse(MockInput("\x00"))
+		d = dt.Document([s1,s2,s3])
+		self.assertIsNone( d.validate() )
 
-	@mock_parse_methods
-	def test_parse_doesnt_throw_error_for_indirectly_looping_goto_references(self):
+	def test_validate_doesnt_return_error_for_indirectly_looping_goto_references(self):
 	
 		s1 = self.make_section(gotos=[["foo"]])
 		s2 = self.make_section("foo",gotos=[["end","bar"]])
 		s3 = self.make_section("bar",gotos=[["foo"]])
 		s4 = self.make_section("end",gotos=[])
-		
-		dt.FirstSection.parse.return_value = s1
-		dt.Section.parse.side_effect = [s2,s3,s4,None]
-		
-		dt.Document.parse(MockInput("\x00"))
+		d = dt.Document([s1,s2,s3,s4])
+		self.assertIsNone( d.validate() )
 	
-	@mock_parse_methods
-	def test_parse_throws_validation_error_for_incomplete_user_path_in_first_section(self):
+	def test_parse_returns_error_for_incomplete_user_path_in_first_section(self):
 	
 		s1 = self.make_section(gotos=[[None,"the end"]])
 		s2 = self.make_section("the end",gotos=[])
-			
-		dt.FirstSection.parse.return_value = s1
-		dt.Section.parse.side_effect = [s2,None]
+		d = dt.Document([s1,s2])
+		self.assertEquals('Section "first" has one or more '
+			+'choices that reach end of section and so never '
+			+'reach end of document', d.validate())
 		
-		with self.assertRaises(dt.ValidationError):
-			dt.Document.parse(MockInput("\x00"))
-		
-	@mock_parse_methods
-	def test_parse_throws_validation_error_for_incomplete_user_path_in_second_section(self):
+	def test_parse_returns_error_for_incomplete_user_path_in_second_section(self):
 	
 		s1 = self.make_section(gotos=[["second","the end"]])
 		s2 = self.make_section("second",gotos=[["the end",None]])
 		s3 = self.make_section("the end",gotos=[])
+		d = dt.Document([s1,s2,s3])
+		self.assertEquals('Section "second" has one or more '
+			+'choices that reach end of section and so never '
+			+'reach end of document', d.validate())
 		
-		dt.FirstSection.parse.return_value = s1
-		dt.Section.parse.side_effect = [s2,s3,None]
-		
-		with self.assertRaises(dt.ValidationError):
-			dt.Document.parse(MockInput("\x00"))
-			
-	@mock_parse_methods
 	def test_parse_only_considers_last_choice_block_for_imcomplete_path(self):
 		
 		s1 = self.make_section(gotos=[["second",None],["second","the end"]])
 		s2 = self.make_section("second",gotos=[[None,"the end"],["the end","the end"]])
 		s3 = self.make_section("the end",gotos=[])
+		d = dt.Document([s1,s2,s3])
+		self.assertIsNone( d.validate() )
 		
-		dt.FirstSection.parse.return_value = s1
-		dt.Section.parse.side_effect = [s2,s3,None]
-		
-		dt.Document.parse(MockInput("\x00"))
-		
-	@mock_parse_methods
 	def test_parse_requires_dropout_choice_in_last_section(self):
 		
 		s1 = self.make_section(gotos=[["second"]])
 		s2 = self.make_section("second",gotos=[["the end"]])
 		s3 = self.make_section("the end",gotos=[["second","the end"]])
+		d = dt.Document([s1,s2,s3])
+		self.assertEquals('End section "the end" has no choices '
+			+'that reach end of document', d.validate())
 		
-		dt.FirstSection.parse.return_value = s1
-		dt.Section.parse.side_effect = [s2,s3,None]
-		
-		with self.assertRaises(dt.ValidationError):
-			dt.Document.parse(MockInput("\x00"))
-		
-	@mock_parse_methods
-	def test_parse_requires_choices_in_sections(self):
+	def test_validate_requires_choices_in_sections(self):
 		
 		s1 = self.make_section(gotos=[])
 		s2 = self.make_section("the end",gotos=[[None]])
-		
-		dt.FirstSection.parse.return_value = s1
-		dt.Section.parse.side_effect = [s2,None]
-		
-		with self.assertRaises(dt.ValidationError):
-			dt.Document.parse(MockInput("\x00"))
+		d = dt.Document([s1,s2])
+		self.assertEquals('Section "first" has no choice blocks '
+			+'and so cannot reach end of document', d.validate())
 			
-	@mock_parse_methods
-	def test_parse_allows_lack_of_choices_in_end_section(self):
+	def test_validate_allows_lack_of_choices_in_end_section(self):
 	
 		s1 = self.make_section(gotos=[["the end"]])
 		s2 = self.make_section("the end",gotos=[])
-		
-		dt.FirstSection.parse.return_value = s1
-		dt.Section.parse.side_effect = [s2,None]
-		
-		dt.Document.parse(MockInput("\x00"))
-			
-	@mock_parse_methods
-	def test_parse_defers_decision_on_looping_choices(self):
+		d = dt.Document([s1,s2])
+		self.assertIsNone( d.validate() )
+
+	def test_validate_defers_decision_on_looping_choices(self):
 		
 		s1 = self.make_section(gotos=[["foo"]])
 		s2 = self.make_section("foo",gotos=[["bar","end"]])
 		s3 = self.make_section("bar",gotos=[["foo"]])
 		s4 = self.make_section("end",gotos=[])
-			
-		dt.FirstSection.parse.return_value = s1
-		dt.Section.parse.side_effect = [s2,s3,s4,None]
+		d = dt.Document([s1,s2,s3,s4])
+		self.assertIsNone( d.validate() )			
 		
-		dt.Document.parse(MockInput("\x00"))
-		
-	@mock_parse_methods
-	def test_parse_throws_validation_error_for_dead_end_self_loop(self):
+	def test_validate_returns_error_for_dead_end_self_loop(self):
 
 		s1 = self.make_section(gotos=[["foo"]])
 		s2 = self.make_section("foo",gotos=[["bar","end"]])
 		s3 = self.make_section("bar",gotos=[["bar"]])
 		s4 = self.make_section("end",gotos=[])
-		
-		dt.FirstSection.parse.return_value = s1
-		dt.Section.parse.side_effect = [s2,s3,s4,None]
-		
-		with self.assertRaises(dt.ValidationError):
-			dt.Document.parse(MockInput("\x00"))
+		d = dt.Document([s1,s2,s3,s4])
+		self.assertEquals('Dead-end loop found in section "bar"',
+			d.validate() )
 			
-	@mock_parse_methods
-	def test_parse_throws_validation_error_for_dead_end_indirect_loop(self):
+	def test_validate_returns_error_for_dead_end_indirect_loop(self):
 	
 		s1 = self.make_section(gotos=[["foo"]])
 		s2 = self.make_section("foo",gotos=[["bar","end"]])
 		s3 = self.make_section("bar",gotos=[["weh"]])
 		s4 = self.make_section("weh",gotos=[["bar"]])
 		s5 = self.make_section("end",gotos=[])
-		
-		dt.FirstSection.parse.return_value = s1
-		dt.Section.parse.side_effect = [s2,s3,s4,s5,None]
-		
-		with self.assertRaises(dt.ValidationError):
-			dt.Document.parse(MockInput("\x00"))
+		d = dt.Document([s1,s2,s3,s4,s5])
+		self.assertEquals('Dead-end loop found in section "weh"',
+			d.validate() )		
 			
-	@mock_parse_methods
-	def test_parse_throws_validation_error_for_double_dead_end_loop(self):
+	def test_validate_returns_error_for_double_dead_end_loop(self):
 		
 		s1 = self.make_section(gotos=[["foo"]])
 		s2 = self.make_section("foo",gotos=[["foo","foo"]])
 		s3 = self.make_section("end",gotos=[])
-			
-		dt.FirstSection.parse.return_value = s1
-		dt.Section.parse.side_effect = [s2,s3,None]
+		d = dt.Document([s1,s2,s3])
+		self.assertEquals('Dead-end loop found in section "foo"',
+			d.validate() )
 		
-		with self.assertRaises(dt.ValidationError):
-			dt.Document.parse(MockInput("\x00"))
-			
 	def test_is_completed_returns_true_for_completed_section(self):
 		s1 = mock.Mock()
 		s1.is_completed = False
@@ -3888,13 +3842,6 @@ class TestDecTreeIO(unittest.TestCase):
 		with self.assertRaises(dt.InputError):
 			dt.DecTreeIO.read(s)
 	
-	@mock_statics(dt,"Document.parse")
-	def test_read_throws_inputerror_for_validation_error(self):
-		dt.Document.parse.side_effect = dt.ValidationError("test")
-		s = io.BytesIO("blah")
-		with self.assertRaises(dt.InputError):
-			dt.DecTreeIO.read(s)
-	
 
 class TestWrapText(unittest.TestCase):
 
@@ -4032,8 +3979,8 @@ class TestCommandLineRunner(unittest.TestCase):
 			dt.FirstSection([ dt.ChoiceBlock([
 				dt.Choice(None,"foo",None,"kittens",None)
 			],None) ],None),
-			dt.Section("kittens",[],None) ]),"1\n" )
-		self.assertEquals("1) foo\n\n> \n\nKittens\n-------\n\n", result)
+			dt.Section("KiTTenS",[],None) ]),"1\n" )
+		self.assertEquals("1) foo\n\n> \n\nKiTTenS\n-------\n\n", result)
 		
 	def test_follows_gotos_backwards(self):
 		result = self.do_run( dt.Document([
@@ -4048,9 +3995,9 @@ class TestCommandLineRunner(unittest.TestCase):
 				dt.Choice(None,"birmingham",None,None,None),
 			],None) ],None) ]), "1\n1\n1\n2\n" )
 		self.assertEquals("1) alpha\n\n> "
-			+"\n\nBlarg\n-----\n\n1) aberdeen\n2) birmingham\n\n> "
-			+"\n\nFoobar\n------\n\n1) apple\n\n> "
-			+"\n\nBlarg\n-----\n\n1) aberdeen\n2) birmingham\n\n> \n\n", result)
+			+"\n\nblarg\n-----\n\n1) aberdeen\n2) birmingham\n\n> "
+			+"\n\nfoobar\n------\n\n1) apple\n\n> "
+			+"\n\nblarg\n-----\n\n1) aberdeen\n2) birmingham\n\n> \n\n", result)
 			
 	def test_records_selected_choice_in_document(self):
 		d = dt.Document([ dt.FirstSection([ dt.ChoiceBlock([
@@ -4072,6 +4019,208 @@ class TestCommandLineRunner(unittest.TestCase):
 		self.assertEquals(None,d.sections[0].items[0].choices[0].mark)
 		self.assertEquals("X",d.sections[0].items[0].choices[1].mark)
 		
+		
+class TestMarkdownIO(unittest.TestCase):
+	
+	def test_has_extensions(self):
+		dt.MarkdownIO.EXTENSIONS[0]
+		
+	def test_write_doesnt_throw_error(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([]),s)
+		
+	def test_write_handles_document(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([]),s)
+		self.assertEquals("", s.getvalue())
+		
+	def test_write_handles_firstsection(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+			dt.FirstSection([],"this is fab") ]), s )
+		self.assertEquals("\n> this is fab\n", s.getvalue())
+			
+	def test_write_handles_firstsection_feedback_wrap(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+				dt.FirstSection([],"This is a test to test line wrapping "
+				+"and see if long lines are wrapped at some point") ]), s)
+		self.assertEquals("\n> This is a test to test line wrapping and see "
+			+"if long lines are wrapped at some\n> point\n",
+			s.getvalue() )
+			
+	def test_write_handles_section(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+				dt.Section("My Section",[],"excellent stuff") ]), s)
+		self.assertEquals("My Section\n----------\n\n\n> excellent stuff\n", 
+			s.getvalue() )
+				
+	def test_write_handles_section_feedback_wrap(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+			dt.Section("dave",[],"This is a test to test line wrapping "
+			+"and see if long lines are wrapped at some point") ]), s)
+		self.assertEquals("dave\n----\n\n\n> This is a test to test line wrapping and see "
+			+"if long lines are wrapped at some\n> point\n",
+			s.getvalue())
+				
+	def test_write_handles_textblock(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+			dt.FirstSection([ dt.TextBlock("This is a test",None) ],None) ]), s)
+		self.assertEquals("This is a test\n", s.getvalue())
+
+	def test_write_handles_textblock_line_wrap(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+				dt.FirstSection([ dt.TextBlock("This is a test to test line "
+					+"wrapping and see if long lines are wrapped at some "
+					+"point", None) ],None) ]), s)
+		self.assertEquals("This is a test to test line wrapping and see "
+			+"if long lines are wrapped at\nsome point\n",
+			s.getvalue())
+
+	def test_formt_handles_firstsection_multiple_blocks(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+			dt.FirstSection([ dt.TextBlock("Testing",None),
+				dt.TextBlock("More testing",None) ],None) ]), s)
+		self.assertEquals("Testing\n\nMore testing\n",
+			s.getvalue())
+		
+	def test_write_handles_section_multiple_blocks(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+			dt.Section("dave",[ dt.TextBlock("Testing",None),
+				dt.TextBlock("More testing",None) ],None) ]), s)
+		self.assertEquals("dave\n----\n\nTesting\n\nMore testing\n",
+			s.getvalue())
+				
+	def test_write_handles_firstsection_block_and_feedback(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+			dt.FirstSection([ dt.TextBlock("Test",None) ], "Blah blah") ]), s)
+		self.assertEquals("Test\n\n> Blah blah\n", s.getvalue())
+				
+	def test_write_handles_section_block_and_feedback(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+			dt.Section("dave",[ dt.TextBlock("Test",None) ], "Blah blah") ]), s)
+		self.assertEquals("dave\n----\n\nTest\n\n> Blah blah\n", s.getvalue() )
+
+	def test_write_handles_instructionblock(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+			dt.FirstSection([ dt.InstructionBlock("This is a test",None) ],None) ]), s)
+		self.assertEquals("<!-- This is a test -->\n", s.getvalue() )
+
+	def test_write_handles_instructionblock_line_wrap(self):
+		s = io.BytesIO()
+		dt.DecTreeIO.write(dt.Document([
+			dt.FirstSection([ dt.InstructionBlock("This is a test to test line "
+				+"wrapping and see if long lines are wrapped at some "
+				+"point", None) ],None) ]), s)
+		self.assertEquals("<!-- This is a test to test line wrapping and see "
+			+"if long lines are wrapped at\nsome point -->\n",
+			s.getvalue())
+
+	def test_write_handles_choiceblock(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([], "This is a test") ],None)]), s)
+		self.assertEquals("\n> This is a test\n", s.getvalue())
+
+	def test_write_handles_choiceblock_feedback_wrap(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([], "This is a test to see if "
+				+"long lines are wrapped at some point by the line wrapping "
+				+"thingy") ],None) ]), s)
+		self.assertEquals("\n> This is a test to see if long lines are wrapped "
+			+"at some point by the line\n> wrapping thingy\n",
+			s.getvalue())
+
+	def test_write_handles_choice(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([
+				dt.Choice("X","blah blah","yadda yadda","wibble",None)
+			],None) ],None) ]), s)
+		self.assertEquals("**[X] [blah blah](#wibble)** _yadda yadda_\n", s.getvalue())
+
+	def test_write_handles_choice_no_mark(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([
+				dt.Choice(None,"blah blah","yadda yadda","wibble",None)
+			],None) ],None) ]), s)
+		self.assertEqual("**[] [blah blah](#wibble)** _yadda yadda_\n", s.getvalue() )
+
+	def test_write_handles_choice_no_response(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([
+				dt.Choice("X","blah blah",None,"wibble",None)
+			],None) ],None) ]), s)
+		self.assertEqual("**[X] [blah blah](#wibble)**\n", s.getvalue())
+				
+	def test_write_handles_choice_no_goto(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([
+				dt.Choice("X","blah blah","yadda yadda",None,None)
+			],None) ],None) ]), s)
+		self.assertEquals("**[X] blah blah** _yadda yadda_\n",
+			s.getvalue())
+				
+	def test_write_handles_choice_no_response_or_goto(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([
+				dt.Choice("X","blah blah",None,None,None)
+			],None) ],None) ]), s)
+		self.assertEquals("**[X] blah blah**\n", s.getvalue())
+
+	def test_write_handles_choice_wrapped_description(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([
+				dt.Choice("X","This is a test to test long lines of text "
+					+"are wrapped properly onto the next line, okay?",
+					"yadda yadda","wibble",None) ],None) ],None)]), s)
+		self.assertEquals("**[X] [This is a test to test long lines of text are "
+			+"wrapped properly onto the\nnext line, okay?](#wibble)** "
+			+"_yadda yadda_\n",s.getvalue())
+
+	def test_write_handles_choice_wrapped_response(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([
+				dt.Choice("X","blah","This is a test to test long lines of text "
+					+"are wrapped properly onto the next line, okay?",
+					"wibble",None) ],None) ],None)]), s)
+		self.assertEquals("**[X] [blah](#wibble)** _This is a test to test long lines of "
+			+"text are wrapped properly onto\nthe next line, okay?_",
+			s.getvalue())
+
+	def test_write_handles_choiceblock_multiple_choices(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+				dt.FirstSection([ dt.ChoiceBlock([
+					dt.Choice("X","foo","bar","wibble",None),
+					dt.Choice("Y","weh","meh","yadda",None)
+				],None) ],None) ]), s)
+		self.assertEquals("**[X] [foo](#wibble)** _bar_\n"
+			+"**[Y] [weh](#yadda)** _meh_\n",
+			s.getvalue())
+
+	def test_write_handles_multiple_sections(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+			dt.FirstSection([ dt.TextBlock("foo",None) ],None),
+			dt.Section("dave",[ dt.TextBlock("bar",None) ],None) ]), s)
+		self.assertEquals("foo\n\ndave\n----\n\nbar\n", s.getvalue())
 
 unittest.main()
 
