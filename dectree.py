@@ -2,7 +2,6 @@
 
 # TODO: JSON input
 # TODO: GUI interactive mode for recipient
-# TODO: XML output
 # TODO: XML input
 # TODO: HTML output
 # TODO: S-Exp output
@@ -59,6 +58,8 @@ FeedbackLine <- QuoteMarker? LineText Newline
 """
 
 import json
+import xml.dom
+import xml.dom.minidom
 import re
 import collections
 
@@ -1825,6 +1826,80 @@ class MarkdownIO(object):
 MarkdownIO.INST = MarkdownIO()
 
 
+class XmlIO(object):
+
+	EXTENSIONS = ["xml"]
+
+	@staticmethod
+	def write(document,stream):
+		XmlIO.INST._write(document,stream)
+		
+	def _write(self,document,stream):
+		doc = xml.dom.minidom.getDOMImplementation().createDocument(None,None,None)
+		self._append_to(self._visit_document(document,doc),doc)
+		doc.writexml(stream,addindent=" "*4,newl="\n")
+		
+	def _textel(self,name,text,doc):
+		el = doc.createElement(name)
+		el.appendChild(doc.createTextNode(text))
+		return el
+	
+	def _append_to(self,child,parent):
+		if child and parent:
+			parent.appendChild(child)
+	
+	def _visit(self,item,doc):
+		hname = "_visit_%s" % type(item).__name__.lower()
+		return getattr(self,hname,self._visit_default)(item,doc)
+		
+	def _visit_default(self,item,doc):
+		return None
+	
+	def _visit_document(self,document,doc):
+		elDoc = doc.createElement("dectree")
+		for section in document.sections:
+			self._append_to(self._visit_section(section,doc),elDoc)
+		return elDoc
+		
+	def _visit_section(self,section,doc):
+		elSec = doc.createElement("section")
+		if hasattr(section,"heading"):
+			self._append_to(self._textel("name",section.heading,doc),elSec)
+		for block in section.items:
+			self._append_to(self._visit(block,doc),elSec)
+		if section.feedback:
+			self._append_to(self._textel("feedback",section.feedback,doc),elSec)
+		return elSec
+		
+	def _visit_textblock(self,text,doc):
+		return self._textel("text",text.text,doc)
+		
+	def _visit_instructionblock(self,inst,doc):
+		return self._textel("instructions",inst.text,doc)
+		
+	def _visit_choiceblock(self,choice,doc):
+		elChoice = doc.createElement("choice")
+		for c in choice.choices:
+			self._append_to(self._visit_choice(c,doc),elChoice)
+		if choice.feedback:
+			self._append_to(self._textel("feedback",choice.feedback,doc),elChoice)
+		return elChoice
+		
+	def _visit_choice(self,choice,doc):
+		elOpt = doc.createElement("option")
+		if choice.mark:
+			self._append_to(self._textel("mark",choice.mark,doc),elOpt)
+		if choice.description:
+			self._append_to(self._textel("desc",choice.description,doc),elOpt)
+		if choice.response:
+			self._append_to(self._textel("response",choice.response,doc),elOpt)
+		if choice.goto:
+			self._append_to(self._textel("goto",choice.goto.lower(),doc),elOpt)
+		return elOpt
+		
+XmlIO.INST = XmlIO()
+
+
 class CommandLineRunner(object):
 
 	FIRST = object()
@@ -1986,6 +2061,8 @@ if __name__ == "__main__":
 		outformat = JsonIO
 	elif args.oformat == "markdown" or ext in MarkdownIO.EXTENSIONS:
 		outformat = MarkdownIO
+	elif args.oformat == "xml" or ext in XmlIO.EXTENSIONS:
+		outformat = XmlIO
 	else:		
 		outformat = DecTreeIO
 	
