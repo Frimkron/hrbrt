@@ -1,6 +1,5 @@
 #!/usr/bin/python2
 
-# TODO: Markdown output :D
 # TODO: JSON input
 # TODO: GUI interactive mode for recipient
 # TODO: XML output
@@ -1765,6 +1764,63 @@ class MarkdownIO(object):
 	@staticmethod
 	def write(document,stream):
 		MarkdownIO.INST._write(document,stream)
+		
+	def _write(self,document,stream):
+		stream.write("\n".join(map(self._visit_section,document.sections)))
+		
+	def _visit_section(self,section):
+		s = ""
+		
+		if hasattr(section,"heading"):
+			s += section.heading + "\n" + "-"*len(section.heading)+"\n\n"
+			
+		s += "\n".join(map(self._visit,section.items))
+		
+		if section.feedback is not None:
+			s += "\n" + "".join(map(lambda s: "> %s\n" % s,
+				wrap_text(section.feedback,MarkdownIO.LINE_WIDTH-2)))
+			
+		return s
+			
+	def _visit(self,item):
+		hname = "_visit_%s" % type(item).__name__.lower()
+		return getattr(self,hname,self._visit_default)(item)
+		
+	def _visit_default(self,item):
+		return ""
+		
+	def _visit_textblock(self,block):
+		return "".join(map(lambda s: "%s\n" % s,
+			wrap_text(block.text,MarkdownIO.LINE_WIDTH)))
+		
+	def _visit_instructionblock(self,block):
+		return ("<!-- " + "\n".join(wrap_text(block.text.replace("--",""),
+			MarkdownIO.LINE_WIDTH,5)) + " -->\n")
+		
+	def _visit_choiceblock(self,block):
+		s = ""
+		s += "".join(map(self._visit_choice,block.choices))
+		
+		if block.feedback is not None:
+			s += "\n" + "".join(map(lambda s: "> %s\n" % s,
+				wrap_text(block.feedback,MarkdownIO.LINE_WIDTH-2)))
+		return s
+		
+	def _headingize(self,text):
+		return re.sub("\s","-",
+			re.sub("^\d+\s*","",text.lower()))
+		
+	def _visit_choice(self,choice):
+		m = "[%s]" % (choice.mark if choice.mark else "")
+		d = choice.description
+		if choice.goto:
+			d = "[%s](#%s)" % (d,self._headingize(choice.goto))
+		r = ""
+		if choice.response:
+			r = " _%s_" % choice.response
+		return "- " + "  ".join(map(lambda s: "%s\n" % s, wrap_text(
+			"**%s %s**%s" % (m,d,r),MarkdownIO.LINE_WIDTH-2)))
+	
 	
 MarkdownIO.INST = MarkdownIO()
 
@@ -1928,6 +1984,8 @@ if __name__ == "__main__":
 		outformat = HtmlIO
 	elif args.oformat == "json" or ext in JsonIO.EXTENSIONS:
 		outformat = JsonIO
+	elif args.oformat == "markdown" or ext in MarkdownIO.EXTENSIONS:
+		outformat = MarkdownIO
 	else:		
 		outformat = DecTreeIO
 	

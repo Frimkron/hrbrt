@@ -4046,7 +4046,7 @@ class TestMarkdownIO(unittest.TestCase):
 				dt.FirstSection([],"This is a test to test line wrapping "
 				+"and see if long lines are wrapped at some point") ]), s)
 		self.assertEquals("\n> This is a test to test line wrapping and see "
-			+"if long lines are wrapped at some\n> point\n",
+			+"if long lines are wrapped at\n> some point\n",
 			s.getvalue() )
 			
 	def test_write_handles_section(self):
@@ -4062,7 +4062,7 @@ class TestMarkdownIO(unittest.TestCase):
 			dt.Section("dave",[],"This is a test to test line wrapping "
 			+"and see if long lines are wrapped at some point") ]), s)
 		self.assertEquals("dave\n----\n\n\n> This is a test to test line wrapping and see "
-			+"if long lines are wrapped at some\n> point\n",
+			+"if long lines are wrapped at\n> some point\n",
 			s.getvalue())
 				
 	def test_write_handles_textblock(self):
@@ -4078,7 +4078,7 @@ class TestMarkdownIO(unittest.TestCase):
 					+"wrapping and see if long lines are wrapped at some "
 					+"point", None) ],None) ]), s)
 		self.assertEquals("This is a test to test line wrapping and see "
-			+"if long lines are wrapped at\nsome point\n",
+			+"if long lines are wrapped at some\npoint\n",
 			s.getvalue())
 
 	def test_formt_handles_firstsection_multiple_blocks(self):
@@ -4115,9 +4115,15 @@ class TestMarkdownIO(unittest.TestCase):
 			dt.FirstSection([ dt.InstructionBlock("This is a test",None) ],None) ]), s)
 		self.assertEquals("<!-- This is a test -->\n", s.getvalue() )
 
+	def test_write_doesnt_print_double_dash_in_comments(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+			dt.FirstSection([ dt.InstructionBlock("This is a -- test",None) ],None) ]), s)
+		self.assertEquals("<!-- This is a test -->\n", s.getvalue() )
+
 	def test_write_handles_instructionblock_line_wrap(self):
 		s = io.BytesIO()
-		dt.DecTreeIO.write(dt.Document([
+		dt.MarkdownIO.write(dt.Document([
 			dt.FirstSection([ dt.InstructionBlock("This is a test to test line "
 				+"wrapping and see if long lines are wrapped at some "
 				+"point", None) ],None) ]), s)
@@ -4147,7 +4153,15 @@ class TestMarkdownIO(unittest.TestCase):
 			dt.FirstSection([ dt.ChoiceBlock([
 				dt.Choice("X","blah blah","yadda yadda","wibble",None)
 			],None) ],None) ]), s)
-		self.assertEquals("**[X] [blah blah](#wibble)** _yadda yadda_\n", s.getvalue())
+		self.assertEquals("- **[X] [blah blah](#wibble)** _yadda yadda_\n", s.getvalue())
+
+	def test_write_formats_goto_link(self):
+		s = io.BytesIO()
+		dt.MarkdownIO.write(dt.Document([
+			dt.FirstSection([ dt.ChoiceBlock([
+				dt.Choice("X","blah blah","yadda yadda","99 Bottles of Beer",None)
+			],None) ],None) ]), s)
+		self.assertEquals("- **[X] [blah blah](#bottles-of-beer)** _yadda yadda_\n", s.getvalue())
 
 	def test_write_handles_choice_no_mark(self):
 		s = io.BytesIO()
@@ -4155,7 +4169,7 @@ class TestMarkdownIO(unittest.TestCase):
 			dt.FirstSection([ dt.ChoiceBlock([
 				dt.Choice(None,"blah blah","yadda yadda","wibble",None)
 			],None) ],None) ]), s)
-		self.assertEqual("**[] [blah blah](#wibble)** _yadda yadda_\n", s.getvalue() )
+		self.assertEqual("- **[] [blah blah](#wibble)** _yadda yadda_\n", s.getvalue() )
 
 	def test_write_handles_choice_no_response(self):
 		s = io.BytesIO()
@@ -4163,7 +4177,7 @@ class TestMarkdownIO(unittest.TestCase):
 			dt.FirstSection([ dt.ChoiceBlock([
 				dt.Choice("X","blah blah",None,"wibble",None)
 			],None) ],None) ]), s)
-		self.assertEqual("**[X] [blah blah](#wibble)**\n", s.getvalue())
+		self.assertEqual("- **[X] [blah blah](#wibble)**\n", s.getvalue())
 				
 	def test_write_handles_choice_no_goto(self):
 		s = io.BytesIO()
@@ -4171,7 +4185,7 @@ class TestMarkdownIO(unittest.TestCase):
 			dt.FirstSection([ dt.ChoiceBlock([
 				dt.Choice("X","blah blah","yadda yadda",None,None)
 			],None) ],None) ]), s)
-		self.assertEquals("**[X] blah blah** _yadda yadda_\n",
+		self.assertEquals("- **[X] blah blah** _yadda yadda_\n",
 			s.getvalue())
 				
 	def test_write_handles_choice_no_response_or_goto(self):
@@ -4180,7 +4194,7 @@ class TestMarkdownIO(unittest.TestCase):
 			dt.FirstSection([ dt.ChoiceBlock([
 				dt.Choice("X","blah blah",None,None,None)
 			],None) ],None) ]), s)
-		self.assertEquals("**[X] blah blah**\n", s.getvalue())
+		self.assertEquals("- **[X] blah blah**\n", s.getvalue())
 
 	def test_write_handles_choice_wrapped_description(self):
 		s = io.BytesIO()
@@ -4189,8 +4203,8 @@ class TestMarkdownIO(unittest.TestCase):
 				dt.Choice("X","This is a test to test long lines of text "
 					+"are wrapped properly onto the next line, okay?",
 					"yadda yadda","wibble",None) ],None) ],None)]), s)
-		self.assertEquals("**[X] [This is a test to test long lines of text are "
-			+"wrapped properly onto the\nnext line, okay?](#wibble)** "
+		self.assertEquals("- **[X] [This is a test to test long lines of text are "
+			+"wrapped properly onto\n  the next line, okay?](#wibble)** "
 			+"_yadda yadda_\n",s.getvalue())
 
 	def test_write_handles_choice_wrapped_response(self):
@@ -4200,8 +4214,8 @@ class TestMarkdownIO(unittest.TestCase):
 				dt.Choice("X","blah","This is a test to test long lines of text "
 					+"are wrapped properly onto the next line, okay?",
 					"wibble",None) ],None) ],None)]), s)
-		self.assertEquals("**[X] [blah](#wibble)** _This is a test to test long lines of "
-			+"text are wrapped properly onto\nthe next line, okay?_",
+		self.assertEquals("- **[X] [blah](#wibble)** _This is a test to test long lines of "
+			+"text are\n  wrapped properly onto the next line, okay?_\n",
 			s.getvalue())
 
 	def test_write_handles_choiceblock_multiple_choices(self):
@@ -4209,10 +4223,10 @@ class TestMarkdownIO(unittest.TestCase):
 		dt.MarkdownIO.write(dt.Document([
 				dt.FirstSection([ dt.ChoiceBlock([
 					dt.Choice("X","foo","bar","wibble",None),
-					dt.Choice("Y","weh","meh","yadda",None)
+					dt.Choice("Y","weh","meh","yadda",None),
 				],None) ],None) ]), s)
-		self.assertEquals("**[X] [foo](#wibble)** _bar_\n"
-			+"**[Y] [weh](#yadda)** _meh_\n",
+		self.assertEquals("- **[X] [foo](#wibble)** _bar_\n"
+			+"- **[Y] [weh](#yadda)** _meh_\n",
 			s.getvalue())
 
 	def test_write_handles_multiple_sections(self):
