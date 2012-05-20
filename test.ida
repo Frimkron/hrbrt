@@ -707,3 +707,220 @@ xml		*	*		*		http	*		*			xml		*	*		*
 	have to be validated, of a sort, to ensure the structure is correct
 [*] Stuff that is format-agnostic should be re-used, i.e. the stuff I
 	already consider to be validation.
+
++-------------------------------------+
+| foobar.dt                       [X] |
++-------------------------------------+
+|                                     |
+|  Welcome to my amazing qustionaire! |
+|  Please fill in all the questions   |
+|  and send back the output file.     |
+|                                     |
+|                                     |
+|                                     |
+|                                     |
+| +--------+               +--------+ |
+| |//Prev//|               |  Next  | |
+| +--------+               +--------+ |
++-------------------------------------+
+
++-------------------------------------+
+| foobar.dt                       [X] |
++-------------------------------------+
+|                                     |
+|      ( ) Cheesecake                 |
+|      ( ) Trifle                     |
+|      (O) Victoria Sponge            |
+|      ( ) Jam Donuts                 |
+|                                     |
+|                                     |
+|                                     |
+| +--------+               +--------+ |
+| |  Prev  |               |  Next  | |
+| +--------+               +--------+ |
++-------------------------------------+
+
+[?] Should text blocks and choice blocks always be displayed
+	separately?
+[!] User might use a text block before a choice to describe
+    what the choice is. (e.g. ask a question). If this text
+    block isn't displayed with the choice, the recipient
+    is left guessing
+- Could always show the prior text block, but this assumes 
+  that a) it's related to the choice at all and b) that 
+  other blocks aren't related too
+- Text blocks can't hold multiple paragraphs because blank
+  text lines aren't allowed
+  
+:: Test test test test test test test 
+:  test test test test test test test 
+:  test test test test test test test 
+:                                     <-- not allowed
+:  test test test test test test test 
+:  test test test test test test test 
+
+[*] Gui runner is going to have to show the previous block, greyed out.
+	Similar to the dialog in a game has a kind of scrollback.
+[?] Does it need to have a vertical layout rather than a horizontal 
+	wizard-like thing, then?
+- No, but it would look better
+
++-------------------------------------+
+| foobar.dt                       [X] |
++------------------+------------------+
+|/W/l/o/e/t/ /y/ / |                  |
+| /m/z/n/ / / / / /| ( ) Cheesecake   |
+|/q/e/t/o/a/r/!/ / | ( ) Trifle       |
+| /l/a/e/f/l/ /n/ /| (O) Victoria     |
+|/t/e/q/e/t/o/s/ / |     Sponge       |
+| /n/ /e/d/b/c/ / /| ( ) Jam Donuts   |
+|/t/e/o/t/u/ /i/e/ |                  |
++------------------+------------------+
+| +---------+             +---------+ |
+| | << Prev |             | Next >> | |
+| +---------+             +---------+ |
++-------------------------------------+
+
++-------------------------------------+
+| foobar.dt                       [X] |
++------------------+------------------+
+|/ / / / / / / / / | Next question:   |
+| / / /h/e/e/a/e/ /| what animal is   |
+|/(/)/T/i/l/ / / / | your bestest     |
+| /O/ /i/t/r/a/ / /| favourite?       |     /
+|/ / /S/o/g/ / / / |                  |   \/
+| / / /a/ /o/u/s/ /|                  |
+|/ / / / / / / / / |                  |
++------------------+------------------+
+| +---------+             +---------+ |
+| | << Prev |             | Next >> | |
+| +---------+             +---------+ |
++-------------------------------------+
+
++-------------------------------------+
+| foobar.dt                       [X] |
++-------------------------------------+
+|/W/l/o/e/t/ /y/a/a/i/g/q/e/t/o/a/r/!/|
+| /l/a/e/f/l/ /n/t/e/q/e/t/o/s/a/d/ / |
+|/s/n/ /a/k/t/e/o/t/u/ /i/e/ / / / / /|     
++-------------------------------------+        
+| ( ) Cheesecake      ( ) Jam Donuts  |
+| ( ) Trifle                          |
+| ( ) Victoria Sponge                 |
++-------------------------------------+
+| +---------+             +---------+ |
+| | << Prev |             | Next >> | |
+| +---------+             +---------+ |
++-------------------------------------+
+
++-------------------------------------+
+| foobar.dt                       [X] |
++-------------------------------------+
+|              [ ^ Prev ]             |
++-------------------------------------+
+|/W/l/o/e/t/ /y/a/a/i/g/q/e/t/o/a/r/!/|
+| /l/a/e/f/l/ /n/t/e/q/e/t/o/s/a/d/ / |
+|/s/n/ /a/k/t/e/o/t/u/ /i/e/ / / / / /|     
++-------------------------------------+        
+| ( ) Cheesecake      ( ) Jam Donuts  |
+| ( ) Trifle                          |
+| ( ) Victoria Sponge                 |
++-------------------------------------+
+|              [ v Next ]             |
++-------------------------------------+
+
++-------------------------------------+
+| foobar.dt                       [X] |
++---------------------------------+---+
+|/W/l/o/e/t/ /y/a/a/i/g/q/e/t/o/a/|   |
+| /l/a/e/f/l/ /n/t/e/q/e/t/o/s/a/d|+-+|
+|/s/n/ /a/k/t/e/o/t/u/ /i/e/ / / /||^||     
+|                                 ||^||
+|                                 |+-+|
++---------------------------------+   |        
+| ( ) Cheesecake      ( ) Jam Donu|+-+|
+| ( ) Trifle                      ||v||
+| ( ) Victoria Sponge             ||v||
+|                                 |+-+|
+|                                 |   |
++---------------------------------+---+
+
++-------------------------------------+
+| foobar.dt                       [X] |
++-------------------------------------+
+|/W/l/o/e/t/ /y/a/a/i/g/q/e/t/o/ +---+|
+| /l/a/e/f/l/ /n/t/e/q/e/t/o/s/a | ^ ||
+|/s/n/ /a/k/t/e/o/t/u/ /i/e/ / / +---+|     
+|                                     |
+|                                     |
++-------------------------------------+        
+| ( ) Cheesecake                      |
+| ( ) Trifle                          |
+| ( ) Victoria Sponge            +---+|
+| ( ) Jam Donuts                 | v ||
+|                                +---+|
++-------------------------------------+
+
++-------------------------------------+
+| foobar.dt                       [X] |
++---+---------------------------------+
+| ^ | /W/l/o/e/t/ /y/a/a/i/g/q/e/t/o/ |
+| ^ |  /l/a/e/f/l/ /n/t/e/q/e/t/o/s/a |
++---+ /s/n/ /a/k/t/e/o/t/u/ /i/e/ / / |     
+| v |                                 |
+| v |                                 |
++---+---------------------------------+        
+|     ( ) Cheesecake                  |
+|     ( ) Trifle                      |
+|     ( ) Victoria Sponge             |
+|     ( ) Jam Donuts                  |
+|                                     |
++-------------------------------------+
+
++-------------------------------------+
+| foobar.dt - Kittens             [X] |
++-------------------------------------+
+|/W/l/o/e/t/ /y/a/a/i/g/q/e/t/o/a/r/!/|
+| /l/a/e/f/l/ /n/t/e/q/e/t/o/s/a/d/ / |
+|/s/n/ /a/k/t/e/o/t/u/ /i/e/ / / / / /|     
++-------------------------------------+        
+| ( ) Cheesecake      ( ) Jam Donuts  |
+| ( ) Trifle                          |
+| ( ) Victoria Sponge                 |
++-------------------------------------+
+| +---------+             +---------+ |
+| | ^^ Prev |             | Next vv | |
+| +---------+             +---------+ |
++-------------------------------------+
+
++-------------------------------------+
+| foobar.dt - Kittens             [X] |
++-------------------------------------+
+|/W/l/o/e/t/ /y/a/a/i/g/q/e/t/o/a/r/!/|
+| /l/a/e/f/l/ /n/t/e/q/e/t/o/s/a/d/ / |
+|/s/n/ /a/k/t/e/o/t/u/ /i/e/ / / / / /|     
++-------------------------------------+        
+| ( ) Cheesecake      ( ) Jam Donuts  |
+| ( ) Trifle                          |
+| ( ) Victoria Sponge                 |
++-------------------------------------+
+|           +-----+ +-----+           |
+|           |  ^  | |  v  |           |
+|           +-----+ +-----+           |
++-------------------------------------+
+
++--------------------------------------------------------+
+| foobar.dt                                          [X] | 
++------------------+------------------+------------------+
+|/W/l/o/e/t/ /y/ / |                  |                  |
+| /m/z/n/ / / / / /| ( ) Cheesecake   |                  |
+|/q/e/t/o/a/r/!/ / | ( ) Trifle       |   +----------+   |
+| /l/a/e/f/l/ /n/ /| (O) Victoria     |   | << Prev  |   |
+|/t/e/q/e/t/o/s/ / |     Sponge       |   +----------+   |
+| /n/ /e/d/b/c/ / /| ( ) Jam Donuts   |                  |
+|/t/e/o/t/u/ /i/e/ |                  |   +----------+   |
+|                  |                  |   | Next >>  |   |
+|                  |                  |   +----------+   |
+|                  |                  |                  |
+|                  |                  |                  |
++------------------+------------------+------------------+
