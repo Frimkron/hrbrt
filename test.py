@@ -4,6 +4,7 @@ import io
 import sys
 import mock
 import unittest
+import Tkinter
 import dectree as dt
 
 # monkey patching
@@ -4518,6 +4519,53 @@ class TestXmlIO(unittest.TestCase):
 			+'        <text>bar</text>\n'
 			+'    </section>\n'
 			+'</dectree>\n', s.getvalue())
+
+
+class TestGuiRunner(unittest.TestCase):
+
+	def setUp(self):
+		self.tk = mock.Mock()
+		self.gui = mock.Mock()
+		
+	def do_run(self,doc):
+		dt.GuiRunner()._run(doc,self.tk,self.gui)
+		
+	def test_can_run(self):
+		self.do_run(dt.Document([]))
+	
+	def test_starts_tk_event_loop(self):
+		self.do_run(dt.Document([]))
+		self.assertEquals(1, self.tk.mainloop.call_count)
+			
+	def test_performs_initial_gui_update(self):
+		self.do_run(dt.Document([]))
+		self.assertEquals(1, self.gui.on_prev_item_change.call_count)
+		self.assertEquals(1, self.gui.on_next_item_change.call_count)
+		self.assertEquals(1, self.gui.on_back_allowed_change.call_count)
+		self.assertEquals(1, self.gui.on_forward_allowed_change.call_count)
+		self.assertEquals(1, self.gui.on_section_change.call_count)
+		
+	def test_shows_current_textblock(self):
+		self.do_run(dt.Document([dt.FirstSection([
+			dt.TextBlock("This is a test",None) ],None)]))
+		self.assertEquals(0, len(self.gui.on_next_item_change.call_args[1]))
+		self.assertEquals(1, len(self.gui.on_next_item_change.call_args[0]))
+		item = self.gui.on_next_item_change.call_args[0][0]
+		self.assertTrue( isinstance(item,dt.GuiRunnerText) )
+		self.assertEquals( "This is a test", item.text )
+		
+	def test_shows_current_choiceblock(self):
+		self.do_run(dt.Document([dt.FirstSection([
+			dt.ChoiceBlock([
+				dt.Choice(None,"Animal",None,None,None),
+				dt.Choice(None,"Mineral",None,None,None),
+				dt.Choice(None,"Vegetable",None,None,None),
+			],None) ],None)]))
+		self.assertEquals(0, len(self.gui.on_next_item_change.call_args[1]))
+		self.assertEquals(1, len(self.gui.on_next_item_change.call_args[0]))
+		item = self.gui.on_next_item_change.call_args[0][0]
+		self.assertTrue( isinstance(item,dt.GuiRunnerChoice) )
+		self.assertEquals( ["Animal","Mineral","Vegetable"], item.options )
 
 unittest.main()
 

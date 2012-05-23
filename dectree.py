@@ -1985,6 +1985,120 @@ class CommandLineRunner(object):
 		return None
 		
 CommandLineRunner.INST = CommandLineRunner()
+
+
+class GuiRunnerGui(object):
+	"""Dumb frontend for runner, reacts to state change events,
+		sends user interaction events"""
+
+	listener = None
+	fleft = None
+	fright = None
+	bnext = None
+	bprev = None
+	leftcontent = None
+	rightcontent = None
+	
+	def __init__(self,master):
+		
+		fmain = Frame(master)
+		fmain.pack(side=TOP)		
+		
+		fbottom = Frame(fmain)
+		fbottom.pack(side=BOTTOM,fill=BOTH,expand=1)
+		
+		self.bnext = Button(fbottom,text="Next >>",command=self.fire_on_next)
+		self.bnext.pack(side=RIGHT,padx=12,pady=12)
+		
+		self.bprev = Button(fbottom,text="<< Prev",command=self.fire_on_prev)
+		self.bprev.pack(side=LEFT,padx=12,pady=12)
+		
+		self.fright = Frame(fmain,width=200,height=200)
+		self.fright.pack_propagate(0)
+		self.fright.pack(side=RIGHT,fill=BOTH,expand=1,padx=12,pady=12)
+		
+		self.fleft = Frame(fmain,width=200,height=200)
+		self.fleft.pack_propagate(0)
+		self.fleft.pack(side=LEFT,fill=BOTH,expand=1,padx=12,pady=12)
+
+	def fire_on_next(self):
+		if self.listener: self.listener.on_next()
+
+	def fire_on_prev(self):
+		if self.listener: self.listener.on_prev()
+
+	def fire_on_change_selection(self,val):
+		if self.listener: self.listener.on_change_selection(val)
+
+	def on_back_allowed_change(self,isallowed):
+		self.bprev.config(state=NORMAL if isallowed else DISABLED)
+		
+	def on_forward_allowed_change(self,isallowed):
+		self.bnext.config(state=NORMAL if isallowed else DISABLED)
+	
+	def on_prev_item_change(self,iteminfo):
+		if self.leftcontent:
+			self.leftcontent.destroy()
+			self.leftcontent = None
+			
+		if isinstance(iteminfo,RunnerListener.Text):
+			self.leftcontent = TextFrameContent(self.fleft,iteminfo,False)
+		elif isinstance(iteminfo,RunnerListener.Choice):
+			self.leftcontent = ChoiceFrameContent(self.fleft,iteminfo,False,lambda v: None)
+	
+	def on_curr_item_change(self,iteminfo):
+		if self.rightcontent:
+			self.rightcontent.destroy()
+			self.rightcontent = None
+			
+		if isinstance(iteminfo,RunnerListener.Text):
+			self.rightcontent = TextFrameContent(self.fright,iteminfo,True)
+		elif isinstance(iteminfo,RunnerListener.Choice):
+			self.rightcontent = ChoiceFrameContent(self.fright,iteminfo,True,
+				self.fire_on_change_selection)
+				
+	def on_section_change(self,name):
+		pass
+		
+		
+class GuiRunnerText(object):
+	def __init__(self,text):
+		self.text = text
+	
+		
+class GuiRunnerChoice(object):
+	def __init__(self,options):
+		self.options = options
+		
+		
+class GuiRunner(object):
+
+	gui = None
+
+	@staticmethod
+	def run(document):
+		GuiRunner.INST._run()
+		
+	def _run(self,document,tkroot=None,gui=None):
+		if not tkroot: tkroot = Tk()
+		if not gui: gui = GuiRunnerGui(tkroot)
+		self.gui = gui
+		if len(document.sections) == 0:
+			item = None
+		elif len(document.sections[0].items) == 0:
+			item = None
+		elif isinstance(document.sections[0].items[0],TextBlock):
+			item = GuiRunnerText(document.sections[0].items[0].text)
+		elif isinstance(document.sections[0].items[0],ChoiceBlock):
+			item = GuiRunnerChoice([c.description for c in document.sections[0].items[0].choices])
+		self.gui.on_prev_item_change(None)
+		self.gui.on_next_item_change(item)
+		self.gui.on_forward_allowed_change(False)
+		self.gui.on_back_allowed_change(False)
+		self.gui.on_section_change(None)
+		tkroot.mainloop()
+		
+GuiRunner.INST = GuiRunner()
 		
 
 if __name__ == "__main__":
