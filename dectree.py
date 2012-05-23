@@ -2083,17 +2083,25 @@ class GuiRunner(object):
 		if not tkroot: tkroot = Tk()
 		if not gui: gui = GuiRunnerGui(tkroot)
 		self.gui = gui
-		if len(document.sections) == 0:
+		
+		if len(document.sections) > 0:
+			blocks = filter(lambda x: isinstance(x,(TextBlock,ChoiceBlock)),
+				document.sections[0].items)
+		else:
+			blocks = []
+		
+		if len(blocks)==0:
 			item = None
-		elif len(document.sections[0].items) == 0:
+		elif isinstance(blocks[0],TextBlock):
+			item = GuiRunnerText(blocks[0].text)
+		elif isinstance(blocks[0],ChoiceBlock):
+			item = GuiRunnerChoice([c.description for c in blocks[0].choices])
+		else:
 			item = None
-		elif isinstance(document.sections[0].items[0],TextBlock):
-			item = GuiRunnerText(document.sections[0].items[0].text)
-		elif isinstance(document.sections[0].items[0],ChoiceBlock):
-			item = GuiRunnerChoice([c.description for c in document.sections[0].items[0].choices])
+			
 		self.gui.on_prev_item_change(None)
 		self.gui.on_next_item_change(item)
-		self.gui.on_forward_allowed_change(False)
+		self.gui.on_forward_allowed_change(len(blocks)>1)
 		self.gui.on_back_allowed_change(False)
 		self.gui.on_section_change(None)
 		tkroot.mainloop()

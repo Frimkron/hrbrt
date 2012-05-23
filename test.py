@@ -4566,6 +4566,45 @@ class TestGuiRunner(unittest.TestCase):
 		item = self.gui.on_next_item_change.call_args[0][0]
 		self.assertTrue( isinstance(item,dt.GuiRunnerChoice) )
 		self.assertEquals( ["Animal","Mineral","Vegetable"], item.options )
+		
+	def test_doesnt_show_instructionblock(self):
+		self.do_run(dt.Document([dt.FirstSection([
+			dt.InstructionBlock("Ignore me",None) ],None)]))
+		self.assertEquals(0, len(self.gui.on_next_item_change.call_args[1]))
+		self.assertEquals(1, len(self.gui.on_next_item_change.call_args[0]))
+		item = self.gui.on_next_item_change.call_args[0][0]
+		self.assertIsNone( item )
+		
+	def test_shows_no_previous_block_for_first_block(self):
+		self.do_run(dt.Document([dt.FirstSection([
+			dt.TextBlock("foo",None) ],None)]))
+		self.assertEquals(0, len(self.gui.on_prev_item_change.call_args[1]))
+		self.assertEquals(1, len(self.gui.on_prev_item_change.call_args[0]))
+		item = self.gui.on_prev_item_change.call_args[0][0]
+		self.assertIsNone( item )
+		
+	def test_disallows_back_for_first_block(self):
+		self.do_run(dt.Document([dt.FirstSection([
+			dt.TextBlock("foo",None) ],None)]))
+		self.assertEquals(0,len(self.gui.on_back_allowed_change.call_args[1]))
+		self.assertEquals(1,len(self.gui.on_back_allowed_change.call_args[0]))
+		self.assertEquals( False, self.gui.on_back_allowed_change.call_args[0][0] )	
+
+	def test_allows_forward_if_second_block(self):
+		self.do_run(dt.Document([dt.FirstSection([
+			dt.TextBlock("foo",None),
+			dt.TextBlock("bar",None) ],None)]))
+		self.assertEquals(0,len(self.gui.on_forward_allowed_change.call_args[1]))
+		self.assertEquals(1,len(self.gui.on_forward_allowed_change.call_args[0]))
+		self.assertEquals( True, self.gui.on_forward_allowed_change.call_args[0][0] )
+		
+	def test_disallows_forward_if_no_second_block(self):
+		self.do_run(dt.Document([dt.FirstSection([
+			dt.TextBlock("foo",None) ],None)]))
+		self.assertEquals(0, len(self.gui.on_forward_allowed_change.call_args[1]))
+		self.assertEquals(1, len(self.gui.on_forward_allowed_change.call_args[0]))
+		self.assertEquals( False, self.gui.on_forward_allowed_change.call_args[0][0] )
+		
 
 unittest.main()
 
