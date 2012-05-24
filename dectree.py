@@ -2073,7 +2073,9 @@ class GuiRunnerChoice(object):
 		
 class GuiRunner(object):
 
-	gui = None
+	_gui = None
+	_sec_blocks = None
+	_current_block = -1
 
 	@staticmethod
 	def run(document):
@@ -2082,29 +2084,47 @@ class GuiRunner(object):
 	def _run(self,document,tkroot=None,gui=None):
 		if not tkroot: tkroot = Tk()
 		if not gui: gui = GuiRunnerGui(tkroot)
-		self.gui = gui
+		self._gui = gui
 		
 		if len(document.sections) > 0:
-			blocks = filter(lambda x: isinstance(x,(TextBlock,ChoiceBlock)),
+			self._sec_blocks = filter(lambda x: isinstance(x,(TextBlock,ChoiceBlock)),
 				document.sections[0].items)
 		else:
-			blocks = []
+			self._sec_blocks = []
 		
-		if len(blocks)==0:
-			item = None
-		elif isinstance(blocks[0],TextBlock):
-			item = GuiRunnerText(blocks[0].text)
-		elif isinstance(blocks[0],ChoiceBlock):
-			item = GuiRunnerChoice([c.description for c in blocks[0].choices])
+		if len(self._sec_blocks)>0:	
+			self._set_current_block(0)
 		else:
-			item = None
-			
-		self.gui.on_prev_item_change(None)
-		self.gui.on_next_item_change(item)
-		self.gui.on_forward_allowed_change(len(blocks)>1)
-		self.gui.on_back_allowed_change(False)
-		self.gui.on_section_change(None)
+			self._set_current_block(-1)
+		
+		self._gui.on_section_change(None)
 		tkroot.mainloop()
+		
+	def _item_for_block_num(self,num):
+		
+		if num<0 or num>=len(self._sec_blocks):
+			return None
+			
+		b = self._sec_blocks[num]
+		if isinstance(b,TextBlock):	
+			return GuiRunnerText(b.text)
+		elif isinstance(b,ChoiceBlock):
+			return GuiRunnerChoice([c.description for c in b.choices])
+			
+	def _set_current_block(self,num):
+		self._current_block = num
+		curr_item = self._item_for_block_num(self._current_block)
+		prev_item = self._item_for_block_num(self._current_block-1)		
+		self._gui.on_curr_item_change(curr_item)
+		self._gui.on_prev_item_change(prev_item)
+		self._gui.on_forward_allowed_change(-1 < self._current_block < len(self._sec_blocks)-1)
+		self._gui.on_back_allowed_change(self._current_block > 0)
+		
+	def on_next(self):
+		self._set_current_block(self._current_block+1)
+		
+	def on_prev(self):
+		pass
 		
 GuiRunner.INST = GuiRunner()
 		
