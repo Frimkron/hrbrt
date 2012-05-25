@@ -4569,6 +4569,16 @@ class TestGuiRunner(unittest.TestCase):
 		item = self.gui.on_curr_item_change.call_args[0][0]
 		self.assertTrue( isinstance(item,dt.GuiRunnerChoice) )
 		self.assertEquals( ["Animal","Mineral","Vegetable"], item.options )
+		self.assertIsNone( item.selected )
+		
+	def test_indicates_selected_option_for_choiceblock(self):
+		self.do_run(dt.Document([dt.FirstSection([
+			dt.ChoiceBlock([
+				dt.Choice(None,"Animal",None,None,None),
+				dt.Choice(None,"Mineral",None,None,None),
+				dt.Choice("X", "Vegetable",None,None,None),
+			],None) ],None)]))
+		self.assertEquals(2, self.gui.on_curr_item_change.call_args[0][0].selected)
 		
 	def test_doesnt_show_instructionblock(self):
 		self.do_run(dt.Document([dt.FirstSection([
@@ -4593,20 +4603,13 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertEquals(1,len(self.gui.on_back_allowed_change.call_args[0]))
 		self.assertEquals( False, self.gui.on_back_allowed_change.call_args[0][0] )	
 
-	def test_allows_forward_if_second_block(self):
+	def test_allows_forward_initially(self):
 		self.do_run(dt.Document([dt.FirstSection([
 			dt.TextBlock("foo",None),
 			dt.TextBlock("bar",None) ],None)]))
 		self.assertEquals(0,len(self.gui.on_forward_allowed_change.call_args[1]))
 		self.assertEquals(1,len(self.gui.on_forward_allowed_change.call_args[0]))
 		self.assertEquals( True, self.gui.on_forward_allowed_change.call_args[0][0] )
-		
-	def test_disallows_forward_if_no_second_block(self):
-		self.do_run(dt.Document([dt.FirstSection([
-			dt.TextBlock("foo",None) ],None)]))
-		self.assertEquals(0, len(self.gui.on_forward_allowed_change.call_args[1]))
-		self.assertEquals(1, len(self.gui.on_forward_allowed_change.call_args[0]))
-		self.assertEquals( False, self.gui.on_forward_allowed_change.call_args[0][0] )
 		
 	def test_sets_initial_section_name_blank(self):
 		self.do_run(dt.Document([dt.FirstSection([],None)]))
@@ -4671,25 +4674,163 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertEquals(2, self.gui.on_back_allowed_change.call_count)
 		self.assertEquals(True,self.gui.on_back_allowed_change.call_args_list[1][0][0])
 
-	def test_allows_forward_on_next_if_third_block(self):
-		def loop(runner): runner.on_next()
+	def test_updates_current_item_to_textblock_on_prev(self):
+		def loop(runner):
+			runner.on_next()
+			runner.on_prev()
 		self.do_run(dt.Document([dt.FirstSection([
-			dt.TextBlock("one",None),
-			dt.TextBlock("two",None),
-			dt.TextBlock("three",None)
+			dt.TextBlock("this is the first item",None),
+			dt.TextBlock("this is the second item",None) 
 		],None)]),mockloop=loop)
-		self.assertEquals(2, self.gui.on_forward_allowed_change.call_count)
-		self.assertEquals(True,self.gui.on_forward_allowed_change.call_args_list[1][0][0])
+		self.assertEquals(3, self.gui.on_curr_item_change.call_count)
+		item = self.gui.on_curr_item_change.call_args_list[2][0][0]
+		self.assertTrue( isinstance(item,dt.GuiRunnerText))
+		self.assertEquals("this is the first item", item.text)
 		
-	def test_disallows_forward_on_next_if_no_third_block(self):
-		def loop(runner): runner.on_next()
+	def test_updates_current_item_to_choiceblock_on_prev(self):
+		def loop(runner):
+			runner.on_next()
+			runner.on_prev()
 		self.do_run(dt.Document([dt.FirstSection([
-			dt.TextBlock("one",None),
-			dt.TextBlock("two",None),
+			dt.ChoiceBlock([
+				dt.Choice(None,"Opt A",None,None,None),
+				dt.Choice(None,"Opt B",None,None,None) ],None),
+			dt.TextBlock("this is the second item",None) 
+		],None)]),mockloop=loop)
+		self.assertEquals(3, self.gui.on_curr_item_change.call_count)
+		item = self.gui.on_curr_item_change.call_args_list[2][0][0]
+		self.assertTrue( isinstance(item,dt.GuiRunnerChoice))
+		self.assertEquals(["Opt A","Opt B"], item.options)
+		
+	def test_updates_prev_item_to_blank_on_prev(self):
+		def loop(runner):
+			runner.on_next()
+			runner.on_prev()
+		self.do_run(dt.Document([dt.FirstSection([
+			dt.TextBlock("foo bar",None),
+			dt.TextBlock("this is the second item",None) 
+		],None)]),mockloop=loop)
+		self.assertEquals(3, self.gui.on_prev_item_change.call_count)
+		item = self.gui.on_prev_item_change.call_args_list[2][0][0]
+		self.assertIsNone(item)
+	
+	def test_updates_prev_item_to_textblock_on_prev(self):
+		def loop(runner):
+			runner.on_next()
+			runner.on_next()
+			runner.on_prev()
+		self.do_run(dt.Document([dt.FirstSection([
+			dt.TextBlock("foo bar",None),
+			dt.TextBlock("this is the second item",None),
+			dt.TextBlock("blah blah",None),
+		],None)]),mockloop=loop)
+		self.assertEquals(4, self.gui.on_prev_item_change.call_count)
+		item = self.gui.on_prev_item_change.call_args_list[3][0][0]
+		self.assertTrue( isinstance(item,dt.GuiRunnerText) )
+		self.assertEquals("foo bar",item.text)
+
+	def test_updates_prev_item_to_choiceblock_on_prev(self):
+		def loop(runner):
+			runner.on_next()
+			runner.on_next()
+			runner.on_prev()
+		self.do_run(dt.Document([dt.FirstSection([
+			dt.ChoiceBlock([
+				dt.Choice(None,"cake",None,None,None),
+				dt.Choice(None,"death",None,None,None) ],None),
+			dt.TextBlock("this is the second item",None),
+			dt.TextBlock("blah blah",None),
+		],None)]),mockloop=loop)
+		self.assertEquals(4, self.gui.on_prev_item_change.call_count)
+		item = self.gui.on_prev_item_change.call_args_list[3][0][0]
+		self.assertTrue( isinstance(item,dt.GuiRunnerChoice) )
+		self.assertEquals(["cake","death"],item.options)
+		
+	def test_allows_back_on_prev(self):
+		def loop(runner):
+			runner.on_next()
+			runner.on_next()
+			runner.on_prev()
+		self.do_run(dt.Document([dt.FirstSection([
+			dt.TextBlock("foo",None),
+			dt.TextBlock("bar",None),
+			dt.TextBlock("weh",None),
+		],None)]),mockloop=loop)
+		self.assertEquals(4,self.gui.on_back_allowed_change.call_count)
+		self.assertTrue( self.gui.on_back_allowed_change.call_args_list[3][0][0] )
+		
+	def test_disallows_back_on_prev(self):
+		def loop(runner):
+			runner.on_next()
+			runner.on_prev()
+		self.do_run(dt.Document([dt.FirstSection([
+			dt.TextBlock("foo",None),
+			dt.TextBlock("bar",None),
+		],None)]),mockloop=loop)
+		self.assertEquals(3,self.gui.on_back_allowed_change.call_count)
+		self.assertFalse( self.gui.on_back_allowed_change.call_args_list[2][0][0] )
+		
+	def test_allows_forward_on_prev(self):
+		def loop(runner):
+			runner.on_next()
+			runner.on_prev()
+		self.do_run(dt.Document([dt.FirstSection([
+			dt.TextBlock("foo",None),
+			dt.TextBlock("bar",None),
+		],None)]),mockloop=loop)
+		self.assertEquals(3,self.gui.on_forward_allowed_change.call_count)
+		self.assertTrue( self.gui.on_forward_allowed_change.call_args_list[2][0][0] )
+	
+	def test_doesnt_allow_forward_before_choice_made(self):
+		self.do_run(dt.Document([dt.FirstSection([
+			dt.ChoiceBlock([
+				dt.Choice(None,"cats",None,None,None),
+				dt.Choice(None,"dogs",None,None,None) ],None),
+			dt.TextBlock("foo",None),
+		],None)]))
+		self.gui.on_forward_allowed_change.assert_called_once_with(False)
+		
+	def test_allows_forward_after_choice_made(self):
+		def loop(runner):
+			runner.on_change_selection(1)
+		self.do_run(dt.Document([dt.FirstSection([
+			dt.ChoiceBlock([
+				dt.Choice(None,"cats",None,None,None),
+				dt.Choice(None,"dogs",None,None,None) ],None),
+			dt.TextBlock("foo",None),
 		],None)]),mockloop=loop)
 		self.assertEquals(2, self.gui.on_forward_allowed_change.call_count)
-		self.assertEquals(False,self.gui.on_forward_allowed_change.call_args_list[1][0][0])
+		self.assertTrue( self.gui.on_forward_allowed_change.call_args_list[1][0][0] )		
 
+	def test_only_allows_forward_first_time_choice_made(self):
+		def loop(runner):	
+			runner.on_change_selection(0)
+			runner.on_change_selection(1)
+			runner.on_change_selection(0)
+		self.do_run(dt.Document([dt.FirstSection([
+			dt.ChoiceBlock([
+				dt.Choice(None,"cats",None,None,None),
+				dt.Choice(None,"dogs",None,None,None) ],None),
+			dt.TextBlock("foo",None),
+		],None)]),mockloop=loop)
+		self.assertEquals(2, self.gui.on_forward_allowed_change.call_count)
+
+	def test_sets_choice_mark_on_selection(self):
+		def loop(runner):
+			runner.on_change_selection(1)
+		d = dt.Document([dt.FirstSection([
+			dt.ChoiceBlock([
+				dt.Choice(None,"cats",None,None,None),
+				dt.Choice(None,"dogs",None,None,None) ],None),
+			dt.TextBlock("foo",None) ],None)])
+		self.assertIsNone(d.sections[0].items[0].choices[0].mark)
+		self.assertIsNone(d.sections[0].items[0].choices[1].mark)
+		self.do_run(d,mockloop=loop)
+		self.assertIsNone(d.sections[0].items[0].choices[0].mark)
+		self.assertEquals("X",d.sections[0].items[0].choices[1].mark)
+		
+	# TODO: ending on last "next"
+	
 unittest.main()
 
 

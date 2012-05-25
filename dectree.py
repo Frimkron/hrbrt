@@ -2067,8 +2067,9 @@ class GuiRunnerText(object):
 	
 		
 class GuiRunnerChoice(object):
-	def __init__(self,options):
+	def __init__(self,options,selected):
 		self.options = options
+		self.selected = selected
 		
 		
 class GuiRunner(object):
@@ -2109,7 +2110,8 @@ class GuiRunner(object):
 		if isinstance(b,TextBlock):	
 			return GuiRunnerText(b.text)
 		elif isinstance(b,ChoiceBlock):
-			return GuiRunnerChoice([c.description for c in b.choices])
+			return GuiRunnerChoice([c.description for c in b.choices],
+				self._choiceblock_selection(b))
 			
 	def _set_current_block(self,num):
 		self._current_block = num
@@ -2117,14 +2119,33 @@ class GuiRunner(object):
 		prev_item = self._item_for_block_num(self._current_block-1)		
 		self._gui.on_curr_item_change(curr_item)
 		self._gui.on_prev_item_change(prev_item)
-		self._gui.on_forward_allowed_change(-1 < self._current_block < len(self._sec_blocks)-1)
+		if self._current_block > -1:
+			b = self._sec_blocks[self._current_block]
+			allow_forward = not(isinstance(b,ChoiceBlock) and not b.is_completed)
+		else:
+			allow_forward = False
+		self._gui.on_forward_allowed_change(allow_forward)
 		self._gui.on_back_allowed_change(self._current_block > 0)
 		
 	def on_next(self):
 		self._set_current_block(self._current_block+1)
 		
 	def on_prev(self):
-		pass
+		self._set_current_block(self._current_block-1)
+		
+	def _choiceblock_selection(self,choiceblock):
+		for i,c in enumerate(choiceblock.choices):
+			if c.mark: return i
+		return None
+		
+	def on_change_selection(self,val):	
+		if self._current_block < 0: return
+		b = self._sec_blocks[self._current_block]
+		if not isinstance(b,ChoiceBlock): return
+		if self._choiceblock_selection(b) is None:
+			self._gui.on_forward_allowed_change(True)
+		for i,c in enumerate(b.choices):
+			c.set_mark("X" if i==val else None)
 		
 GuiRunner.INST = GuiRunner()
 		
