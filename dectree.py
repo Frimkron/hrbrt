@@ -2074,6 +2074,33 @@ class GuiRunnerChoice(object):
 		
 class GuiRunner(object):
 
+	class TextData(object):
+		text = None
+		def __init__(self,textblock):
+			self.text = textblock.text
+		def to_item(self):
+			return GuiRunnerText(self.text)
+		def can_proceed(self):
+			return True
+			
+	class ChoiceData(object):
+		options = None
+		selected = None
+		def __init__(self,choiceblock):
+			self.selected = None
+			self.options = []
+			for i,c in enumerate(choiceblock.choices):
+				if c.mark and not self.selected:
+					self.selected = i
+				self.options.append({
+					"desc":c.description, 
+					"resp":c.response,
+					"goto":c.goto })
+		def to_item(self):
+			return GuiRunnerChoice([o["desc"] for o in self.options],self.selected)
+		def can_proceed(self):
+			return self.selected is not None
+				
 	_gui = None
 	_sec_blocks = None
 	_current_block = -1
@@ -2087,11 +2114,13 @@ class GuiRunner(object):
 		if not gui: gui = GuiRunnerGui(tkroot)
 		self._gui = gui
 		
+		self._sec_blocks = []
 		if len(document.sections) > 0:
-			self._sec_blocks = filter(lambda x: isinstance(x,(TextBlock,ChoiceBlock)),
-				document.sections[0].items)
-		else:
-			self._sec_blocks = []
+			for b in document.sections[0].items:
+				if isinstance(b,TextBlock):
+					self._sec_blocks.append(GuiRunner.TextData(b))
+				elif isinstance(b,ChoiceBlock):
+					self._sec_blocks.append(GuiRunner.ChoiceData(b))
 		
 		if len(self._sec_blocks)>0:	
 			self._set_current_block(0)
@@ -2102,16 +2131,9 @@ class GuiRunner(object):
 		tkroot.mainloop()
 		
 	def _item_for_block_num(self,num):
-		
 		if num<0 or num>=len(self._sec_blocks):
 			return None
-			
-		b = self._sec_blocks[num]
-		if isinstance(b,TextBlock):	
-			return GuiRunnerText(b.text)
-		elif isinstance(b,ChoiceBlock):
-			return GuiRunnerChoice([c.description for c in b.choices],
-				self._choiceblock_selection(b))
+		return self._sec_blocks[num].to_item()	
 			
 	def _set_current_block(self,num):
 		self._current_block = num
@@ -2119,11 +2141,8 @@ class GuiRunner(object):
 		prev_item = self._item_for_block_num(self._current_block-1)		
 		self._gui.on_curr_item_change(curr_item)
 		self._gui.on_prev_item_change(prev_item)
-		if self._current_block > -1:
-			b = self._sec_blocks[self._current_block]
-			allow_forward = not(isinstance(b,ChoiceBlock) and not b.is_completed)
-		else:
-			allow_forward = False
+		allow_forward = ( self._current_block > -1 
+			and self._sec_blocks[self._current_block].can_proceed() )
 		self._gui.on_forward_allowed_change(allow_forward)
 		self._gui.on_back_allowed_change(self._current_block > 0)
 		
@@ -2133,16 +2152,11 @@ class GuiRunner(object):
 	def on_prev(self):
 		self._set_current_block(self._current_block-1)
 		
-	def _choiceblock_selection(self,choiceblock):
-		for i,c in enumerate(choiceblock.choices):
-			if c.mark: return i
-		return None
-		
 	def on_change_selection(self,val):	
 		if self._current_block < 0: return
 		b = self._sec_blocks[self._current_block]
-		if not isinstance(b,ChoiceBlock): return
-		if self._choiceblock_selection(b) is None:
+		if not isinstance(b,ChoiceData): return
+		if b.selected is None:
 			self._gui.on_forward_allowed_change(True)
 		for i,c in enumerate(b.choices):
 			c.set_mark("X" if i==val else None)

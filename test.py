@@ -4815,19 +4815,22 @@ class TestGuiRunner(unittest.TestCase):
 		],None)]),mockloop=loop)
 		self.assertEquals(2, self.gui.on_forward_allowed_change.call_count)
 
-	def test_sets_choice_mark_on_selection(self):
+	def test_remembers_choice_selection(self):
 		def loop(runner):
 			runner.on_change_selection(1)
-		d = dt.Document([dt.FirstSection([
+			runner.on_next()
+			runner.on_prev()
+		self.do_run(dt.Document([dt.FirstSection([
 			dt.ChoiceBlock([
 				dt.Choice(None,"cats",None,None,None),
-				dt.Choice(None,"dogs",None,None,None) ],None),
-			dt.TextBlock("foo",None) ],None)])
-		self.assertIsNone(d.sections[0].items[0].choices[0].mark)
-		self.assertIsNone(d.sections[0].items[0].choices[1].mark)
-		self.do_run(d,mockloop=loop)
-		self.assertIsNone(d.sections[0].items[0].choices[0].mark)
-		self.assertEquals("X",d.sections[0].items[0].choices[1].mark)
+				dt.Choice(None,"dogs",None,None,None)],None),
+			dt.TextBlock("foo",None),
+		],None)]),mockloop=loop)
+		self.assertEquals(3,self.gui.on_curr_item_change.call_count)
+		self.assertEquals(3,self.gui.on_prev_item_change.call_count)
+		self.assertIsNone( self.gui.on_curr_item_change.call_args_list[0][0][0].selected )
+		self.assertEquals(1, self.gui.on_prev_item_change.call_args_list[1][0][0].selected)
+		self.assertEquals(1, self.gui.on_curr_item_change.call_args_list[2][0][0].selected)
 		
 	# TODO: ending on last "next"
 	
