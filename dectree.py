@@ -2074,36 +2074,87 @@ class GuiRunnerChoice(object):
 		
 class GuiRunner(object):
 
-	class TextData(object):
+	class Step(object):
+		
+		next = None
+		prev = None
+		
+		@staticmethod
+		def from_block(block):
+			if isinstance(block,TextBlock):
+				return GuiRunner.TextStep.from_block(block)
+			elif isinstance(block,ChoiceBlock):
+				return GuiRunner.ChoiceStep.from_block(block)
+			else:
+				return None
+		
+		def can_go_forward(self):
+			return bool(self.next)
+			
+		def forward(self):
+			return self.next
+			
+		def can_go_back(self):
+			return bool(self.prev)
+			
+		def back(self):
+			return self.prev
+
+	class TextStep(Step):
+	
 		text = None
-		def __init__(self,textblock):
-			self.text = textblock.text
+		
+		@staticmethod
+		def from_block(textblock):
+			return GuiRunner.TextStep(textblock.text)
+		
+		def __init__(self,text):
+			GuiRunner.Step.__init__(self)
+			self.text = text
+			
 		def to_item(self):
 			return GuiRunnerText(self.text)
-		def can_proceed(self):
-			return True
 			
-	class ChoiceData(object):
+	class ChoiceStep(Step):
+	
 		options = None
 		selected = None
-		def __init__(self,choiceblock):
-			self.selected = None
-			self.options = []
+	
+		@staticmethod
+		def from_block(choiceblock):
+			selected = None
+			options = []
 			for i,c in enumerate(choiceblock.choices):
-				if c.mark and not self.selected:
-					self.selected = i
-				self.options.append({
+				if c.mark and not selected:
+					selected = i
+				options.append({
 					"desc":c.description, 
 					"resp":c.response,
 					"goto":c.goto })
+			return GuiRunner.ChoiceStep(options,selected)
+		
+		def __init__(self,options,selected):
+			GuiRunner.Step.__init__(self)
+			self.options = options
+			self.selected = selected
+			
 		def to_item(self):
 			return GuiRunnerChoice([o["desc"] for o in self.options],self.selected)
-		def can_proceed(self):
+
+		def can_go_forward(self):
 			return self.selected is not None
+			
+		def forward(self):
+			if self.selected is not None and self.options[self.selected]["resp"]:
+				resp = GuiRunner.TextStep(self.options[self.selected]["resp"])
+				resp.prev = self
+				resp.next = self.next
+				return resp
+			else:
+				return self.next
 				
 	_gui = None
-	_sec_blocks = None
-	_current_block = -1
+	_current_step = None
 
 	@staticmethod
 	def run(document):
@@ -2114,52 +2165,45 @@ class GuiRunner(object):
 		if not gui: gui = GuiRunnerGui(tkroot)
 		self._gui = gui
 		
-		self._sec_blocks = []
+		step = None
 		if len(document.sections) > 0:
-			for b in document.sections[0].items:
-				if isinstance(b,TextBlock):
-					self._sec_blocks.append(GuiRunner.TextData(b))
-				elif isinstance(b,ChoiceBlock):
-					self._sec_blocks.append(GuiRunner.ChoiceData(b))
-		
-		if len(self._sec_blocks)>0:	
-			self._set_current_block(0)
-		else:
-			self._set_current_block(-1)
-		
+			for b in reversed(document.sections[0].items):
+				s = GuiRunner.Step.from_block(b)
+				if s: 
+					if step: 
+						step.prev = s
+						s.next = step
+					step = s
+		self._set_current_step(step)
+							
 		self._gui.on_section_change(None)
 		tkroot.mainloop()
 		
-	def _item_for_block_num(self,num):
-		if num<0 or num>=len(self._sec_blocks):
-			return None
-		return self._sec_blocks[num].to_item()	
-			
-	def _set_current_block(self,num):
-		self._current_block = num
-		curr_item = self._item_for_block_num(self._current_block)
-		prev_item = self._item_for_block_num(self._current_block-1)		
+	def _set_current_step(self,step):
+		self._current_step = step
+		curr_item = ( self._current_step.to_item() 
+			if self._current_step is not None else None )
+		prev_item = ( self._current_step.prev.to_item() 
+			if self._current_step is not None and self._current_step.prev is not None else None )
 		self._gui.on_curr_item_change(curr_item)
 		self._gui.on_prev_item_change(prev_item)
-		allow_forward = ( self._current_block > -1 
-			and self._sec_blocks[self._current_block].can_proceed() )
-		self._gui.on_forward_allowed_change(allow_forward)
-		self._gui.on_back_allowed_change(self._current_block > 0)
+		self._gui.on_forward_allowed_change(self._current_step.can_go_forward()
+			if self._current_step is not None else False )
+		self._gui.on_back_allowed_change(self._current_step.can_go_back()
+			if self._current_step is not None else False )
 		
 	def on_next(self):
-		self._set_current_block(self._current_block+1)
+		self._set_current_step(self._current_step.forward())
 		
 	def on_prev(self):
-		self._set_current_block(self._current_block-1)
+		self._set_current_step(self._current_step.back())
 		
 	def on_change_selection(self,val):	
-		if self._current_block < 0: return
-		b = self._sec_blocks[self._current_block]
-		if not isinstance(b,ChoiceData): return
-		if b.selected is None:
-			self._gui.on_forward_allowed_change(True)
-		for i,c in enumerate(b.choices):
-			c.set_mark("X" if i==val else None)
+		old_fa = self._current_step.can_go_forward()
+		self._current_step.selected = val
+		new_fa = self._current_step.can_go_forward()
+		if old_fa != new_fa:
+			self._gui.on_forward_allowed_change(new_fa)
 		
 GuiRunner.INST = GuiRunner()
 		

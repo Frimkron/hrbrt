@@ -4831,7 +4831,107 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertIsNone( self.gui.on_curr_item_change.call_args_list[0][0][0].selected )
 		self.assertEquals(1, self.gui.on_prev_item_change.call_args_list[1][0][0].selected)
 		self.assertEquals(1, self.gui.on_curr_item_change.call_args_list[2][0][0].selected)
-		
+
+	def test_displays_choice_response_as_current_item_on_next(self):
+		def loop(runner):
+			runner.on_change_selection(1)
+			runner.on_next()
+		self.do_run(dt.Document([dt.FirstSection([
+			dt.ChoiceBlock([
+				dt.Choice(None,"cats","yay",None,None),
+				dt.Choice(None,"dogs","booo",None,None) ],None),
+			dt.TextBlock("foo",None),
+		],None)]),mockloop=loop)
+		self.assertEquals(2,self.gui.on_curr_item_change.call_count)
+		item = self.gui.on_curr_item_change.call_args_list[1][0][0]
+		self.assertTrue( isinstance(item,dt.GuiRunnerText) )
+		self.assertEquals("booo",item.text)
+
+	def test_displays_choice_response_as_current_item_on_prev(self):
+		def loop(runner):
+			runner.on_change_selection(0)
+			runner.on_next()
+			runner.on_next()
+			runner.on_prev()
+		self.do_run(dt.Document([dt.FirstSection([
+			dt.ChoiceBlock([
+				dt.Choice(None,"cats","yay",None,None),
+				dt.Choice(None,"dogs","booo",None,None) ],None),
+			dt.TextBlock("foo",None),
+		],None)]),mockloop=loop)
+		self.assertEquals(4,self.gui.on_curr_item_change.call_count)
+		item = self.gui.on_curr_item_change.call_args_list[3][0][0]
+		self.assertTrue( isinstance(item,dt.GuiRunnerText) )
+		self.assertEquals("yay",item.text)
+
+	def test_displays_choice_response_as_previous_item_on_next(self):
+		def loop(runner):
+			runner.on_change_selection(0)
+			runner.on_next()
+			runner.on_next()
+		self.do_run(dt.Document([dt.FirstSection([
+			dt.ChoiceBlock([
+				dt.Choice(None,"cats","yay",None,None),
+				dt.Choice(None,"dogs","booo",None,None) ],None),
+			dt.TextBlock("foo",None),
+		],None)]),mockloop=loop)
+		self.assertEquals(3,self.gui.on_prev_item_change.call_count)
+		item = self.gui.on_prev_item_change.call_args_list[2][0][0]
+		self.assertTrue( isinstance(item,dt.GuiRunnerText) )
+		self.assertEquals("yay",item.text)
+
+	def test_displays_choice_response_as_previous_item_on_prev(self):
+		def loop(runner):
+			runner.on_change_selection(1)
+			runner.on_next()
+			runner.on_next()
+			runner.on_next()
+			runner.on_prev()
+		self.do_run(dt.Document([dt.FirstSection([
+			dt.ChoiceBlock([
+				dt.Choice(None,"cats","yay",None,None),
+				dt.Choice(None,"dogs","booo",None,None) ],None),
+			dt.TextBlock("foo",None),
+			dt.TextBlock("bar",None),
+		],None)]),mockloop=loop)
+		self.assertEquals(5,self.gui.on_prev_item_change.call_count)
+		item = self.gui.on_prev_item_change.call_args_list[4][0][0]
+		self.assertTrue( isinstance(item,dt.GuiRunnerText) )
+		self.assertEquals("booo",item.text)
+
+	def test_displays_choice_as_current_item_on_prev_from_response(self):
+		def loop(runner):
+			runner.on_change_selection(1)
+			runner.on_next()
+			runner.on_prev()
+		self.do_run(dt.Document([dt.FirstSection([
+			dt.ChoiceBlock([
+				dt.Choice(None,"cats","yay",None,None),
+				dt.Choice(None,"dogs","booo",None,None) ],None),
+			dt.TextBlock("foo",None),
+		],None)]),mockloop=loop)
+		self.assertEquals(3,self.gui.on_curr_item_change.call_count)
+		item = self.gui.on_curr_item_change.call_args_list[2][0][0]
+		self.assertTrue( isinstance(item,dt.GuiRunnerChoice) )
+		self.assertEquals(["cats","dogs"],item.options)
+
+	def test_displays_choice_as_previous_item_on_prev_to_response(self):
+		def loop(runner):
+			runner.on_change_selection(0)
+			runner.on_next()
+			runner.on_next()
+			runner.on_prev()
+		self.do_run(dt.Document([dt.FirstSection([
+			dt.ChoiceBlock([
+				dt.Choice(None,"cats","yay",None,None),
+				dt.Choice(None,"dogs","booo",None,None) ],None),
+			dt.TextBlock("foo",None),
+		],None)]),mockloop=loop)
+		self.assertEquals(4,self.gui.on_prev_item_change.call_count)
+		item = self.gui.on_prev_item_change.call_args_list[3][0][0]
+		self.assertTrue( isinstance(item,dt.GuiRunnerChoice) )
+		self.assertEquals(["cats","dogs"],item.options)
+
 	# TODO: ending on last "next"
 	
 unittest.main()
