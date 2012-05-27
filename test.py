@@ -4526,15 +4526,23 @@ class TestGuiRunner(unittest.TestCase):
 	def setUp(self):
 		self.tk = mock.Mock()
 		self.gui = mock.Mock()
+		self.runner = None
 		
-	def do_run(self,doc,mockloop=None):
-		runner = dt.GuiRunner()
+	def do_run(self,doc,mockloop=None,catch=True):
+		self.runner = dt.GuiRunner()
 		if mockloop:
-			self.tk.mainloop.side_effect = lambda: mockloop(runner)
-		runner._run(doc,self.tk,self.gui)
+			self.tk.mainloop.side_effect = mockloop
+		try:
+			self.runner._run(doc,self.tk,self.gui)
+		except dt.RunnerError:
+			if not catch: raise
 		
 	def test_can_run(self):
 		self.do_run(dt.Document([]))
+
+	def test_registers_as_gui_listener(self):
+		self.do_run(dt.Document([]))
+		self.assertEquals(self.runner,self.gui.listener)
 	
 	def test_starts_tk_event_loop(self):
 		self.do_run(dt.Document([]))
@@ -4616,8 +4624,8 @@ class TestGuiRunner(unittest.TestCase):
 		self.gui.on_section_change.assert_called_once_with( None )
 		
 	def test_updates_curr_item_to_textblock_on_next(self):
-		def loop(runner):
-			runner.on_next()
+		def loop():
+			self.runner.on_next()
 		self.do_run(dt.Document([dt.FirstSection([
 			dt.TextBlock("this is the first item",None),
 			dt.TextBlock("this is the second item",None) 
@@ -4628,8 +4636,8 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertEquals("this is the second item", item.text)
 		
 	def test_updates_curr_item_to_choiceblock_on_next(self):
-		def loop(runner):
-			runner.on_next()
+		def loop():
+			self.runner.on_next()
 		self.do_run(dt.Document([dt.FirstSection([
 			dt.TextBlock("this is the first item",None),
 			dt.ChoiceBlock([
@@ -4642,7 +4650,8 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertEquals(["Opt A","Opt B"], item.options)
 
 	def test_updates_prev_item_to_textblock_on_next(self):
-		def loop(runner): runner.on_next()
+		def loop(): 
+			self.runner.on_next()
 		self.do_run(dt.Document([dt.FirstSection([
 			dt.TextBlock("this is the first item",None),
 			dt.TextBlock("this is the second item",None)
@@ -4653,9 +4662,9 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertEquals("this is the first item", item.text)
 	
 	def test_updates_prev_item_to_choiceblock_on_next(self):
-		def loop(runner): 
-			runner.on_change_selection(0)
-			runner.on_next()
+		def loop(): 
+			self.runner.on_change_selection(0)
+			self.runner.on_next()
 		self.do_run(dt.Document([dt.FirstSection([
 			dt.ChoiceBlock([
 				dt.Choice(None,"Opt A",None,None,None),
@@ -4668,7 +4677,8 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertEquals(["Opt A","Opt B"],item.options)
 
 	def test_allows_back_on_next(self):
-		def loop(runner): runner.on_next()
+		def loop(): 
+			self.runner.on_next()
 		self.do_run(dt.Document([dt.FirstSection([
 			dt.TextBlock("foobar",None),
 			dt.TextBlock("blah blah",None),
@@ -4677,9 +4687,9 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertEquals(True,self.gui.on_back_allowed_change.call_args_list[1][0][0])
 
 	def test_updates_current_item_to_textblock_on_prev(self):
-		def loop(runner):
-			runner.on_next()
-			runner.on_prev()
+		def loop():
+			self.runner.on_next()
+			self.runner.on_prev()
 		self.do_run(dt.Document([dt.FirstSection([
 			dt.TextBlock("this is the first item",None),
 			dt.TextBlock("this is the second item",None) 
@@ -4690,10 +4700,10 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertEquals("this is the first item", item.text)
 		
 	def test_updates_current_item_to_choiceblock_on_prev(self):
-		def loop(runner):
-			runner.on_change_selection(0)
-			runner.on_next()
-			runner.on_prev()
+		def loop():
+			self.runner.on_change_selection(0)
+			self.runner.on_next()
+			self.runner.on_prev()
 		self.do_run(dt.Document([dt.FirstSection([
 			dt.ChoiceBlock([
 				dt.Choice(None,"Opt A",None,None,None),
@@ -4706,9 +4716,9 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertEquals(["Opt A","Opt B"], item.options)
 		
 	def test_updates_prev_item_to_blank_on_prev(self):
-		def loop(runner):
-			runner.on_next()
-			runner.on_prev()
+		def loop():
+			self.runner.on_next()
+			self.runner.on_prev()
 		self.do_run(dt.Document([dt.FirstSection([
 			dt.TextBlock("foo bar",None),
 			dt.TextBlock("this is the second item",None) 
@@ -4718,10 +4728,10 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertIsNone(item)
 	
 	def test_updates_prev_item_to_textblock_on_prev(self):
-		def loop(runner):
-			runner.on_next()
-			runner.on_next()
-			runner.on_prev()
+		def loop():
+			self.runner.on_next()
+			self.runner.on_next()
+			self.runner.on_prev()
 		self.do_run(dt.Document([dt.FirstSection([
 			dt.TextBlock("foo bar",None),
 			dt.TextBlock("this is the second item",None),
@@ -4733,11 +4743,11 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertEquals("foo bar",item.text)
 
 	def test_updates_prev_item_to_choiceblock_on_prev(self):
-		def loop(runner):
-			runner.on_change_selection(0)
-			runner.on_next()
-			runner.on_next()
-			runner.on_prev()
+		def loop():
+			self.runner.on_change_selection(0)
+			self.runner.on_next()
+			self.runner.on_next()
+			self.runner.on_prev()
 		self.do_run(dt.Document([dt.FirstSection([
 			dt.ChoiceBlock([
 				dt.Choice(None,"cake",None,None,None),
@@ -4751,10 +4761,10 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertEquals(["cake","death"],item.options)
 		
 	def test_allows_back_on_prev(self):
-		def loop(runner):
-			runner.on_next()
-			runner.on_next()
-			runner.on_prev()
+		def loop():
+			self.runner.on_next()
+			self.runner.on_next()
+			self.runner.on_prev()
 		self.do_run(dt.Document([dt.FirstSection([
 			dt.TextBlock("foo",None),
 			dt.TextBlock("bar",None),
@@ -4764,9 +4774,9 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertTrue( self.gui.on_back_allowed_change.call_args_list[3][0][0] )
 		
 	def test_disallows_back_on_prev(self):
-		def loop(runner):
-			runner.on_next()
-			runner.on_prev()
+		def loop():
+			self.runner.on_next()
+			self.runner.on_prev()
 		self.do_run(dt.Document([dt.FirstSection([
 			dt.TextBlock("foo",None),
 			dt.TextBlock("bar",None),
@@ -4775,9 +4785,9 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertFalse( self.gui.on_back_allowed_change.call_args_list[2][0][0] )
 		
 	def test_allows_forward_on_prev(self):
-		def loop(runner):
-			runner.on_next()
-			runner.on_prev()
+		def loop():
+			self.runner.on_next()
+			self.runner.on_prev()
 		self.do_run(dt.Document([dt.FirstSection([
 			dt.TextBlock("foo",None),
 			dt.TextBlock("bar",None),
@@ -4795,8 +4805,8 @@ class TestGuiRunner(unittest.TestCase):
 		self.gui.on_forward_allowed_change.assert_called_once_with(False)
 		
 	def test_allows_forward_after_choice_made(self):
-		def loop(runner):
-			runner.on_change_selection(1)
+		def loop():
+			self.runner.on_change_selection(1)
 		self.do_run(dt.Document([dt.FirstSection([
 			dt.ChoiceBlock([
 				dt.Choice(None,"cats",None,None,None),
@@ -4807,10 +4817,10 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertTrue( self.gui.on_forward_allowed_change.call_args_list[1][0][0] )		
 
 	def test_only_allows_forward_first_time_choice_made(self):
-		def loop(runner):	
-			runner.on_change_selection(0)
-			runner.on_change_selection(1)
-			runner.on_change_selection(0)
+		def loop():	
+			self.runner.on_change_selection(0)
+			self.runner.on_change_selection(1)
+			self.runner.on_change_selection(0)
 		self.do_run(dt.Document([dt.FirstSection([
 			dt.ChoiceBlock([
 				dt.Choice(None,"cats",None,None,None),
@@ -4820,10 +4830,10 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertEquals(2, self.gui.on_forward_allowed_change.call_count)
 
 	def test_remembers_choice_selection(self):
-		def loop(runner):
-			runner.on_change_selection(1)
-			runner.on_next()
-			runner.on_prev()
+		def loop():
+			self.runner.on_change_selection(1)
+			self.runner.on_next()
+			self.runner.on_prev()
 		self.do_run(dt.Document([dt.FirstSection([
 			dt.ChoiceBlock([
 				dt.Choice(None,"cats",None,None,None),
@@ -4837,9 +4847,9 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertEquals(1, self.gui.on_curr_item_change.call_args_list[2][0][0].selected)
 
 	def test_displays_choice_response_as_current_item_on_next(self):
-		def loop(runner):
-			runner.on_change_selection(1)
-			runner.on_next()
+		def loop():
+			self.runner.on_change_selection(1)
+			self.runner.on_next()
 		self.do_run(dt.Document([dt.FirstSection([
 			dt.ChoiceBlock([
 				dt.Choice(None,"cats","yay",None,None),
@@ -4852,11 +4862,11 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertEquals("booo",item.text)
 
 	def test_displays_choice_response_as_current_item_on_prev(self):
-		def loop(runner):
-			runner.on_change_selection(0)
-			runner.on_next()
-			runner.on_next()
-			runner.on_prev()
+		def loop():
+			self.runner.on_change_selection(0)
+			self.runner.on_next()
+			self.runner.on_next()
+			self.runner.on_prev()
 		self.do_run(dt.Document([dt.FirstSection([
 			dt.ChoiceBlock([
 				dt.Choice(None,"cats","yay",None,None),
@@ -4869,10 +4879,10 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertEquals("yay",item.text)
 
 	def test_displays_choice_response_as_previous_item_on_next(self):
-		def loop(runner):
-			runner.on_change_selection(0)
-			runner.on_next()
-			runner.on_next()
+		def loop():
+			self.runner.on_change_selection(0)
+			self.runner.on_next()
+			self.runner.on_next()
 		self.do_run(dt.Document([dt.FirstSection([
 			dt.ChoiceBlock([
 				dt.Choice(None,"cats","yay",None,None),
@@ -4885,12 +4895,12 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertEquals("yay",item.text)
 
 	def test_displays_choice_response_as_previous_item_on_prev(self):
-		def loop(runner):
-			runner.on_change_selection(1)
-			runner.on_next()
-			runner.on_next()
-			runner.on_next()
-			runner.on_prev()
+		def loop():
+			self.runner.on_change_selection(1)
+			self.runner.on_next()
+			self.runner.on_next()
+			self.runner.on_next()
+			self.runner.on_prev()
 		self.do_run(dt.Document([dt.FirstSection([
 			dt.ChoiceBlock([
 				dt.Choice(None,"cats","yay",None,None),
@@ -4904,10 +4914,10 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertEquals("booo",item.text)
 
 	def test_displays_choice_as_current_item_on_prev_from_response(self):
-		def loop(runner):
-			runner.on_change_selection(1)
-			runner.on_next()
-			runner.on_prev()
+		def loop():
+			self.runner.on_change_selection(1)
+			self.runner.on_next()
+			self.runner.on_prev()
 		self.do_run(dt.Document([dt.FirstSection([
 			dt.ChoiceBlock([
 				dt.Choice(None,"cats","yay",None,None),
@@ -4920,11 +4930,11 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertEquals(["cats","dogs"],item.options)
 
 	def test_displays_choice_as_previous_item_on_prev_to_response(self):
-		def loop(runner):
-			runner.on_change_selection(0)
-			runner.on_next()
-			runner.on_next()
-			runner.on_prev()
+		def loop():
+			self.runner.on_change_selection(0)
+			self.runner.on_next()
+			self.runner.on_next()
+			self.runner.on_prev()
 		self.do_run(dt.Document([dt.FirstSection([
 			dt.ChoiceBlock([
 				dt.Choice(None,"cats","yay",None,None),
@@ -4937,8 +4947,8 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertEquals(["cats","dogs"],item.options)
 
 	def test_allows_forward_for_goto(self):
-		def loop(runner):
-			runner.on_change_selection(0)
+		def loop():
+			self.runner.on_change_selection(0)
 		self.do_run(dt.Document([
 			dt.FirstSection([
 				dt.ChoiceBlock([
@@ -4950,9 +4960,9 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertEquals( True, self.gui.on_forward_allowed_change.call_args_list[1][0][0] )
 		
 	def test_allows_forward_for_goto_with_response(self):
-		def loop(runner):
-			runner.on_change_selection(0)
-			runner.on_next()
+		def loop():
+			self.runner.on_change_selection(0)
+			self.runner.on_next()
 		self.do_run(dt.Document([
 			dt.FirstSection([
 				dt.ChoiceBlock([
@@ -4964,9 +4974,9 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertEquals( True, self.gui.on_forward_allowed_change.call_args_list[2][0][0] )
 		
 	def test_allows_back_for_goto(self):
-		def loop(runner):
-			runner.on_change_selection(0)
-			runner.on_next()
+		def loop():
+			self.runner.on_change_selection(0)
+			self.runner.on_next()
 		self.do_run(dt.Document([
 			dt.FirstSection([
 				dt.ChoiceBlock([
@@ -4978,10 +4988,10 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertEquals( True, self.gui.on_back_allowed_change.call_args_list[1][0][0] )
 		
 	def test_allows_back_for_goto_with_response(self):
-		def loop(runner):
-			runner.on_change_selection(0)
-			runner.on_next()
-			runner.on_next()
+		def loop():
+			self.runner.on_change_selection(0)
+			self.runner.on_next()
+			self.runner.on_next()
 		self.do_run(dt.Document([
 			dt.FirstSection([
 				dt.ChoiceBlock([
@@ -4993,9 +5003,9 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertEquals( True, self.gui.on_back_allowed_change.call_args_list[2][0][0] )
 
 	def test_follows_goto_on_next(self):
-		def loop(runner):
-			runner.on_change_selection(0)
-			runner.on_next()
+		def loop():
+			self.runner.on_change_selection(0)
+			self.runner.on_next()
 		self.do_run(dt.Document([
 			dt.FirstSection([
 				dt.ChoiceBlock([
@@ -5013,10 +5023,10 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertEquals(["cats"], item.options)
 		
 	def test_follows_goto_with_response_on_next(self):
-		def loop(runner):
-			runner.on_change_selection(0)
-			runner.on_next()
-			runner.on_next()
+		def loop():
+			self.runner.on_change_selection(0)
+			self.runner.on_next()
+			self.runner.on_next()
 		self.do_run(dt.Document([
 			dt.FirstSection([
 				dt.ChoiceBlock([
@@ -5034,10 +5044,10 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertEquals("yay", item.text)
 		
 	def test_follows_goto_back_on_prev(self):
-		def loop(runner):
-			runner.on_change_selection(0)
-			runner.on_next()
-			runner.on_prev()
+		def loop():
+			self.runner.on_change_selection(0)
+			self.runner.on_next()
+			self.runner.on_prev()
 		self.do_run(dt.Document([
 			dt.FirstSection([
 				dt.ChoiceBlock([
@@ -5054,11 +5064,11 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertIsNone(item)
 		
 	def test_follows_goto_back_to_response_on_prev(self):
-		def loop(runner):
-			runner.on_change_selection(0)
-			runner.on_next()
-			runner.on_next()
-			runner.on_prev()
+		def loop():
+			self.runner.on_change_selection(0)
+			self.runner.on_next()
+			self.runner.on_next()
+			self.runner.on_prev()
 		self.do_run(dt.Document([
 			dt.FirstSection([
 				dt.ChoiceBlock([
@@ -5076,9 +5086,9 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertEquals(["cats"],item.options)
 
 	def test_updates_section_title_on_next(self):
-		def loop(runner):
-			runner.on_change_selection(0)
-			runner.on_next()
+		def loop():
+			self.runner.on_change_selection(0)
+			self.runner.on_next()
 		self.do_run(dt.Document([
 			dt.FirstSection([ dt.ChoiceBlock([
 				dt.Choice(None,"foo",None,"dave",None)
@@ -5089,8 +5099,8 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertEquals("DavE",self.gui.on_section_change.call_args_list[1][0][0])
 
 	def test_doesnt_update_title_for_same_section_on_next(self):
-		def loop(runner):
-			runner.on_next()
+		def loop():
+			self.runner.on_next()
 		self.do_run(dt.Document([
 			dt.FirstSection([
 				dt.TextBlock("foo",None),
@@ -5099,12 +5109,12 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertEquals(1,self.gui.on_section_change.call_count)
 		
 	def test_updates_section_title_on_prev(self):
-		def loop(runner):
-			runner.on_change_selection(0)
-			runner.on_next()
-			runner.on_change_selection(0)
-			runner.on_next()
-			runner.on_prev()
+		def loop():
+			self.runner.on_change_selection(0)
+			self.runner.on_next()
+			self.runner.on_change_selection(0)
+			self.runner.on_next()
+			self.runner.on_prev()
 		self.do_run(dt.Document([
 			dt.FirstSection([ dt.ChoiceBlock([
 				dt.Choice(None,"cats",None,"Alpha",None)
@@ -5118,10 +5128,10 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertEquals("alpha",self.gui.on_section_change.call_args_list[3][0][0])
 
 	def test_upates_section_title_to_none_on_prev(self):
-		def loop(runner):
-			runner.on_change_selection(0)
-			runner.on_next()
-			runner.on_prev()
+		def loop():
+			self.runner.on_change_selection(0)
+			self.runner.on_next()
+			self.runner.on_prev()
 		self.do_run(dt.Document([
 			dt.FirstSection([ dt.ChoiceBlock([
 				dt.Choice(None,"ducks",None,"Fred",None)
@@ -5132,9 +5142,9 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertIsNone(self.gui.on_section_change.call_args_list[2][0][0])
 		
 	def test_doesnt_update_title_for_same_section_on_prev(self):
-		def loop(runner):
-			runner.on_next()
-			runner.on_prev()
+		def loop():
+			self.runner.on_next()
+			self.runner.on_prev()
 		self.do_run(dt.Document([
 			dt.FirstSection([ 
 				dt.TextBlock("foo",None),
@@ -5143,19 +5153,19 @@ class TestGuiRunner(unittest.TestCase):
 		self.assertEquals(1,self.gui.on_section_change.call_count)	
 
 	def test_closes_gui_if_end_reached(self):
-		def loop(runner):
-			runner.on_next()
+		def loop():
+			self.runner.on_next()
 		self.do_run(dt.Document([
 			dt.FirstSection([ dt.TextBlock("foo",None) ],None),
-		]),mockloop=loop)
+		]),mockloop=loop,catch=False)
 		self.tk.quit.assert_called_once_with()
 		
 	def test_writes_selections_to_doc_if_end_reached(self):
-		def loop(runner):
-			runner.on_change_selection(0)
-			runner.on_next()
-			runner.on_change_selection(1)
-			runner.on_next()
+		def loop():
+			self.runner.on_change_selection(0)
+			self.runner.on_next()
+			self.runner.on_change_selection(1)
+			self.runner.on_next()
 		d = dt.Document([ dt.FirstSection([
 			dt.ChoiceBlock([
 				dt.Choice(None,"left",None,None,None),
@@ -5164,17 +5174,17 @@ class TestGuiRunner(unittest.TestCase):
 				dt.Choice(None,"up",None,None,None),
 				dt.Choice(None,"down",None,None,None) ],None),
 		],None) ])
-		self.do_run(d,mockloop=loop)
+		self.do_run(d,mockloop=loop,catch=False)
 		self.assertEquals("X",d.sections[0].items[0].choices[0].mark)
 		self.assertIsNone(d.sections[0].items[0].choices[1].mark)
 		self.assertIsNone(d.sections[0].items[1].choices[0].mark)
 		self.assertEquals("X",d.sections[0].items[1].choices[1].mark)
 
-	def test_doesnt_write_to_document_if_gui_closed_early(self):
-		def loop(runner):
-			runner.on_change_selection(1)
-			runner.on_next()
-			runner.on_change_selection(0)			
+	def test_throws_error_if_gui_closed_early(self):
+		def loop():
+			self.runner.on_change_selection(1)
+			self.runner.on_next()
+			self.runner.on_change_selection(0)			
 		d = dt.Document([ dt.FirstSection([
 			dt.ChoiceBlock([
 				dt.Choice(None,"left",None,None,None),
@@ -5183,11 +5193,18 @@ class TestGuiRunner(unittest.TestCase):
 				dt.Choice(None,"up",None,None,None),
 				dt.Choice(None,"down",None,None,None) ],None),
 		],None) ])
-		self.do_run(d,mockloop=loop)
-		self.assertIsNone(d.sections[0].items[0].choices[0].mark)
-		self.assertIsNone(d.sections[0].items[0].choices[1].mark)
-		self.assertIsNone(d.sections[0].items[1].choices[0].mark)
-		self.assertIsNone(d.sections[0].items[1].choices[1].mark)
+		with self.assertRaises(dt.RunnerError):
+			self.do_run(d,mockloop=loop,catch=False)
+			
+	def test_allows_forward_at_end(self):
+		def loop():
+			self.runner.on_next()
+		self.do_run(dt.Document([ dt.FirstSection([
+			dt.TextBlock("foo",None),
+			dt.TextBlock("bar",None)
+		],None) ]),mockloop=loop)
+		self.assertEquals(2,self.gui.on_forward_allowed_change.call_count)
+		self.assertEquals(True,self.gui.on_forward_allowed_change.call_args_list[1][0][0])
 	
 unittest.main()
 

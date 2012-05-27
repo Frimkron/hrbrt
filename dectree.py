@@ -1,5 +1,8 @@
 #!/usr/bin/python2
 
+# TODO: Gui bug - not all colour options displayed in example (trailing whitespace?)
+# TODO: Gui labels don't wrap lines themselves
+# TODO: Prev button in gui gets into loops
 # TODO: JSON input
 # TODO: GUI interactive mode for recipient
 # TODO: XML input
@@ -62,6 +65,7 @@ import xml.dom
 import xml.dom.minidom
 import re
 import collections
+import Tkinter as tk
 
 
 ALL_CHARACTERS = (
@@ -1900,6 +1904,10 @@ class XmlIO(object):
 XmlIO.INST = XmlIO()
 
 
+class RunnerError(Exception):
+	pass
+	
+
 class CommandLineRunner(object):
 
 	FIRST = object()
@@ -1990,6 +1998,35 @@ CommandLineRunner.INST = CommandLineRunner()
 class GuiRunnerGui(object):
 	"""Dumb frontend for runner, reacts to state change events,
 		sends user interaction events"""
+		
+	class TextFrameContent(object):
+	
+		def __init__(self,frame,info,enabled):
+			self.label = tk.Label(frame,text=info.text,justify=tk.LEFT,
+				state=tk.NORMAL if enabled else tk.DISABLED)
+			self.label.pack(side=tk.TOP,anchor=tk.W)
+			
+		def destroy(self):
+			self.label.destroy()
+			
+	class ChoiceFrameContent(object):
+		
+		def __init__(self,frame,info,enabled,onchange):
+			self.var = tk.IntVar(value=info.selected if info.selected is not None else -1)
+			self.radios = []
+			for i,o in enumerate(info.options):
+				r = tk.Radiobutton(frame,text=o,variable=self.var,justify=tk.LEFT,
+					state=tk.NORMAL if enabled else tk.DISABLED,value=i,
+					command=self._make_callback(i,onchange))
+				r.pack(side=tk.TOP,anchor=tk.W)
+				self.radios.append(r)
+			
+		def _make_callback(self,optindex,callback):
+			return lambda: callback(optindex)
+			
+		def destroy(self):
+			for r in self.radios:
+				r.destroy()
 
 	listener = None
 	fleft = None
@@ -2001,25 +2038,25 @@ class GuiRunnerGui(object):
 	
 	def __init__(self,master):
 		
-		fmain = Frame(master)
-		fmain.pack(side=TOP)		
+		fmain = tk.Frame(master)
+		fmain.pack(side=tk.TOP)		
 		
-		fbottom = Frame(fmain)
-		fbottom.pack(side=BOTTOM,fill=BOTH,expand=1)
+		fbottom = tk.Frame(fmain)
+		fbottom.pack(side=tk.BOTTOM,fill=tk.BOTH,expand=1)
 		
-		self.bnext = Button(fbottom,text="Next >>",command=self.fire_on_next)
-		self.bnext.pack(side=RIGHT,padx=12,pady=12)
+		self.bnext = tk.Button(fbottom,text="Next >>",command=self.fire_on_next)
+		self.bnext.pack(side=tk.RIGHT,padx=12,pady=12)
 		
-		self.bprev = Button(fbottom,text="<< Prev",command=self.fire_on_prev)
-		self.bprev.pack(side=LEFT,padx=12,pady=12)
+		self.bprev = tk.Button(fbottom,text="<< Prev",command=self.fire_on_prev)
+		self.bprev.pack(side=tk.LEFT,padx=12,pady=12)
 		
-		self.fright = Frame(fmain,width=200,height=200)
+		self.fright = tk.Frame(fmain,width=200,height=200)
 		self.fright.pack_propagate(0)
-		self.fright.pack(side=RIGHT,fill=BOTH,expand=1,padx=12,pady=12)
+		self.fright.pack(side=tk.RIGHT,fill=tk.BOTH,expand=1,padx=12,pady=12)
 		
-		self.fleft = Frame(fmain,width=200,height=200)
+		self.fleft = tk.Frame(fmain,width=200,height=200)
 		self.fleft.pack_propagate(0)
-		self.fleft.pack(side=LEFT,fill=BOTH,expand=1,padx=12,pady=12)
+		self.fleft.pack(side=tk.LEFT,fill=tk.BOTH,expand=1,padx=12,pady=12)
 
 	def fire_on_next(self):
 		if self.listener: self.listener.on_next()
@@ -2031,30 +2068,31 @@ class GuiRunnerGui(object):
 		if self.listener: self.listener.on_change_selection(val)
 
 	def on_back_allowed_change(self,isallowed):
-		self.bprev.config(state=NORMAL if isallowed else DISABLED)
+		self.bprev.config(state=tk.NORMAL if isallowed else tk.DISABLED)
 		
 	def on_forward_allowed_change(self,isallowed):
-		self.bnext.config(state=NORMAL if isallowed else DISABLED)
+		self.bnext.config(state=tk.NORMAL if isallowed else tk.DISABLED)
 	
 	def on_prev_item_change(self,iteminfo):
 		if self.leftcontent:
 			self.leftcontent.destroy()
 			self.leftcontent = None
 			
-		if isinstance(iteminfo,RunnerListener.Text):
-			self.leftcontent = TextFrameContent(self.fleft,iteminfo,False)
-		elif isinstance(iteminfo,RunnerListener.Choice):
-			self.leftcontent = ChoiceFrameContent(self.fleft,iteminfo,False,lambda v: None)
+		if isinstance(iteminfo,GuiRunnerText):
+			self.leftcontent = GuiRunnerGui.TextFrameContent(self.fleft,iteminfo,False)
+		elif isinstance(iteminfo,GuiRunnerChoice):
+			self.leftcontent = GuiRunnerGui.ChoiceFrameContent(self.fleft,iteminfo,False,
+				lambda v: None)
 	
 	def on_curr_item_change(self,iteminfo):
 		if self.rightcontent:
 			self.rightcontent.destroy()
 			self.rightcontent = None
 			
-		if isinstance(iteminfo,RunnerListener.Text):
-			self.rightcontent = TextFrameContent(self.fright,iteminfo,True)
-		elif isinstance(iteminfo,RunnerListener.Choice):
-			self.rightcontent = ChoiceFrameContent(self.fright,iteminfo,True,
+		if isinstance(iteminfo,GuiRunnerText):
+			self.rightcontent = GuiRunnerGui.TextFrameContent(self.fright,iteminfo,True)
+		elif isinstance(iteminfo,GuiRunnerChoice):
+			self.rightcontent = GuiRunnerGui.ChoiceFrameContent(self.fright,iteminfo,True,
 				self.fire_on_change_selection)
 				
 	def on_section_change(self,name):
@@ -2095,7 +2133,7 @@ class GuiRunner(object):
 				return None
 		
 		def can_go_forward(self):
-			return bool(self.next)
+			return True
 			
 		def forward(self):
 			if self.next: self.next.prev = self
@@ -2128,6 +2166,7 @@ class GuiRunner(object):
 	
 		options = None
 		selected = None
+		_docupdater = None
 	
 		@staticmethod
 		def from_block(sectionname,secmapper,next,choiceblock):
@@ -2138,7 +2177,15 @@ class GuiRunner(object):
 					selected = i
 				secmapper(GuiRunner.ChoiceStep._make_map_callback(
 					sectionname,next,choice,options))
-			return GuiRunner.ChoiceStep(sectionname,next,options,selected)
+			return GuiRunner.ChoiceStep(sectionname,next,options,selected,
+				GuiRunner.ChoiceStep._make_updater_callback(choiceblock))
+
+		@staticmethod
+		def _make_updater_callback(choiceblock):
+			def updater(val):
+				for i,choice in enumerate(choiceblock.choices):
+					choice.set_mark( "X" if i==val else None )
+			return updater
 
 		@staticmethod
 		def _make_map_callback(sectionname,next,choice,options):
@@ -2151,10 +2198,11 @@ class GuiRunner(object):
 				options.append(GuiRunner.ChoiceStep.Option(choice.description,step))
 			return callback
 						
-		def __init__(self,sectionname,next,options,selected):
+		def __init__(self,sectionname,next,options,selected,docupdater):
 			GuiRunner.Step.__init__(self,sectionname,next)
+			self._docupdater = docupdater
 			self.options = options
-			self.selected = selected
+			self.set_selected(selected)
 			
 		def to_item(self):
 			return GuiRunnerChoice([o.desc for o in self.options],self.selected)
@@ -2164,23 +2212,30 @@ class GuiRunner(object):
 			
 		def forward(self):
 			step = self.options[self.selected].step
-			step.prev = self
+			if step: step.prev = self
 			return step
+			
+		def set_selected(self,val):
+			self.selected = val
+			self._docupdater(val)
 		
 	_gui = None
 	_tkroot = None
 	_current_step = None
 	_current_secname = None
+	_completed = False
 
 	@staticmethod
 	def run(document):
-		GuiRunner.INST._run()
+		GuiRunner.INST._run(document)
 		
 	def _run(self,document,tkroot=None,gui=None):
-		if not tkroot: tkroot = Tk()
+		if not tkroot: tkroot = tk.Tk()
 		self._tkroot = tkroot
 		if not gui: gui = GuiRunnerGui(self._tkroot)
 		self._gui = gui
+		
+		self._gui.listener = self
 		
 		secmap = {}
 		secmap_cbs = []
@@ -2195,11 +2250,13 @@ class GuiRunner(object):
 		for cb in secmap_cbs:
 			cb(secmap)
 			
-		self._set_current_step( secmap[None] 
-			if len(secmap)>0 else None )
+		self._set_current_step( secmap[None] if len(secmap)>0 else None )
 		self._gui.on_section_change(None)
 			
 		self._tkroot.mainloop()
+		
+		if not self._completed:
+			raise RunnerError("User aborted")
 		
 	def _set_current_step(self,step):
 		self._current_step = step
@@ -2220,7 +2277,7 @@ class GuiRunner(object):
 	def on_next(self):
 		next = self._current_step.forward()
 		if not next:
-			self._update_document()
+			self._completed = True
 			self._tkroot.quit()
 		else:
 			self._set_current_step(next)
@@ -2230,7 +2287,7 @@ class GuiRunner(object):
 		
 	def on_change_selection(self,val):	
 		old_fa = self._current_step.can_go_forward()
-		self._current_step.selected = val
+		self._current_step.set_selected(val)
 		new_fa = self._current_step.can_go_forward()
 		if old_fa != new_fa:
 			self._gui.on_forward_allowed_change(new_fa)
@@ -2293,12 +2350,14 @@ if __name__ == "__main__":
 	if args.run is not None or (
 			args.output is None and args.oformat is None and args.input != "-"):
 		if args.run == "gui":
-			# TODO
-			pass
+			runner = GuiRunner
 		else:
 			runner = CommandLineRunner
 			
-		runner.run(document)
+		try:			
+			runner.run(document)
+		except RunnerError as e:
+			sys.exit(str(e))
 	
 	# determine output format
 	if args.output is not None and "." in args.output:
