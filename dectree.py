@@ -2076,15 +2076,21 @@ class GuiRunner(object):
 
 	class Step(object):
 		
+		sectionname = None
 		next = None
 		prev = None
+
+		def __init__(self,sectionname,next):
+			self.sectionname = sectionname
+			self.next = next
+			self.prev = None
 		
 		@staticmethod
-		def from_block(block):
+		def from_block(sectionname,secmapper,next,block): 
 			if isinstance(block,TextBlock):
-				return GuiRunner.TextStep.from_block(block)
+				return GuiRunner.TextStep.from_block(sectionname,next,block)
 			elif isinstance(block,ChoiceBlock):
-				return GuiRunner.ChoiceStep.from_block(block)
+				return GuiRunner.ChoiceStep.from_block(sectionname,secmapper,next,block)
 			else:
 				return None
 		
@@ -2092,6 +2098,7 @@ class GuiRunner(object):
 			return bool(self.next)
 			
 		def forward(self):
+			if self.next: self.next.prev = self
 			return self.next
 			
 		def can_go_back(self):
@@ -2105,11 +2112,11 @@ class GuiRunner(object):
 		text = None
 		
 		@staticmethod
-		def from_block(textblock):
-			return GuiRunner.TextStep(textblock.text)
+		def from_block(sectionname,next,textblock):
+			return GuiRunner.TextStep(sectionname,next,textblock.text)
 		
-		def __init__(self,text):
-			GuiRunner.Step.__init__(self)
+		def __init__(self,sectionname,next,text):
+			GuiRunner.Step.__init__(self,sectionname,next)
 			self.text = text
 			
 		def to_item(self):
@@ -2117,44 +2124,53 @@ class GuiRunner(object):
 			
 	class ChoiceStep(Step):
 	
+		Option = collections.namedtuple("Option","desc step")
+	
 		options = None
 		selected = None
 	
 		@staticmethod
-		def from_block(choiceblock):
+		def from_block(sectionname,secmapper,next,choiceblock):
 			selected = None
 			options = []
-			for i,c in enumerate(choiceblock.choices):
-				if c.mark and not selected:
+			for i,choice in enumerate(choiceblock.choices):
+				if choice.mark and not selected:
 					selected = i
-				options.append({
-					"desc":c.description, 
-					"resp":c.response,
-					"goto":c.goto })
-			return GuiRunner.ChoiceStep(options,selected)
-		
-		def __init__(self,options,selected):
-			GuiRunner.Step.__init__(self)
+				secmapper(GuiRunner.ChoiceStep._make_map_callback(
+					sectionname,next,choice,options))
+			return GuiRunner.ChoiceStep(sectionname,next,options,selected)
+
+		@staticmethod
+		def _make_map_callback(sectionname,next,choice,options):
+			def callback(sectionmap):
+				step = next
+				if choice.goto:
+					step = sectionmap[choice.goto.lower()]
+				if choice.response:
+					step = GuiRunner.TextStep(sectionname,step,choice.response)
+				options.append(GuiRunner.ChoiceStep.Option(choice.description,step))
+			return callback
+						
+		def __init__(self,sectionname,next,options,selected):
+			GuiRunner.Step.__init__(self,sectionname,next)
 			self.options = options
 			self.selected = selected
 			
 		def to_item(self):
-			return GuiRunnerChoice([o["desc"] for o in self.options],self.selected)
+			return GuiRunnerChoice([o.desc for o in self.options],self.selected)
 
 		def can_go_forward(self):
 			return self.selected is not None
 			
 		def forward(self):
-			if self.selected is not None and self.options[self.selected]["resp"]:
-				resp = GuiRunner.TextStep(self.options[self.selected]["resp"])
-				resp.prev = self
-				resp.next = self.next
-				return resp
-			else:
-				return self.next
-				
+			step = self.options[self.selected].step
+			step.prev = self
+			return step
+		
 	_gui = None
+	_tkroot = None
 	_current_step = None
+	_current_secname = None
 
 	@staticmethod
 	def run(document):
@@ -2162,25 +2178,34 @@ class GuiRunner(object):
 		
 	def _run(self,document,tkroot=None,gui=None):
 		if not tkroot: tkroot = Tk()
-		if not gui: gui = GuiRunnerGui(tkroot)
+		self._tkroot = tkroot
+		if not gui: gui = GuiRunnerGui(self._tkroot)
 		self._gui = gui
 		
-		step = None
-		if len(document.sections) > 0:
-			for b in reversed(document.sections[0].items):
-				s = GuiRunner.Step.from_block(b)
-				if s: 
-					if step: 
-						step.prev = s
-						s.next = step
-					step = s
-		self._set_current_step(step)
-							
+		secmap = {}
+		secmap_cbs = []
+		for sec in document.sections:
+			name = getattr(sec,"heading",None)
+			step = None
+			for b in reversed(sec.items):
+				s = GuiRunner.Step.from_block(name,
+					lambda cb: secmap_cbs.append(cb),step,b)
+				if s: step = s
+			secmap[name.lower() if name else None] = step
+		for cb in secmap_cbs:
+			cb(secmap)
+			
+		self._set_current_step( secmap[None] 
+			if len(secmap)>0 else None )
 		self._gui.on_section_change(None)
-		tkroot.mainloop()
+			
+		self._tkroot.mainloop()
 		
 	def _set_current_step(self,step):
 		self._current_step = step
+		if self._current_step and self._current_step.sectionname != self._current_secname:
+			self._current_secname = self._current_step.sectionname
+			self._gui.on_section_change(self._current_secname)
 		curr_item = ( self._current_step.to_item() 
 			if self._current_step is not None else None )
 		prev_item = ( self._current_step.prev.to_item() 
@@ -2193,7 +2218,12 @@ class GuiRunner(object):
 			if self._current_step is not None else False )
 		
 	def on_next(self):
-		self._set_current_step(self._current_step.forward())
+		next = self._current_step.forward()
+		if not next:
+			self._update_document()
+			self._tkroot.quit()
+		else:
+			self._set_current_step(next)
 		
 	def on_prev(self):
 		self._set_current_step(self._current_step.back())

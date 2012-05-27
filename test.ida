@@ -943,3 +943,14 @@ xml		*	*		*		http	*		*			xml		*	*		*
    v  +-----------------+  v variable
       <--->         <--->
      variable      variable
+
+
+[!] Need a way to temporarily insert the response text into the graph
+[*] Store "prev" ref differently. "next" refs are per step to make a directional
+	graph. "prev" is simply a single reference to the last step user was at
+[!] That won't work because we won't be able to traverse the path back to
+	the start
+[*] Ok so store a prev ref with each step, which is simply set to the previous
+	step at runtime
+- call it "undo" to distinguish
+- nah.
