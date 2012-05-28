@@ -1,10 +1,7 @@
 #!/usr/bin/python2
 
-# TODO: Gui bug - not all colour options displayed in example (trailing whitespace?)
-# TODO: Gui labels don't wrap lines themselves
-# TODO: Prev button in gui gets into loops
+# TODO: Command line runner should wait for keypress on response
 # TODO: JSON input
-# TODO: GUI interactive mode for recipient
 # TODO: XML input
 # TODO: HTML output
 # TODO: S-Exp output
@@ -29,7 +26,7 @@ LineWhitespace <- '[ \t]+'
 Newline <- '(\r\n|\r|\n)'
 Choice <- QuoteMarker? TextLineMarker LineWhitespace? ChoiceMarker ChoiceContent
 FirstChoice <- QuoteMarker? FirstTextLineMarker LineWhitespace? ChoiceMarker ChoiceContent
-ChoiceContent <- LineWhitespace? ChoiceDescription ChoiceResponse? Newline
+ChoiceContent <- LineWhitespace? ChoiceDescription ChoiceResponse? LineWhitespace? Newline
 ChoiceMarker <- ChoiceMarkerOpen LineWhitespace? ChoiceMarkerMark? ChoiceMarkerClose
 ChoiceMarkerOpen <- '['
 ChoiceMarkerMark <- '[a-zA-Z0-9_- \t`!"$%^&*()_+=[{};:'@#~,<.>/?\|]+'
@@ -65,7 +62,6 @@ import xml.dom
 import xml.dom.minidom
 import re
 import collections
-import Tkinter as tk
 
 
 ALL_CHARACTERS = (
@@ -1043,6 +1039,8 @@ class ChoiceContent(object):
 		if desc is None: return None
 		
 		resp = Optional(ChoiceResponse).parse(input)
+
+		Optional(LineWhitespace).parse(input)
 		
 		if Newline.parse(input) is None: return None
 		
@@ -2003,7 +2001,7 @@ class GuiRunnerGui(object):
 	
 		def __init__(self,frame,info,enabled):
 			self.label = tk.Label(frame,text=info.text,justify=tk.LEFT,
-				state=tk.NORMAL if enabled else tk.DISABLED)
+				state=tk.NORMAL if enabled else tk.DISABLED,wraplength=200)
 			self.label.pack(side=tk.TOP,anchor=tk.W)
 			
 		def destroy(self):
@@ -2017,7 +2015,7 @@ class GuiRunnerGui(object):
 			for i,o in enumerate(info.options):
 				r = tk.Radiobutton(frame,text=o,variable=self.var,justify=tk.LEFT,
 					state=tk.NORMAL if enabled else tk.DISABLED,value=i,
-					command=self._make_callback(i,onchange))
+					command=self._make_callback(i,onchange),wraplength=175)
 				r.pack(side=tk.TOP,anchor=tk.W)
 				self.radios.append(r)
 			
@@ -2116,12 +2114,10 @@ class GuiRunner(object):
 		
 		sectionname = None
 		next = None
-		prev = None
 
 		def __init__(self,sectionname,next):
 			self.sectionname = sectionname
 			self.next = next
-			self.prev = None
 		
 		@staticmethod
 		def from_block(sectionname,secmapper,next,block): 
@@ -2136,14 +2132,8 @@ class GuiRunner(object):
 			return True
 			
 		def forward(self):
-			if self.next: self.next.prev = self
 			return self.next
 			
-		def can_go_back(self):
-			return bool(self.prev)
-			
-		def back(self):
-			return self.prev
 
 	class TextStep(Step):
 	
@@ -2211,9 +2201,7 @@ class GuiRunner(object):
 			return self.selected is not None
 			
 		def forward(self):
-			step = self.options[self.selected].step
-			if step: step.prev = self
-			return step
+			return self.options[self.selected].step
 			
 		def set_selected(self,val):
 			self.selected = val
@@ -2221,15 +2209,22 @@ class GuiRunner(object):
 		
 	_gui = None
 	_tkroot = None
-	_current_step = None
 	_current_secname = None
 	_completed = False
+	_path = None
 
 	@staticmethod
 	def run(document):
 		GuiRunner.INST._run(document)
 		
 	def _run(self,document,tkroot=None,gui=None):
+		global tk
+		try: 
+			import Tkinter as tk
+		except ImportError:
+			raise RunnerError("Failed to load tkinter module required to display gui. "
+				+"You may need to install Tk and/or Tkinter")
+	
 		if not tkroot: tkroot = tk.Tk()
 		self._tkroot = tkroot
 		if not gui: gui = GuiRunnerGui(self._tkroot)
@@ -2237,6 +2232,7 @@ class GuiRunner(object):
 		
 		self._gui.listener = self
 		
+		self._path = []
 		secmap = {}
 		secmap_cbs = []
 		for sec in document.sections:
@@ -2249,46 +2245,51 @@ class GuiRunner(object):
 			secmap[name.lower() if name else None] = step
 		for cb in secmap_cbs:
 			cb(secmap)
-			
-		self._set_current_step( secmap[None] if len(secmap)>0 else None )
-		self._gui.on_section_change(None)
+
+		self._current_secname = object()			
+		self._path_push( secmap[None] if len(secmap)>0 else None )
 			
 		self._tkroot.mainloop()
 		
 		if not self._completed:
 			raise RunnerError("User aborted")
 		
-	def _set_current_step(self,step):
-		self._current_step = step
-		if self._current_step and self._current_step.sectionname != self._current_secname:
-			self._current_secname = self._current_step.sectionname
+	def _path_push(self,step):
+		self._path.append(step)
+		self._path_updated()
+		
+	def _path_pop(self):
+		self._path.pop()
+		self._path_updated()
+		
+	def _path_updated(self):
+		new_secname = self._path[-1].sectionname if self._path[-1] else None
+		if new_secname != self._current_secname:
+			self._current_secname = new_secname
 			self._gui.on_section_change(self._current_secname)
-		curr_item = ( self._current_step.to_item() 
-			if self._current_step is not None else None )
-		prev_item = ( self._current_step.prev.to_item() 
-			if self._current_step is not None and self._current_step.prev is not None else None )
+		curr_item = ( self._path[-1].to_item() if self._path[-1] is not None else None )
+		prev_item = ( self._path[-2].to_item() if len(self._path)>1 else None )
 		self._gui.on_curr_item_change(curr_item)
 		self._gui.on_prev_item_change(prev_item)
-		self._gui.on_forward_allowed_change(self._current_step.can_go_forward()
-			if self._current_step is not None else False )
-		self._gui.on_back_allowed_change(self._current_step.can_go_back()
-			if self._current_step is not None else False )
+		self._gui.on_forward_allowed_change(self._path[-1].can_go_forward()
+			if self._path[-1] is not None else False )
+		self._gui.on_back_allowed_change( len(self._path)>1 )
 		
 	def on_next(self):
-		next = self._current_step.forward()
+		next = self._path[-1].forward()
 		if not next:
 			self._completed = True
 			self._tkroot.quit()
 		else:
-			self._set_current_step(next)
+			self._path_push(next)
 		
 	def on_prev(self):
-		self._set_current_step(self._current_step.back())
+		self._path_pop()
 		
 	def on_change_selection(self,val):	
-		old_fa = self._current_step.can_go_forward()
-		self._current_step.set_selected(val)
-		new_fa = self._current_step.can_go_forward()
+		old_fa = self._path[-1].can_go_forward()
+		self._path[-1].set_selected(val)
+		new_fa = self._path[-1].can_go_forward()
 		if old_fa != new_fa:
 			self._gui.on_forward_allowed_change(new_fa)
 		

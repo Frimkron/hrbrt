@@ -3402,7 +3402,7 @@ class TestChoiceContent(unittest.TestCase):
 		self.setup_parse_methods()
 		dt.ChoiceDescription.parse.side_effect = make_parse({"d":dt.ChoiceDescription("foo","blah")})
 		dt.ChoiceResponse.parse.side_effect = make_parse({"r":dt.ChoiceResponse("bar","weh","wibble")})
-		result = dt.ChoiceContent.parse(MockInput("wdrl$"))
+		result = dt.ChoiceContent.parse(MockInput("wdrwl$"))
 		self.assertTrue( isinstance(result,dt.ChoiceContent) )
 		self.assertTrue( hasattr(result,"description") )
 		self.assertEquals("foo",result.description)
@@ -3418,56 +3418,61 @@ class TestChoiceContent(unittest.TestCase):
 		self.setup_parse_methods()
 		dt.ChoiceDescription.parse.side_effect = make_parse({"d":dt.ChoiceDescription("foo",None)})
 		dt.ChoiceResponse.parse.side_effect = make_parse({"r":dt.ChoiceResponse("weh","flibble",None)})
-		result = dt.ChoiceContent.parse(MockInput("wdrl$"))
+		result = dt.ChoiceContent.parse(MockInput("wdrwl$"))
 		self.assertIsNone( result.feedback )
 
 	@mock_parse_methods
 	def test_parse_sets_none_for_no_response(self):
 		self.setup_parse_methods()
 		dt.ChoiceResponse.parse.side_effect = make_parse({"r":dt.ChoiceResponse(None,"b","c")})
-		result = dt.ChoiceContent.parse(MockInput("wdrl$"))
+		result = dt.ChoiceContent.parse(MockInput("wdrwl$"))
 		self.assertIsNone( result.response )
 		
 	@mock_parse_methods
 	def test_parse_sets_none_for_no_goto(self):
 		self.setup_parse_methods()
 		dt.ChoiceResponse.parse.side_effect = make_parse({"r":dt.ChoiceResponse("a",None,"b")})
-		result = dt.ChoiceContent.parse(MockInput("wdrl$"))
+		result = dt.ChoiceContent.parse(MockInput("wdrwl$"))
 		self.assertIsNone( result.goto )
 
 	@mock_parse_methods		
-	def test_parse_allows_no_linewhitespace(self):
+	def test_parse_allows_no_first_linewhitespace(self):
 		self.setup_parse_methods()
-		self.assertIsNotNone( dt.ChoiceContent.parse(MockInput("drl$")) )
+		self.assertIsNotNone( dt.ChoiceContent.parse(MockInput("drwl$")) )
 
 	@mock_parse_methods		
 	def test_parse_expects_choicedescription(self):
 		self.setup_parse_methods()
-		self.assertIsNone( dt.ChoiceContent.parse(MockInput("wrl$")) )
+		self.assertIsNone( dt.ChoiceContent.parse(MockInput("wrwl$")) )
 		self.assertFalse( dt.ChoiceResponse.parse.called )
 		self.assertFalse( dt.Newline.parse.called )
 
 	@mock_parse_methods		
 	def test_parse_allows_no_choiceresponse(self):
 		self.setup_parse_methods()
-		self.assertIsNotNone( dt.ChoiceContent.parse(MockInput("wdl$")) )
+		self.assertIsNotNone( dt.ChoiceContent.parse(MockInput("wdwl$")) )
+	
+	@mock_parse_methods
+	def test_parse_allows_no_second_linewhitepace(self):
+		self.setup_parse_methods()
+		self.assertIsNotNone( dt.ChoiceContent.parse(MockInput("wdrl$")) )	
 		
 	@mock_parse_methods
 	def test_parse_expects_newline(self):
 		self.setup_parse_methods()
-		self.assertIsNone( dt.ChoiceContent.parse(MockInput("wdr$")) )
+		self.assertIsNone( dt.ChoiceContent.parse(MockInput("wdrw$")) )
 		
 	@mock_parse_methods
 	def test_parse_consumes_input_on_success(self):
 		self.setup_parse_methods()
-		i = MockInput("wdrl$")
+		i = MockInput("wdrwl$")
 		dt.ChoiceContent.parse(i)
-		self.assertEquals(4,i.pos)
+		self.assertEquals(5,i.pos)
 		
 	@mock_parse_methods
 	def test_parse_doesnt_consume_input_on_failure(self):
 		self.setup_parse_methods()
-		i = MockInput("wdr$")
+		i = MockInput("wdrw$")
 		dt.ChoiceContent.parse(i)
 		self.assertEquals(0,i.pos)
 
@@ -5205,6 +5210,32 @@ class TestGuiRunner(unittest.TestCase):
 		],None) ]),mockloop=loop)
 		self.assertEquals(2,self.gui.on_forward_allowed_change.call_count)
 		self.assertEquals(True,self.gui.on_forward_allowed_change.call_args_list[1][0][0])
+		
+	def test_goes_back_over_all_loop_iterations(self):
+		def loop():
+			self.runner.on_change_selection(0)
+			self.runner.on_next()
+			self.runner.on_change_selection(0)
+			self.runner.on_next()
+			self.runner.on_change_selection(1)
+			self.runner.on_next()
+			self.runner.on_prev()
+			self.runner.on_prev()
+			self.runner.on_prev()
+		self.do_run(dt.Document([
+			dt.FirstSection([dt.ChoiceBlock([
+				dt.Choice(None,"foo",None,"sec",None) ],None)],None),
+			dt.Section("sec",[dt.ChoiceBlock([
+				dt.Choice(None,"bar",None,"sec",None),
+				dt.Choice(None,"weh","ahuh",None,None) ],None)],None)
+		]),mockloop=loop)
+		self.assertEquals(7,self.gui.on_curr_item_change.call_count)
+		self.assertEquals(["bar","weh"],
+			self.gui.on_curr_item_change.call_args_list[4][0][0].options)
+		self.assertEquals(["bar","weh"],
+			self.gui.on_curr_item_change.call_args_list[5][0][0].options)
+		self.assertEquals(["foo"],
+			self.gui.on_curr_item_change.call_args_list[6][0][0].options)
 	
 unittest.main()
 
