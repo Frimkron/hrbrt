@@ -1,6 +1,5 @@
 #!/usr/bin/python2
 
-# TODO: Command line runner should wait for keypress on response
 # TODO: JSON input
 # TODO: XML input
 # TODO: HTML output
@@ -1947,12 +1946,15 @@ class CommandLineRunner(object):
 
 	def _run_default(self,block,ins,outs):
 		return None
-		
-	def _run_TextBlock(self,block,ins,outs):
-		outs.write(block.text+"\n\n")
+
+	def _wait_for_enter(self,ins,outs):
 		outs.write("[enter]")
 		ins.readline()
 		outs.write("\n\n")
+		
+	def _run_TextBlock(self,block,ins,outs):
+		outs.write(block.text+"\n\n")
+		self._wait_for_enter(ins,outs)
 		return None
 		
 	def _run_ChoiceBlock(self,block,ins,outs):
@@ -1984,6 +1986,7 @@ class CommandLineRunner(object):
 			
 		if chosen.response is not None:
 			outs.write("%s\n\n" % chosen.response)
+			self._wait_for_enter(ins,outs)
 	
 		if chosen.goto is not None:
 			return chosen.goto.lower()
@@ -2304,10 +2307,10 @@ if __name__ == "__main__":
 	# parse arguments
 	ap = argparse.ArgumentParser(description="Process decision tree documents")
 	ap.add_argument("input",help="file to read from or '-' for standard input")
-	ap.add_argument("-i","--iformat",help="input format",choices=["dectree","json","xml","sexp"])
+	ap.add_argument("-i","--iformat",help="input format",choices=["dectree"])
 	ap.add_argument("-v","--validate",help="just validate input",action="store_true")
 	ap.add_argument("-r","--run",help="how to run file",choices=["cl","gui"])
-	ap.add_argument("-o","--oformat",help="output format",choices=["dectree","json","xml","sexp","html","markdown","opendoc"])
+	ap.add_argument("-o","--oformat",help="output format",choices=["dectree","json","xml","markdown"])
 	ap.add_argument("output",help="file to write to or '-' for standard output",nargs="?")
 
 	args = ap.parse_args()
@@ -2366,9 +2369,7 @@ if __name__ == "__main__":
 	else:
 		ext = None
 
-	if args.oformat == "html" or ext in HtmlIO.EXTENSIONS:
-		outformat = HtmlIO
-	elif args.oformat == "json" or ext in JsonIO.EXTENSIONS:
+	if args.oformat == "json" or ext in JsonIO.EXTENSIONS:
 		outformat = JsonIO
 	elif args.oformat == "markdown" or ext in MarkdownIO.EXTENSIONS:
 		outformat = MarkdownIO

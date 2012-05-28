@@ -3971,7 +3971,24 @@ class TestCommandLineRunner(unittest.TestCase):
 				dt.Choice(None,"beta","is Carmen Sandiego",None,None)
 			],None) ],None) ]), "2\n" )
 		self.assertEquals("1) alpha\n2) beta\n\n> \n\n"
-			+"is Carmen Sandiego\n\n", result)
+			+"is Carmen Sandiego\n\n[enter]\n\n", result)
+
+	def test_invokes_readline_after_printing_choice_response(self):
+		log = []
+		def readline():
+			log.append("readline")
+			return "1\n"
+		def write(val):
+			log.append("write %s" % val)
+		i = mock.Mock()
+		i.readline.side_effect = readline
+		o = mock.Mock()
+		o.write.side_effect = write
+		d = dt.Document([ dt.FirstSection([ dt.ChoiceBlock([
+			dt.Choice(None,"foo","bar",None,None) ],None) ],None) ])
+		dt.CommandLineRunner()._run(d,i,o)
+		self.assertEquals(["write 1) foo\n","write \n","write > ","readline",
+			"write \n\n","write bar\n\n","write [enter]","readline","write \n\n"],log)
 
 	def test_follows_goto_forwards(self):
 		result = self.do_run( dt.Document([
