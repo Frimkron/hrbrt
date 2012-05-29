@@ -8,7 +8,6 @@
 # TODO: Allow gotos at the end of sections.
 # TODO: Allow header line in syntax
 # TODO: Open document output
-# TODO: Tidy up formal definition
 
 """	
 Document <- FirstSection Section* '\x00'
