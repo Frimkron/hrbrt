@@ -2320,6 +2320,23 @@ class GuiRunner(object):
 GuiRunner.INST = GuiRunner()
 		
 
+"""	
+TODO:
+-v just validate
+-r run mode
+-f from type
+-t to type
+-o output path (or -)
+[input] (or -)
+
+No args: read dt on stdio, run cl, output dt on stdout
+Output format: 1) t option 2) output extension 3) dt
+Input format: 1) f option 2) input extension 3) dt
+Output file: 1) stdout if o=='-' 2) o param 3) stdout if input==stdin 4) input name . format ext
+Input file: 1) stdin if input=='-' 2) input arg 3) stdin
+Run mode: 1) r opt 2) cl if no f or o opts 3) Nothing
+"""
+
 if __name__ == "__main__":
 
 	import sys	
