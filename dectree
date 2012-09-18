@@ -2335,6 +2335,13 @@ Input format: 1) f option 2) input extension 3) dt
 Output file: 1) stdout if o=='-' 2) o param 3) stdout if input==stdin 4) input name . format ext
 Input file: 1) stdin if input=='-' 2) input arg 3) stdin
 Run mode: 1) r opt 2) cl if no f or o opts 3) Nothing
+
+       out
+in     file  -       none
+file   file  stdout  file.out.ext  
+-      file  stdout  stdout
+none   file  stdout  stdout
+
 """
 
 if __name__ == "__main__":
@@ -2343,38 +2350,35 @@ if __name__ == "__main__":
 	import argparse
 		
 	# parse arguments
-	ap = argparse.ArgumentParser(description="Process decision tree documents")
-	ap.add_argument("input",help="file to read from or '-' for standard input")
-	ap.add_argument("-i","--iformat",help="input format",choices=["dectree"])
+	ap = argparse.ArgumentParser(description="Process branching text documents")
+	ap.add_argument("input",help="file to read from or '-' for standard input",nargs="?")
+	ap.add_argument("-o","--output",help="file to write to or '-' for standard output")
+	ap.add_argument("-f","--fromfmt",help="input format",choices=["dectree"])
+	ap.add_argument("-t","--tofmt",help="output format",choices=["dectree","json","xml","markdown"])
 	ap.add_argument("-v","--validate",help="just validate input",action="store_true")
-	ap.add_argument("-r","--run",help="how to run file",choices=["cl","gui"])
-	ap.add_argument("-o","--oformat",help="output format",choices=["dectree","json","xml","markdown"])
-	ap.add_argument("output",help="file to write to or '-' for standard output",nargs="?")
+	ap.add_argument("-r","--run",help="how to run file",choices=["cl","gui","none"])
 
 	args = ap.parse_args()
 
 	# determine input format
-	if "." in args.input:
+	if args.input is not None and "." in args.input:
 		ext = args.input[args.input.rindex(".")+1:]
 	else:
 		ext = None
 		
-	if args.iformat == "json" or ext in JsonIO.EXTENSIONS:
+	if args.fromfmt == "json" or (args.fromfmt is None and ext in JsonIO.EXTENSIONS):
 		informat = JsonIO
 	else:		
 		informat = DecTreeIO
 
 	# read from input stream
-	if args.input == "-":
-		if args.run == "cl":
-			sys.exit("Can't combine standard input with command-line run mode")
+	if args.input == "-" or args.input is None:
 		instream = sys.stdin
 	else:
 		instream = open(args.input,"r")
 
 	try:	
-		with instream:
-			document = informat.read(instream)
+		document = informat.read(instream)
 	except InputError as e:
 		sys.exit(str(e))
 
@@ -2388,9 +2392,12 @@ if __name__ == "__main__":
 		print "Document is valid!"
 		sys.exit(0)
 	
+	# default to command line run if no run or output specified
+	if args.run is None and args.output is None and args.tofmt is None:
+		args.run = "cl"
+	
 	# if necessary, run and add feedback to parse tree
-	if args.run is not None or (
-			args.output is None and args.oformat is None and args.input != "-"):
+	if args.run != "none":
 		if args.run == "gui":
 			runner = GuiRunner
 		else:
@@ -2407,26 +2414,26 @@ if __name__ == "__main__":
 	else:
 		ext = None
 
-	if args.oformat == "json" or ext in JsonIO.EXTENSIONS:
+	if args.tofmt == "json" or (args.tofmt is None and ext in JsonIO.EXTENSIONS):
 		outformat = JsonIO
-	elif args.oformat == "markdown" or ext in MarkdownIO.EXTENSIONS:
+	elif args.tofmt == "markdown" or (args.tofmt is None and ext in MarkdownIO.EXTENSIONS):
 		outformat = MarkdownIO
-	elif args.oformat == "xml" or ext in XmlIO.EXTENSIONS:
+	elif args.tofmt == "xml" or (args.tofmt is None and ext in XmlIO.EXTENSIONS):
 		outformat = XmlIO
 	else:		
 		outformat = DecTreeIO
 	
 	# write to output stream
-	if args.output is None and args.input != "-":
-		outstream = open("%s.out.%s" % ( args.input[:args.input.rindex(".")]
-			if "." in args.input else args.input, outformat.EXTENSIONS[0] ),"w")
-	elif args.output is None and args.input == "-":
-		outstream = sys.stdout
+	if args.output not in (None,"-"):
+		outstream = open(args.output,"w")
 	elif args.output == "-":
 		outstream = sys.stdout
+	elif args.input in (None,"-"):
+		outstream = sys.stdout
 	else:
-		outstream = open(args.output,"w")
-	
+		outstream = open("%s.out.%s" % ( args.input[:args.input.rindex(".")]
+			if "." in args.input else args.input, outformat.EXTENSIONS[0] ),"w")
+						
 	with outstream:
 		outformat.write(document,outstream)
 
