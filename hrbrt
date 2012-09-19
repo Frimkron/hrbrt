@@ -1673,18 +1673,18 @@ class HtmlIO(object):
 		pass
 
 
-class DecTreeIO(object):
+class HrbrtIO(object):
 	
-	EXTENSIONS = ["dt"]
+	EXTENSIONS = ["hb"]
 	LINE_WIDTH = 79
 	
 	@staticmethod
 	def read(stream):
-		return DecTreeIO.INST._read(stream)
+		return HrbrtIO.INST._read(stream)
 	
 	@staticmethod
 	def write(document,stream):
-		DecTreeIO.INST._write(document,stream)
+		HrbrtIO.INST._write(document,stream)
 		
 	def _read(self,stream):
 		instring = stream.read()
@@ -1710,7 +1710,7 @@ class DecTreeIO(object):
 		s += "\n".join(map(self._visit,sec.items))
 		if sec.feedback is not None:
 			s += "\n"
-			flines = wrap_text(sec.feedback,DecTreeIO.LINE_WIDTH)
+			flines = wrap_text(sec.feedback,HrbrtIO.LINE_WIDTH)
 			for line in flines:
 				s += "%s\n" % line
 		return s
@@ -1720,20 +1720,20 @@ class DecTreeIO(object):
 		s += "\n".join(map(self._visit,sec.items))
 		if sec.feedback is not None:
 			s += "\n"
-			flines = wrap_text(sec.feedback,DecTreeIO.LINE_WIDTH)
+			flines = wrap_text(sec.feedback,HrbrtIO.LINE_WIDTH)
 			for line in flines:
 				s += "%s\n" % line
 		return s
 		
 	def _visit_TextBlock(self,text):
-		lines = wrap_text(text.text,width=DecTreeIO.LINE_WIDTH-3)
+		lines = wrap_text(text.text,width=HrbrtIO.LINE_WIDTH-3)
 		s = ":: %s\n" % lines[0]
 		for line in lines[1:]:
 			s += ":  %s\n" % line
 		return s
 		
 	def _visit_InstructionBlock(self,instr):
-		lines = wrap_text(instr.text,width=DecTreeIO.LINE_WIDTH-3)
+		lines = wrap_text(instr.text,width=HrbrtIO.LINE_WIDTH-3)
 		s = "%%%% %s\n" % lines[0]
 		for line in lines[1:]:
 			s += "%%  %s\n" % line
@@ -1749,14 +1749,14 @@ class DecTreeIO(object):
 			s += "".join(choicestrs)
 		if cblock.feedback is not None and len(cblock.feedback)>0:
 			s += "\n"
-			flines = wrap_text(cblock.feedback,DecTreeIO.LINE_WIDTH)
+			flines = wrap_text(cblock.feedback,HrbrtIO.LINE_WIDTH)
 			for line in flines:
 				s += "%s\n" % line
 		return s
 		
 	def _visit_Choice(self,choice):
 		s = "[%s] " % (choice.mark if choice.mark is not None else "")
-		dlines = wrap_text(choice.description,DecTreeIO.LINE_WIDTH-3,
+		dlines = wrap_text(choice.description,HrbrtIO.LINE_WIDTH-3,
 			start=len(s)-3)
 		s += dlines[0]+"\n"
 		for line in dlines[1:]:
@@ -1765,7 +1765,7 @@ class DecTreeIO(object):
 			l = ":      -- "
 			s += l
 			if choice.response is not None:
-				rlines = wrap_text(choice.response,DecTreeIO.LINE_WIDTH-3,
+				rlines = wrap_text(choice.response,HrbrtIO.LINE_WIDTH-3,
 					start=len(l)-3)
 				s += rlines[0]+"\n"
 				for line in rlines[1:]:
@@ -1776,7 +1776,7 @@ class DecTreeIO(object):
 				s += "GO TO %s\n" % choice.goto
 		return s
 		
-DecTreeIO.INST = DecTreeIO()
+HrbrtIO.INST = HrbrtIO()
 
 
 class MarkdownIO(object):
@@ -2320,29 +2320,6 @@ class GuiRunner(object):
 GuiRunner.INST = GuiRunner()
 		
 
-"""	
-TODO:
--v just validate
--r run mode
--f from type
--t to type
--o output path (or -)
-[input] (or -)
-
-No args: read dt on stdio, run cl, output dt on stdout
-Output format: 1) t option 2) output extension 3) dt
-Input format: 1) f option 2) input extension 3) dt
-Output file: 1) stdout if o=='-' 2) o param 3) stdout if input==stdin 4) input name . format ext
-Input file: 1) stdin if input=='-' 2) input arg 3) stdin
-Run mode: 1) r opt 2) cl if no f or o opts 3) Nothing
-
-       out
-in     file  -       none
-file   file  stdout  file.out.ext  
--      file  stdout  stdout
-none   file  stdout  stdout
-
-"""
 
 if __name__ == "__main__":
 
@@ -2351,10 +2328,10 @@ if __name__ == "__main__":
 		
 	# parse arguments
 	ap = argparse.ArgumentParser(description="Process branching text documents")
-	ap.add_argument("input",help="file to read from or '-' for standard input",nargs="?")
-	ap.add_argument("-o","--output",help="file to write to or '-' for standard output")
-	ap.add_argument("-f","--fromfmt",help="input format",choices=["dectree"])
-	ap.add_argument("-t","--tofmt",help="output format",choices=["dectree","json","xml","markdown"])
+	ap.add_argument("input",help="file to read from", nargs="?")
+	ap.add_argument("-o","--output",help="file to write to")
+	ap.add_argument("-f","--fromfmt",help="input format",choices=["hrbrt"])
+	ap.add_argument("-t","--tofmt",help="output format",choices=["hrbrt","json","xml","markdown"])
 	ap.add_argument("-v","--validate",help="just validate input",action="store_true")
 	ap.add_argument("-r","--run",help="how to run file",choices=["cl","gui","none"])
 
@@ -2369,13 +2346,13 @@ if __name__ == "__main__":
 	if args.fromfmt == "json" or (args.fromfmt is None and ext in JsonIO.EXTENSIONS):
 		informat = JsonIO
 	else:		
-		informat = DecTreeIO
+		informat = HrbrtIO
 
 	# read from input stream
-	if args.input == "-" or args.input is None:
-		instream = sys.stdin
-	else:
+	if args.input not in (None, "-"):
 		instream = open(args.input,"r")
+	else:
+		instream = sys.stdin
 
 	try:	
 		document = informat.read(instream)
@@ -2397,7 +2374,7 @@ if __name__ == "__main__":
 		args.run = "cl"
 	
 	# if necessary, run and add feedback to parse tree
-	if args.run != "none":
+	if args.run not in (None,"none"):
 		if args.run == "gui":
 			runner = GuiRunner
 		else:
@@ -2421,7 +2398,7 @@ if __name__ == "__main__":
 	elif args.tofmt == "xml" or (args.tofmt is None and ext in XmlIO.EXTENSIONS):
 		outformat = XmlIO
 	else:		
-		outformat = DecTreeIO
+		outformat = HrbrtIO
 	
 	# write to output stream
 	if args.output not in (None,"-"):

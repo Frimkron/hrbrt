@@ -1,11 +1,19 @@
 #!/usr/bin/python2
 
+import os
+import os.path
 import io
 import sys
 import mock
 import unittest
 import Tkinter
-import dectree as dt
+
+TEMP_NAME = "hbtemp.py"
+
+# make temp symlink to script with py extension for import
+if not os.path.exists(TEMP_NAME):
+	os.symlink("hrbrt",TEMP_NAME)
+import hbtemp as dt	
 
 # monkey patching
 if sys.version_info < (2,7):
@@ -3611,29 +3619,29 @@ class TestJsonIO(unittest.TestCase):
 			s.getvalue() )
 					
 					
-class TestDecTreeIO(unittest.TestCase):
+class TestHrbrtIO(unittest.TestCase):
 
 	def test_has_extensions(self):
-		dt.DecTreeIO.EXTENSIONS[0]
+		dt.HrbrtIO.EXTENSIONS[0]
 		
 	def test_write_doesnt_throw_error(self):
 		s = io.BytesIO()
-		dt.DecTreeIO.write(dt.Document([]),s)
+		dt.HrbrtIO.write(dt.Document([]),s)
 		
 	def test_write_handles_document(self):
 		s = io.BytesIO()
-		dt.DecTreeIO.write(dt.Document([]),s)
+		dt.HrbrtIO.write(dt.Document([]),s)
 		self.assertEquals("", s.getvalue())
 		
 	def test_write_handles_firstsection(self):
 		s = io.BytesIO()
-		dt.DecTreeIO.write(dt.Document([
+		dt.HrbrtIO.write(dt.Document([
 			dt.FirstSection([],"this is fab") ]), s )
 		self.assertEquals("\nthis is fab\n", s.getvalue())
 			
 	def test_write_handles_firstsection_feedback_wrap(self):
 		s = io.BytesIO()
-		dt.DecTreeIO.write(dt.Document([
+		dt.HrbrtIO.write(dt.Document([
 				dt.FirstSection([],"This is a test to test line wrapping "
 				+"and see if long lines are wrapped at some point") ]), s)
 		self.assertEquals("\nThis is a test to test line wrapping and see "
@@ -3642,14 +3650,14 @@ class TestDecTreeIO(unittest.TestCase):
 			
 	def test_write_handles_section(self):
 		s = io.BytesIO()
-		dt.DecTreeIO.write(dt.Document([
+		dt.HrbrtIO.write(dt.Document([
 				dt.Section("My Section",[],"excellent stuff") ]), s)
 		self.assertEquals("== My Section ==\n\n\nexcellent stuff\n", 
 			s.getvalue() )
 				
 	def test_write_handles_section_feedback_wrap(self):
 		s = io.BytesIO()
-		dt.DecTreeIO.write(dt.Document([
+		dt.HrbrtIO.write(dt.Document([
 			dt.Section("dave",[],"This is a test to test line wrapping "
 			+"and see if long lines are wrapped at some point") ]), s)
 		self.assertEquals("== dave ==\n\n\nThis is a test to test line wrapping and see "
@@ -3658,13 +3666,13 @@ class TestDecTreeIO(unittest.TestCase):
 				
 	def test_write_handles_textblock(self):
 		s = io.BytesIO()
-		dt.DecTreeIO.write(dt.Document([
+		dt.HrbrtIO.write(dt.Document([
 			dt.FirstSection([ dt.TextBlock("This is a test",None) ],None) ]), s)
 		self.assertEquals(":: This is a test\n", s.getvalue())
 
 	def test_write_handles_textblock_line_wrap(self):
 		s = io.BytesIO()
-		dt.DecTreeIO.write(dt.Document([
+		dt.HrbrtIO.write(dt.Document([
 				dt.FirstSection([ dt.TextBlock("This is a test to test line "
 					+"wrapping and see if long lines are wrapped at some "
 					+"point", None) ],None) ]), s)
@@ -3674,7 +3682,7 @@ class TestDecTreeIO(unittest.TestCase):
 
 	def test_formt_handles_firstsection_multiple_blocks(self):
 		s = io.BytesIO()
-		dt.DecTreeIO.write(dt.Document([
+		dt.HrbrtIO.write(dt.Document([
 			dt.FirstSection([ dt.TextBlock("Testing",None),
 				dt.TextBlock("More testing",None) ],None) ]), s)
 		self.assertEquals(":: Testing\n\n:: More testing\n",
@@ -3682,7 +3690,7 @@ class TestDecTreeIO(unittest.TestCase):
 		
 	def test_write_handles_section_multiple_blocks(self):
 		s = io.BytesIO()
-		dt.DecTreeIO.write(dt.Document([
+		dt.HrbrtIO.write(dt.Document([
 			dt.Section("dave",[ dt.TextBlock("Testing",None),
 				dt.TextBlock("More testing",None) ],None) ]), s)
 		self.assertEquals("== dave ==\n\n:: Testing\n\n:: More testing\n",
@@ -3690,25 +3698,25 @@ class TestDecTreeIO(unittest.TestCase):
 				
 	def test_write_handles_firstsection_block_and_feedback(self):
 		s = io.BytesIO()
-		dt.DecTreeIO.write(dt.Document([
+		dt.HrbrtIO.write(dt.Document([
 			dt.FirstSection([ dt.TextBlock("Test",None) ], "Blah blah") ]), s)
 		self.assertEquals(":: Test\n\nBlah blah\n", s.getvalue())
 				
 	def test_write_handles_section_block_and_feedback(self):
 		s = io.BytesIO()
-		dt.DecTreeIO.write(dt.Document([
+		dt.HrbrtIO.write(dt.Document([
 			dt.Section("dave",[ dt.TextBlock("Test",None) ], "Blah blah") ]), s)
 		self.assertEquals("== dave ==\n\n:: Test\n\nBlah blah\n", s.getvalue() )
 
 	def test_write_handles_instructionblock(self):
 		s = io.BytesIO()
-		dt.DecTreeIO.write(dt.Document([
+		dt.HrbrtIO.write(dt.Document([
 			dt.FirstSection([ dt.InstructionBlock("This is a test",None) ],None) ]), s)
 		self.assertEquals("%% This is a test\n", s.getvalue() )
 
 	def test_write_handles_instructionblock_line_wrap(self):
 		s = io.BytesIO()
-		dt.DecTreeIO.write(dt.Document([
+		dt.HrbrtIO.write(dt.Document([
 			dt.FirstSection([ dt.InstructionBlock("This is a test to test line "
 				+"wrapping and see if long lines are wrapped at some "
 				+"point", None) ],None) ]), s)
@@ -3718,13 +3726,13 @@ class TestDecTreeIO(unittest.TestCase):
 
 	def test_write_handles_choiceblock(self):
 		s = io.BytesIO()
-		dt.DecTreeIO.write(dt.Document([
+		dt.HrbrtIO.write(dt.Document([
 			dt.FirstSection([ dt.ChoiceBlock([], "This is a test") ],None)]), s)
 		self.assertEquals("\nThis is a test\n", s.getvalue())
 
 	def test_write_handles_choiceblock_feedback_wrap(self):
 		s = io.BytesIO()
-		dt.DecTreeIO.write(dt.Document([
+		dt.HrbrtIO.write(dt.Document([
 			dt.FirstSection([ dt.ChoiceBlock([], "This is a test to see if "
 				+"long lines are wrapped at some point by the line wrapping "
 				+"thingy") ],None) ]), s)
@@ -3734,7 +3742,7 @@ class TestDecTreeIO(unittest.TestCase):
 
 	def test_write_handles_choice(self):
 		s = io.BytesIO()
-		dt.DecTreeIO.write(dt.Document([
+		dt.HrbrtIO.write(dt.Document([
 			dt.FirstSection([ dt.ChoiceBlock([
 				dt.Choice("X","blah blah","yadda yadda","wibble",None)
 			],None) ],None) ]), s)
@@ -3743,7 +3751,7 @@ class TestDecTreeIO(unittest.TestCase):
 
 	def test_write_handles_choice_no_mark(self):
 		s = io.BytesIO()
-		dt.DecTreeIO.write(dt.Document([
+		dt.HrbrtIO.write(dt.Document([
 			dt.FirstSection([ dt.ChoiceBlock([
 				dt.Choice(None,"blah blah","yadda yadda","wibble",None)
 			],None) ],None) ]), s)
@@ -3752,7 +3760,7 @@ class TestDecTreeIO(unittest.TestCase):
 
 	def test_write_handles_choice_no_response(self):
 		s = io.BytesIO()
-		dt.DecTreeIO.write(dt.Document([
+		dt.HrbrtIO.write(dt.Document([
 			dt.FirstSection([ dt.ChoiceBlock([
 				dt.Choice("X","blah blah",None,"wibble",None)
 			],None) ],None) ]), s)
@@ -3761,7 +3769,7 @@ class TestDecTreeIO(unittest.TestCase):
 				
 	def test_write_handles_choice_no_goto(self):
 		s = io.BytesIO()
-		dt.DecTreeIO.write(dt.Document([
+		dt.HrbrtIO.write(dt.Document([
 			dt.FirstSection([ dt.ChoiceBlock([
 				dt.Choice("X","blah blah","yadda yadda",None,None)
 			],None) ],None) ]), s)
@@ -3770,7 +3778,7 @@ class TestDecTreeIO(unittest.TestCase):
 				
 	def test_write_handles_choice_no_response_or_goto(self):
 		s = io.BytesIO()
-		dt.DecTreeIO.write(dt.Document([
+		dt.HrbrtIO.write(dt.Document([
 			dt.FirstSection([ dt.ChoiceBlock([
 				dt.Choice("X","blah blah",None,None,None)
 			],None) ],None) ]), s)
@@ -3778,7 +3786,7 @@ class TestDecTreeIO(unittest.TestCase):
 
 	def test_write_handles_choice_wrapped_description(self):
 		s = io.BytesIO()
-		dt.DecTreeIO.write(dt.Document([
+		dt.HrbrtIO.write(dt.Document([
 			dt.FirstSection([ dt.ChoiceBlock([
 				dt.Choice("X","This is a test to test long lines of text "
 					+"are wrapped properly onto the next line, okay?",
@@ -3790,7 +3798,7 @@ class TestDecTreeIO(unittest.TestCase):
 
 	def test_write_handles_choice_wrapped_response(self):
 		s = io.BytesIO()
-		dt.DecTreeIO.write(dt.Document([
+		dt.HrbrtIO.write(dt.Document([
 			dt.FirstSection([ dt.ChoiceBlock([
 				dt.Choice("X","blah","This is a test to test long lines of text "
 					+"are wrapped properly onto the next line, okay?",
@@ -3801,7 +3809,7 @@ class TestDecTreeIO(unittest.TestCase):
 
 	def test_write_handles_choiceblock_multiple_choices(self):
 		s = io.BytesIO()
-		dt.DecTreeIO.write(dt.Document([
+		dt.HrbrtIO.write(dt.Document([
 				dt.FirstSection([ dt.ChoiceBlock([
 					dt.Choice("X","foo","bar","wibble",None),
 					dt.Choice("Y","weh","meh","yadda",None)
@@ -3812,7 +3820,7 @@ class TestDecTreeIO(unittest.TestCase):
 
 	def test_write_handles_multiple_sections(self):
 		s = io.BytesIO()
-		dt.DecTreeIO.write(dt.Document([
+		dt.HrbrtIO.write(dt.Document([
 			dt.FirstSection([ dt.TextBlock("foo",None) ],None),
 			dt.Section("dave",[ dt.TextBlock("bar",None) ],None) ]), s)
 		self.assertEquals(":: foo\n\n== dave ==\n\n:: bar\n", s.getvalue())
@@ -3820,7 +3828,7 @@ class TestDecTreeIO(unittest.TestCase):
 	@mock_statics(dt,"Document.parse")
 	def test_read_invokes_parse_with_input_obj(self):
 		s = io.BytesIO("test")
-		dt.DecTreeIO.read(s)
+		dt.HrbrtIO.read(s)
 		self.assertTrue( dt.Document.parse.called )
 		self.assertEquals( 1, len(dt.Document.parse.call_args_list) )
 		self.assertEquals( 0, len(dt.Document.parse.call_args[1]) )
@@ -3830,7 +3838,7 @@ class TestDecTreeIO(unittest.TestCase):
 	@mock_statics(dt,"Document.parse")
 	def test_read_constructs_input_with_stream_contents(self):
 		s = io.BytesIO("test")
-		dt.DecTreeIO.read(s)
+		dt.HrbrtIO.read(s)
 		i = dt.Document.parse.call_args[0][0]
 		self.assertEquals( "test\x00", i._data )
 
@@ -3839,14 +3847,14 @@ class TestDecTreeIO(unittest.TestCase):
 		m = mock.Mock()
 		dt.Document.parse.return_value = m
 		s = io.BytesIO("test")
-		self.assertEquals(m, dt.DecTreeIO.read(s) )
+		self.assertEquals(m, dt.HrbrtIO.read(s) )
 		
 	@mock_statics(dt,"Document.parse")
 	def test_read_throws_inputerror_for_parse_error(self):
 		dt.Document.parse.return_value = None
 		s = io.BytesIO("test")
 		with self.assertRaises(dt.InputError):
-			dt.DecTreeIO.read(s)
+			dt.HrbrtIO.read(s)
 	
 
 class TestWrapText(unittest.TestCase):
@@ -5253,7 +5261,13 @@ class TestGuiRunner(unittest.TestCase):
 			self.gui.on_curr_item_change.call_args_list[5][0][0].options)
 		self.assertEquals(["foo"],
 			self.gui.on_curr_item_change.call_args_list[6][0][0].options)
-	
-unittest.main()
+
+
+try:
+	unittest.main()
+finally:
+	# clean up temp symlink
+	if os.path.exists(TEMP_NAME):
+		os.remove(TEMP_NAME)
 
 
