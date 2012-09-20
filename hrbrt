@@ -2329,7 +2329,7 @@ if __name__ == "__main__":
 	# parse arguments
 	ap = argparse.ArgumentParser(description="Process branching text documents")
 	ap.add_argument("input",help="file to read from", nargs="?")
-	ap.add_argument("-o","--output",help="file to write to")
+	ap.add_argument("output",help="file to write to",nargs="?")
 	ap.add_argument("-f","--fromfmt",help="input format",choices=["hrbrt"])
 	ap.add_argument("-t","--tofmt",help="output format",choices=["hrbrt","json","xml","markdown"])
 	ap.add_argument("-v","--validate",help="just validate input",action="store_true")

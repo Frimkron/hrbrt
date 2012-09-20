@@ -4,39 +4,42 @@ Hrbrt
 *hrbrt* is a command line program for parsing Hrbrt (Human-Readable BRanching
 Text) documents. A file in Hrbrt format expresses a directed graph of text 
 nodes linked by choices. Potential uses include decision trees, questionaires, 
-and videogame scripts. Inspired by [Markdown]'s philosophy, Hrbrt is 
+and videogame dialogue scripts. Inspired by [Markdown]'s philosophy, Hrbrt is 
 machine-parsable while attempting to remain human-readable in its raw format.
 
 [markdown]: **TODO**
 
+
 hrbrt Command
 -------------
 
-### Dependencies
+### Dependencies ###
 
 hrbrt requires [Python 2], and optionally [Tkinter] to use the gui option.
 
-[python 2]: **TODO**
+[python 2]: http://python.org
 [tkinter]: **TODO**
 
-### Usage
+### Usage ###
 
-	hrbrt [options] [file]
+	hrbrt [options] [infile [outfile]]
 	
-file
-  : File to read (optional). Use `-` to read from standard input. This is the default.
+### Positional Arguments ###
+	
+infile
+  : File to read. Use `-` to read from standard input. This is the default.
+ 
+outfile
+  : File to write output to. Use `-` to write to standard output. If input file 
+  is specified, output file defaults to `<infile>.out.<ext>` using the name of 
+  the input file and the appropriat file extension for the output format. If no 
+  input file is specified, defaults to standard output.
   
-### Options
+### Options ###
 
 -h, --help
   : Show usage page and exit
   
--o, --output
-  : File to write output to. Use `-` to write to standard output. If input file is 
-  specified, output file defaults to `<infile>.out.<ext>` using the name of the
-  input file and the appropriat file extension for the output format. If no input
-  file is specified, defaults to standard output.
-
 -f, --fromfmt
   : Input format. If not specified, the input format is inferred from the input file 
   extension. Currently only `hrbrt` is supported. This is the default.
@@ -54,7 +57,7 @@ file
   otherwise defaults to `none`. The `gui` option requires Tk/Tkinter.
 
 
-### Examples
+### Examples ###
 
 Run the file *foobar.hb* on the command line
 
@@ -67,11 +70,11 @@ Validate *test.hb* and report errors
 	
 Convert *questionnaire.hb* to markdown format
 
-	$ dectree -o questionnaire.md questionnaire.hb
+	$ dectree questionnaire.hb questionnaire.md
 
 Convert *dialogue.hb* to XML and output to standard out
 
-	$ dectree -t xml -o - dialogue.hb
+	$ dectree -t xml dialogue.hb
 	<?xml version="1.0" ?>
 	<dectree>
 		<section>
@@ -82,7 +85,7 @@ Convert *dialogue.hb* to XML and output to standard out
 Read Hrbrt data from standard input, run using a GUI and output to *foo.js*
 in JSON format
 
-	$ dectree -r gui -o foo.js -
+	$ dectree -r gui - foo.js
 	:: [] Yes
 	:  [] No
 
@@ -90,7 +93,7 @@ in JSON format
 Hrbrt Syntax
 ------------
 
-### Example
+### Example ###
 
 Below is an example of Hrbrt syntax:
 
@@ -114,11 +117,13 @@ Below is an example of Hrbrt syntax:
 
 :: [ ] Burmese
 :  [ ] Siamese
+:  [ ] Persian
+:  [ ] Other
 
 :: What do you like most about cats?
 
 :: [ ] Their ears	-- GO TO end
-:  [ ] Their noses	-- GO TO end
+:  [ ] Their nose	-- GO TO end
 :  [ ] Their paws	-- GO TO end
 :  [ ] Their fur	-- GO TO end
 
@@ -137,31 +142,59 @@ Below is an example of Hrbrt syntax:
 
 ```
 
-Details on the various document elements are described below:
+### How to Read Hrbrt ###
+
+A document in Hrbrt format can be machine parsed by the recipient's machine and
+presented to them interactively, or the recipient can edit and return the raw 
+text document. 
+
+In either case, the recipient begins reading at the start of the document. When
+they encounter a set of choices, they mark their selection and
+read the response text beside it. If the response includes a `GO TO` statement,
+the user jumps to that section and continues from there, otherwise the user 
+continues reading as normal. The user continues to follow the flow of the 
+document until they reach the end.
+
+A user reading the raw Hrbrt text may mark their selection at each set of 
+options by inserting character data in the corresponding box (typically an 'X'
+or '#'). They may also add feedback to the document by adding new lines of
+text or writing in the existing blank lines.
 
 
 ### Sections ###
 
-The first section of the document has no heading, but each subsequent section 
-is indicated by a heading with 2 or more equals signs on each side. The section
-heading defines the section's name, which is case-insensitive. Section names 
-may be letters, numbers or any combination and may contain spaces. For example:
+Sections serve to split up the document and provide reference points to which
+the user can be directed as they traverse the document. 
+
+The first section of the document is where the user begins reading, and has no 
+heading. Each subsequent section is indicated by a heading with 2 or more 
+equals signs on each side. The section heading defines the section's name, 
+which is case-insensitive. Section names may be letters, numbers or any 
+combination and may contain spaces. All content below this heading, down to the
+next heading, is contained within the section.
+
+Example:
 
 ```	
 === My Section =====
 ```
 
-This would indicate a section called "my section". All content below this 
-heading, down to the next heading, is contained within this section.
+For restrictions concerning section flow, see 
+[Section Flow Rules][#section-flow-rules].
 
 
 ### Text and Recipient's Comments ###
 
-Regular text is added to the document by starting each line with a colon, and 
-the first line of each text block starts with a double colon.  Lines without 
-the preceding colons are assumed to be part of the recipient's comments. It is 
-assumed that if the recipient leaves feedback in the document, they will omit 
-the colon-space from the start. Example:
+Blocks of regular text can be added to the document by starting the first line
+of the block with a double colon, and each subsequent line with a single colon.
+A Hrbrt viewing tool will typically present separate text blocks to the user 
+one at a time.
+
+Lines without the preceding colons are assumed to be part of the recipient's 
+comments. It is assumed that if the recipient leaves feedback in the document, 
+they will omit the colon from the start. 
+
+Example:
 
 ```	
 :: This is part of the 
@@ -174,9 +207,12 @@ recipient's feedback
 
 ### Instructions ###
 
-Lines beginning with a percent sign are ignored by the parser and are intended 
-for writing instructions to users reading the raw file text. The first line of 
-an instruction block starts with a double percent sign. Example:
+Instruction blocks are not displayed by Hrbrt parsers and are intended for 
+writing instructions to users reading the raw file text. The first line of
+an instruction block starts with a double percent sign, and each subsequent 
+line with a single percent sign. 
+
+Example:
 
 ``` 
 %% Please fill in this document 
@@ -186,25 +222,59 @@ an instruction block starts with a double percent sign. Example:
 
 ### Choices ###
 
-Each option for the recipient starts with a pair of square brackets `[]` at the
-start of the line, after the colon (or double colon for the first line). There 
-may optionally be spaces between the brackets. Text following the square 
-brackets is treated as the option description. This may run onto multiple 
-lines, but each line must start with a colon. Options in the same block form a 
-group. At each choice block, the recipient indicates their (single) selection 
-from the group by adding text inside the square bracket (typically an 'X' 
-or '#').
+Blocks of choices are used to present the user with options from which they can
+make a single selection. Users readng the raw Hrbrt text indicate their 
+selection by writing something inside the box beside it - typically an 'X' 
+or '#' character.
+
+Each choice of the block goes on its own line. The first choice starts with a 
+double colon, and each subsequent choice starts with a single colon. Each 
+option then consists of a pair of square brackets `[]` followed by the option 
+description. The description may run onto multiple lines, each starting with a 
+colon.
+
+Example:
+
+```	
+:: [] Animal
+:  [] Some kind
+:      of Mineral
+:  [] Vegetable
+```
+
+A choice block may not immediately follow another choice block. They must be
+separated, using a [text block][#text-and-recipients-comments] for example.
 
 
 ### Choice Responses ###
 
-Each choice may optionally be followed by response text. This is separated from
-the choice description by a pair of hyphens `--`. The response text gives 
-feedback and further instructions to the recipient on selection of that option.
+Each [choice][#choice] may optionally be followed by response text. This is 
+separated from the choice description by a pair of hyphens `--`. The response 
+text gives feedback and further instructions to the recipient on selection of 
+that option.
+
 A choice response may optionally be followed by a go-to statement. This 
-consists of the words `GO TO` in uppercase, followed by a section name, and 
-optional trailing punctuation. The section names are case-insensitive. The 
-go-to statement instructs the recipient which section to jump to next.
+consists of the words `GO TO` in uppercase, followed by a 
+[section name][#sections], and optional trailing punctuation. The section names
+are case-insensitive. The go-to statement instructs the recipient which section
+to jump to next.
+
+The response and go-to statement may flow onto multiple lines, each starting 
+with a colon.
+
+Example:
+
+```	
+:: [] Animal	-- Good choice! GO TO my section
+:  [] Mineral	-- Ok. GO TO some section.
+:  [] Vegetable	-- Not bad, but I 
+:                  think you could
+:                  have chosen better.
+:                  GO TO end
+```
+
+For rules concerning go-to statements, see 
+[Section Flow Rules][#section-flow-rules].
 
 
 ### Quoting ###
@@ -214,13 +284,102 @@ typically be added by an email client. This allows recipients to reply directly
 to a document sent by email and it still be parsable.
 
 
-How to Read Hrbrt
------------------
+### Section Flow Rules ###
 
-A document in Hrbrt format can be machine parsed by the recipient's machine and
-presented to them interactively, or the recipient can edit and return the raw 
-text document. In either case, the recipient begins reading at the start of the
-document. When they encounter a set of choices, they mark their selection and 
-read the response text beside it. If the response includes a `GO TO` statement,
-the user jumps to that section and continues from there, until they reach the 
-end of the document.
+A valid Hrbrt document *must* allow the user to reach the end of the document's
+final [section][#sections]. Dead ends and infinite loops are not allowed.
+
+Before reaching the end of a section (other than the final section) the user 
+*must* be explicitly directed to a different section by a 
+[go-to statement][#choice-responses]. In other words, a document is not valid
+if the user can "fall through" to the end of a section. 
+
+For example, the following is *not* allowed:
+
+```	
+:: [] Option A -- GO TO my section
+:  [] Option B
+
+== My Section ==
+...
+```
+
+Hrbrt Formal Definition
+-----------------------
+
+```bnf
+<Document> ::= <FirstSection> <Section>*
+
+<FirstSection> ::= <SectionContent>
+
+<Section> ::= <Heading> <SectionContent>
+
+<SectionContent> ::= ( <BlankLine> | !<StarterLine> <FeedbackLine> )*
+                        ( <ChoiceBlock> | <InstructionBlock> | <TextBlock> )+
+
+<BlankLine> ::= <QuoteMarker>? <LineWhitespace>? <Newline>
+
+<ChoiceBlock> ::= <FirstChoice>
+                   ( <BlankLine> | <Choice> | !<StarterLine> <FeedbackLine> )*
+
+<InstructionBlock> ::= <FirstInstructionLine>
+                        ( <BlankLine> | <InstructionLine> | !<StarterLine> <FeedbackLine> )*   
+
+<TextBlock> ::= <FirstTextLine> 
+                 ( <BlankLine> | <TextLine> | !<StarterLine> <FeedbackLine> )*
+
+<StarterLine> ::= <FirstTextLine> | <FirstInstructionLine> | <Heading> | <FirstChoice>
+
+<QuoteMarker> ::= ( ( ' ' | '\t' )* '>' )+ ( ' ' | '\t' )*
+
+<LineWhitespace> ::= ( ' ' | '\t' )+
+
+<Newline> ::= '\r' '\n'? | '\n'
+
+<Choice> ::= <QuoteMarker>? <TextLineMarker> 
+               <LineWhitespace>? <ChoiceMarker> <ChoiceContent>
+
+<FirstChoice> ::= <QuoteMarker>? <FirstTextLineMarker>
+                    <LineWhitespace>? <ChoiceMarker> <ChoiceContent>
+
+<ChoiceContent> ::= <LineWhitespace>? <ChoiceDescription> <ChoiceResponse>?
+                      <LineWhitespace>? <Newline>
+
+<ChoiceMarker> ::= '[' <LineWhitespace>? <ChoiceMarkerMark>? ']'
+
+<ChoiceMarkerMark> ::= ( '\x20-\x5C' | '\x5E-\x7E' | '\t' )+
+
+<ChoiceDescription> ::= <ChoiceDescPart> ( ChoiceDescNewline> <ChoiceDescPart> )*
+
+<ChoiceDescNewline> ::= <Newline>
+                        ( <BlankLine> | !( <StarterLine> | <TextLine> ) <FeedbackLine> )*
+                        <QuoteMarker>? <TextLineMarker> <LineWhitespace>? !<ChoiceMarker>
+
+<ChoiceDescPart> ::= ( '\x20-\x2C' | '\x2E-\x7E' | '\t' | '-' !'-' )+
+
+<ChoiceResponse> ::= <ChoiceDescNewline>? '-' '-'
+                      ( <ChoiceDescNewline>? <ChoiceResponseDesc> <ChoiceGoto>? 
+                        | <ChoiceGoto> )
+
+ChoiceResponse <- ChoiceDescNewline? ChoiceResponseSeparator ( ChoiceDescNewline? ChoiceResponseDesc ChoiceGoto? | ChoiceGoto )
+ChoiceResponseSeparator <- '--'
+ChoiceResponseDesc <-- ChoiceResponseDescPart ( ChoiceDescNewline ChoiceReponseDescPart )*
+ChoiceResponseDescPart <- ( '[a-zABCDEFHIJKLMNOPQRSTUVWXYZ0-9_ \t`!"$%^&*()_+=[{};:'@#~,<.>/?\|-]' | 'G' !'O TO' )+
+ChoiceGoto <- ChoiceDescNewline? GotoMarker LineWhitespace? Name EndPunctuation?
+GotoMarker <- 'GO TO'
+EndPunctuation <- '[.,:;!?]+'
+Heading <- QuoteMarker? HeadingMarker LineWhitespace? Name HeadingMarker Newline
+HeadingMarker <- '={2,}'
+Name <- '[a-zA-Z0-9_-][a-zA-Z0-9_ -]*'
+InstructionLine <- QuoteMarker? InstructionLineMarker TextLineContent
+InstructionLineMarker <- '%' !'%'
+FirstInstructionLine <- QuoteMarker? FirstInstructionLineMarker TextLineContent
+FirstInstructionLineMarker <- '%%'
+LineText <- '[a-zA-Z0-9_- \t`!"$%^&*()_+=[{]};:'@#~,<.>/?\|]+'
+TextLine <- QuoteMarker? TextLineMarker TextLineContent
+TextLineMarker <- ':' !':'
+FirstTextLine <- QuoteMarker? FirstTextLineMarker TextLineContent
+FirstTextLineMarker <- '::'
+TextLineContent <- LineWhitespace? LineText Newline
+FeedbackLine <- QuoteMarker? LineText Newline
+```
