@@ -2333,7 +2333,7 @@ if __name__ == "__main__":
 	ap.add_argument("-f","--fromfmt",help="input format",choices=["hrbrt"])
 	ap.add_argument("-t","--tofmt",help="output format",choices=["hrbrt","json","xml","markdown"])
 	ap.add_argument("-v","--validate",help="just validate input",action="store_true")
-	ap.add_argument("-r","--run",help="how to run file",choices=["cl","gui","none"])
+	ap.add_argument("-r","--run",help="how to run file",choices=["cl","gui","no"])
 
 	args = ap.parse_args()
 
@@ -2374,7 +2374,7 @@ if __name__ == "__main__":
 		args.run = "cl"
 	
 	# if necessary, run and add feedback to parse tree
-	if args.run not in (None,"none"):
+	if args.run not in (None,"no"):
 		if args.run == "gui":
 			runner = GuiRunner
 		else:
