@@ -1,21 +1,31 @@
 Hrbrt
 =====
 
+* [Instruction](#introduction)
+* [`hrbrt` Command](#hrbrt-command)
+* [Hrbrt Syntax](#hrbrt-syntax)
+* [Hrbrt Formal Definition](#hrbrt-formal-definition)
+* [Licence](#licence)
+
+
+Introduction
+------------
+
 *hrbrt* is a command line program for parsing Hrbrt (Human-Readable BRanching
 Text) documents. A file in Hrbrt format expresses a directed graph of text 
-nodes linked by choices. Potential uses include decision trees, questionaires, 
+nodes linked by choices. Potential uses include decision trees, questionnaires,
 and videogame dialogue scripts. Inspired by [Markdown]'s philosophy, Hrbrt is 
 machine-parsable while attempting to remain human-readable in its raw format.
 
 [markdown]: **TODO**
 
 
-hrbrt Command
--------------
+`hrbrt` Command
+---------------
 
 ### Dependencies ###
 
-hrbrt requires [Python 2], and optionally [Tkinter] to use the gui option.
+hrbrt requires [Python 2], and optionally [Tkinter] to use the GUI option.
 
 [python 2]: http://python.org
 [tkinter]: **TODO**
@@ -26,35 +36,35 @@ hrbrt requires [Python 2], and optionally [Tkinter] to use the gui option.
 	
 ### Positional Arguments ###
 	
-infile
+`infile`
   : File to read. Use `-` to read from standard input. This is the default.
  
-outfile
+`outfile`
   : File to write output to. Use `-` to write to standard output. If input file 
-  is specified, output file defaults to `<infile>.out.<ext>` using the name of 
-  the input file and the appropriat file extension for the output format. If no 
-  input file is specified, defaults to standard output.
+    is specified, output file defaults to `<infile>.out.<ext>` using the name of 
+    the input file and the appropriate file extension for the output format. If no 
+    input file is specified, defaults to standard output.
   
 ### Options ###
 
--h, --help
+`-h`, `--help`
   : Show usage page and exit
   
--f, --fromfmt
+`-f`, `--fromfmt`
   : Input format. If not specified, the input format is inferred from the input file 
-  extension. Currently only `hrbrt` is supported. This is the default.
+    extension. Currently only `hrbrt` is supported. This is the default.
   
--t, --tofmt
+`-t`, `--tofmt`
   : Output format. One of `hrbrt`, `json`, `xml`, or `markdown`. If not specified, the 
-  output format is inferred from the output file extension. Default is `hrbrt`.
+    output format is inferred from the output file extension. Default is `hrbrt`.
 
--v, --validate
+`-v`, `--validate`
   : Just validate input, reporting syntax errors, and exit
 
--r, --run
+`-r`, `--run`
   : How to run the file. One of `cl` (command-line), `gui` (a basic graphical wizard),
-  or `none` (don't run). Defaults to `cl` if no output file or format is specified, 
-  otherwise defaults to `none`. The `gui` option requires Tk/Tkinter.
+    or `none` (don't run). Defaults to `cl` if no output file or format is specified, 
+    otherwise defaults to `none`. The `gui` option requires Tk/Tkinter.
 
 
 ### Examples ###
@@ -65,27 +75,27 @@ Run the file *foobar.hb* on the command line
 
 Validate *test.hb* and report errors
 
-	$ dectree -v test.hb
+	$ hrbrt -v test.hb
 	Document is valid!
 	
 Convert *questionnaire.hb* to markdown format
 
-	$ dectree questionnaire.hb questionnaire.md
+	$ hrbrt questionnaire.hb questionnaire.md
 
 Convert *dialogue.hb* to XML and output to standard out
 
-	$ dectree -t xml dialogue.hb
+	$ hrbrt -t xml dialogue.hb
 	<?xml version="1.0" ?>
-	<dectree>
+	<document>
 		<section>
 			<text>Nice hat!</text>
 		</section>
-	</dectree>
+	</document>
 
 Read Hrbrt data from standard input, run using a GUI and output to *foo.js*
 in JSON format
 
-	$ dectree -r gui - foo.js
+	$ hrbrt -r gui - foo.js
 	:: [] Yes
 	:  [] No
 
@@ -102,7 +112,7 @@ Below is an example of Hrbrt syntax:
 
 :: Hi there. 
 
-%% Please fill in my questionaire!
+%% Please fill in my questionnaire!
 
 :: What would you say
 :  is your favourite animal?
@@ -123,7 +133,7 @@ Below is an example of Hrbrt syntax:
 :: What do you like most about cats?
 
 :: [ ] Their ears	-- GO TO end
-:  [ ] Their nose	-- GO TO end
+:  [ ] Their noses	-- GO TO end
 :  [ ] Their paws	-- GO TO end
 :  [ ] Their fur	-- GO TO end
 
@@ -180,7 +190,7 @@ Example:
 ```
 
 For restrictions concerning section flow, see 
-[Section Flow Rules][#section-flow-rules].
+[Section Flow Rules](#section-flow-rules).
 
 
 ### Text and Recipient's Comments ###
@@ -223,7 +233,7 @@ Example:
 ### Choices ###
 
 Blocks of choices are used to present the user with options from which they can
-make a single selection. Users readng the raw Hrbrt text indicate their 
+make a single selection. Users Reading the raw Hrbrt text indicate their 
 selection by writing something inside the box beside it - typically an 'X' 
 or '#' character.
 
@@ -235,7 +245,7 @@ colon.
 
 Example:
 
-```	
+``` 
 :: [] Animal
 :  [] Some kind
 :      of Mineral
@@ -243,19 +253,19 @@ Example:
 ```
 
 A choice block may not immediately follow another choice block. They must be
-separated, using a [text block][#text-and-recipients-comments] for example.
+separated, using a [text block](#text-and-recipients-comments) for example.
 
 
 ### Choice Responses ###
 
-Each [choice][#choice] may optionally be followed by response text. This is 
+Each [choice](#choice) may optionally be followed by response text. This is 
 separated from the choice description by a pair of hyphens `--`. The response 
 text gives feedback and further instructions to the recipient on selection of 
 that option.
 
 A choice response may optionally be followed by a go-to statement. This 
 consists of the words `GO TO` in uppercase, followed by a 
-[section name][#sections], and optional trailing punctuation. The section names
+[section name](#sections), and optional trailing punctuation. The section names
 are case-insensitive. The go-to statement instructs the recipient which section
 to jump to next.
 
@@ -274,7 +284,7 @@ Example:
 ```
 
 For rules concerning go-to statements, see 
-[Section Flow Rules][#section-flow-rules].
+[Section Flow Rules](#section-flow-rules).
 
 
 ### Quoting ###
@@ -287,11 +297,11 @@ to a document sent by email and it still be parsable.
 ### Section Flow Rules ###
 
 A valid Hrbrt document *must* allow the user to reach the end of the document's
-final [section][#sections]. Dead ends and infinite loops are not allowed.
+final [section](#sections). Dead ends and infinite loops are not allowed.
 
 Before reaching the end of a section (other than the final section) the user 
 *must* be explicitly directed to a different section by a 
-[go-to statement][#choice-responses]. In other words, a document is not valid
+[go-to statement](#choice-responses). In other words, a document is not valid
 if the user can "fall through" to the end of a section. 
 
 For example, the following is *not* allowed:
@@ -323,12 +333,14 @@ Hrbrt Formal Definition
                    ( <BlankLine> | <Choice> | !<StarterLine> <FeedbackLine> )*
 
 <InstructionBlock> ::= <FirstInstructionLine>
-                        ( <BlankLine> | <InstructionLine> | !<StarterLine> <FeedbackLine> )*   
+                        ( <BlankLine> | <InstructionLine> 
+                          | !<StarterLine> <FeedbackLine> )*   
 
 <TextBlock> ::= <FirstTextLine> 
                  ( <BlankLine> | <TextLine> | !<StarterLine> <FeedbackLine> )*
 
-<StarterLine> ::= <FirstTextLine> | <FirstInstructionLine> | <Heading> | <FirstChoice>
+<StarterLine> ::= <FirstTextLine> | <FirstInstructionLine> 
+                    | <Heading> | <FirstChoice>
 
 <QuoteMarker> ::= ( ( ' ' | '\t' )* '>' )+ ( ' ' | '\t' )*
 
@@ -349,11 +361,12 @@ Hrbrt Formal Definition
 
 <ChoiceMarkerMark> ::= ( '\x20-\x5C' | '\x5E-\x7E' | '\t' )+
 
-<ChoiceDescription> ::= <ChoiceDescPart> ( ChoiceDescNewline> <ChoiceDescPart> )*
+<ChoiceDescription> ::= <ChoiceDescPart> 
+                         ( ChoiceDescNewline> <ChoiceDescPart> )*
 
 <ChoiceDescNewline> ::= <Newline>
-                        ( <BlankLine> | !( <StarterLine> | <TextLine> ) <FeedbackLine> )*
-                        <QuoteMarker>? <TextLineMarker> <LineWhitespace>? !<ChoiceMarker>
+                     ( <BlankLine> | !( <StarterLine> | <TextLine> ) <FeedbackLine> )*
+                     <QuoteMarker>? <TextLineMarker> <LineWhitespace>? !<ChoiceMarker>
 
 <ChoiceDescPart> ::= ( '\x20-\x2C' | '\x2E-\x7E' | '\t' | '-' !'-' )+
 
@@ -361,25 +374,53 @@ Hrbrt Formal Definition
                       ( <ChoiceDescNewline>? <ChoiceResponseDesc> <ChoiceGoto>? 
                         | <ChoiceGoto> )
 
-ChoiceResponse <- ChoiceDescNewline? ChoiceResponseSeparator ( ChoiceDescNewline? ChoiceResponseDesc ChoiceGoto? | ChoiceGoto )
-ChoiceResponseSeparator <- '--'
-ChoiceResponseDesc <-- ChoiceResponseDescPart ( ChoiceDescNewline ChoiceReponseDescPart )*
-ChoiceResponseDescPart <- ( '[a-zABCDEFHIJKLMNOPQRSTUVWXYZ0-9_ \t`!"$%^&*()_+=[{};:'@#~,<.>/?\|-]' | 'G' !'O TO' )+
-ChoiceGoto <- ChoiceDescNewline? GotoMarker LineWhitespace? Name EndPunctuation?
-GotoMarker <- 'GO TO'
-EndPunctuation <- '[.,:;!?]+'
-Heading <- QuoteMarker? HeadingMarker LineWhitespace? Name HeadingMarker Newline
-HeadingMarker <- '={2,}'
-Name <- '[a-zA-Z0-9_-][a-zA-Z0-9_ -]*'
-InstructionLine <- QuoteMarker? InstructionLineMarker TextLineContent
-InstructionLineMarker <- '%' !'%'
-FirstInstructionLine <- QuoteMarker? FirstInstructionLineMarker TextLineContent
-FirstInstructionLineMarker <- '%%'
-LineText <- '[a-zA-Z0-9_- \t`!"$%^&*()_+=[{]};:'@#~,<.>/?\|]+'
-TextLine <- QuoteMarker? TextLineMarker TextLineContent
-TextLineMarker <- ':' !':'
-FirstTextLine <- QuoteMarker? FirstTextLineMarker TextLineContent
-FirstTextLineMarker <- '::'
-TextLineContent <- LineWhitespace? LineText Newline
-FeedbackLine <- QuoteMarker? LineText Newline
+<ChoiceResponseDesc> ::= <ChoiceResponseDescPart>
+                          ( <ChoiceDescNewLine> <ChoiceResponseDescPart> )*
+
+<ChoiceResponseDescPart> ::= ( '\x20-\x46' | '\x48-\x7E' 
+                               | 'G' !( 'O' ' ' 'T' 'O') )
+
+<ChoiceGoto> ::= <ChoiceDescNewLin>? 'G' 'O' ' ' 'T' 'O' 
+                   <LineWhitespace>? <Name> <EndPunctuation>?
+
+<EndPunctuation> ::= ( '.' | ',' | ':' | ';' | '!' | '?' )+
+
+<Heading> ::= <QuoteMarker>? <HeadingMarker> <LineWhitespace>?
+                <Name> <HeadingMarker> <Newline>
+
+<HeadingMarker> ::= '=' '='+
+
+<Name> ::= ( 'a-z' | 'A-Z' | '0-9' | '_' | '-' )
+			( 'a-z' | 'A-Z' | '0-9' | '_' | '-' | ' ' )*
+
+<InstructionLine> ::= <QuoteMarker>? <InstructionLineMarker> <TextLineContent>
+
+<InstructionLineMarker ::= '%' !'%'
+
+<FirstInstructionLine> ::= <QuoteMarker>? 
+                             <FirstInstructionLineMarker> <TextLineContent>
+
+<FirstInstructionLineMarker> ::= '%' '%'
+
+<LineText> ::= ( '\x20-\x7E' | '\t' )+
+
+<TextLine> ::= <QuoteMarker>? <TextLineMarker> <TextLineContent>
+
+<TextLineMarker> ::= ':' !':'
+
+<FirstTextLine> ::= <QuoteMarker>? <FirstTextLineMarker> <TextLineContent>
+
+<FirstTextLineMarker ::= ':' ':'
+
+<TextLineContent> ::= <LineWhitespace>? <LineText> <Newline>
+
+<FeedbackLine> ::= <QuoteMarker>? <LineText> <Newline>
 ```
+
+Licence
+-------
+
+The `hrbrt` tool is released under the [MIT licence]. For the full text of 
+this licence, see the source file.
+
+[MIT licence]: **TODO**

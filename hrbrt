@@ -1878,7 +1878,7 @@ class XmlIO(object):
 		return None
 	
 	def _visit_document(self,document,doc):
-		elDoc = doc.createElement("dectree")
+		elDoc = doc.createElement("document")
 		for section in document.sections:
 			self._append_to(self._visit_section(section,doc),elDoc)
 		return elDoc

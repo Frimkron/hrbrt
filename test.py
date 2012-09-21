@@ -4281,7 +4281,7 @@ class TestXmlIO(unittest.TestCase):
 		dt.XmlIO.write(dt.Document([]),s)
 		self.assertEquals(
 			'<?xml version="1.0" ?>\n'
-			+'<dectree/>\n', s.getvalue())
+			+'<document/>\n', s.getvalue())
 		
 	def test_write_handles_firstsection(self):
 		s = io.BytesIO()
@@ -4289,11 +4289,11 @@ class TestXmlIO(unittest.TestCase):
 			dt.FirstSection([],'this "is" <fab>') ]), s )
 		self.assertEquals(
 			'<?xml version="1.0" ?>\n'
-			+'<dectree>\n'
+			+'<document>\n'
 			+'    <section>\n'
 			+'        <feedback>this &quot;is&quot; &lt;fab&gt;</feedback>\n'
 			+'    </section>\n'
-			+'</dectree>\n', 
+			+'</document>\n', 
 			s.getvalue())
 					
 	def test_write_handles_section(self):
@@ -4302,12 +4302,12 @@ class TestXmlIO(unittest.TestCase):
 				dt.Section('My <"> Section',[],'excellent "stuff" >_<') ]), s)
 		self.assertEquals(
 			'<?xml version="1.0" ?>\n'
-			+'<dectree>\n'
+			+'<document>\n'
 			+'    <section>\n'
 			+'        <name>My &lt;&quot;&gt; Section</name>\n'
 			+'        <feedback>excellent &quot;stuff&quot; &gt;_&lt;</feedback>\n'
 			+'    </section>\n'
-			+'</dectree>\n', s.getvalue() )
+			+'</document>\n', s.getvalue() )
 				
 	def test_write_handles_textblock(self):
 		s = io.BytesIO()
@@ -4315,11 +4315,11 @@ class TestXmlIO(unittest.TestCase):
 			dt.FirstSection([ dt.TextBlock('This is "a" <<test>>',None) ],None) ]), s)
 		self.assertEquals(
 			'<?xml version="1.0" ?>\n'
-			+'<dectree>\n'
+			+'<document>\n'
 			+'    <section>\n'
 			+'        <text>This is &quot;a&quot; &lt;&lt;test&gt;&gt;</text>\n'
 			+'    </section>\n'
-			+'</dectree>\n', s.getvalue())
+			+'</document>\n', s.getvalue())
 
 	def test_formt_handles_firstsection_multiple_blocks(self):
 		s = io.BytesIO()
@@ -4328,12 +4328,12 @@ class TestXmlIO(unittest.TestCase):
 				dt.TextBlock("More testing",None) ],None) ]), s)
 		self.assertEquals(
 			'<?xml version="1.0" ?>\n'
-			+'<dectree>\n'
+			+'<document>\n'
 			+'    <section>\n'
 			+'        <text>Testing</text>\n'
 			+'        <text>More testing</text>\n'
 			+'    </section>\n'
-			+'</dectree>\n', s.getvalue())
+			+'</document>\n', s.getvalue())
 		
 	def test_write_handles_section_multiple_blocks(self):
 		s = io.BytesIO()
@@ -4342,13 +4342,13 @@ class TestXmlIO(unittest.TestCase):
 				dt.TextBlock("More testing",None) ],None) ]), s)
 		self.assertEquals(
 			'<?xml version="1.0" ?>\n'
-			+'<dectree>\n'
+			+'<document>\n'
 			+'    <section>\n'
 			+'        <name>dave</name>\n'
 			+'        <text>Testing</text>\n'
 			+'        <text>More testing</text>\n'
 			+'    </section>\n'
-			+'</dectree>\n', s.getvalue())
+			+'</document>\n', s.getvalue())
 				
 	def test_write_handles_firstsection_block_and_feedback(self):
 		s = io.BytesIO()
@@ -4356,12 +4356,12 @@ class TestXmlIO(unittest.TestCase):
 			dt.FirstSection([ dt.TextBlock("Test",None) ], "Blah blah") ]), s)
 		self.assertEquals(
 			'<?xml version="1.0" ?>\n'
-			+'<dectree>\n'
+			+'<document>\n'
 			+'    <section>\n'
 			+'        <text>Test</text>\n'
 			+'        <feedback>Blah blah</feedback>\n'
 			+'    </section>\n'
-			+'</dectree>\n', s.getvalue())
+			+'</document>\n', s.getvalue())
 				
 	def test_write_handles_section_block_and_feedback(self):
 		s = io.BytesIO()
@@ -4369,13 +4369,13 @@ class TestXmlIO(unittest.TestCase):
 			dt.Section("dave",[ dt.TextBlock("Test",None) ], "Blah blah") ]), s)
 		self.assertEquals(
 			'<?xml version="1.0" ?>\n'
-			+'<dectree>\n'
+			+'<document>\n'
 			+'    <section>\n'
 			+'        <name>dave</name>\n'
 			+'        <text>Test</text>\n'
 			+'        <feedback>Blah blah</feedback>\n'
 			+'    </section>\n'
-			+'</dectree>\n', s.getvalue() )
+			+'</document>\n', s.getvalue() )
 
 	def test_write_handles_instructionblock(self):
 		s = io.BytesIO()
@@ -4383,11 +4383,11 @@ class TestXmlIO(unittest.TestCase):
 			dt.FirstSection([ dt.InstructionBlock('This is >a< "test"',None) ],None) ]), s)
 		self.assertEquals(
 			'<?xml version="1.0" ?>\n'
-			+'<dectree>\n'
+			+'<document>\n'
 			+'    <section>\n'
 			+'        <instructions>This is &gt;a&lt; &quot;test&quot;</instructions>\n'
 			+'    </section>\n'
-			+'</dectree>\n', s.getvalue() )
+			+'</document>\n', s.getvalue() )
 
 	def test_write_handles_choiceblock(self):
 		s = io.BytesIO()
@@ -4395,13 +4395,13 @@ class TestXmlIO(unittest.TestCase):
 			dt.FirstSection([ dt.ChoiceBlock([], '<This> is "a" test') ],None)]), s)
 		self.assertEquals(
 			'<?xml version="1.0" ?>\n'
-			+'<dectree>\n'
+			+'<document>\n'
 			+'    <section>\n'
 			+'        <choice>\n'
 			+'            <feedback>&lt;This&gt; is &quot;a&quot; test</feedback>\n'
 			+'        </choice>\n'
 			+'    </section>\n'
-			+'</dectree>\n', s.getvalue())
+			+'</document>\n', s.getvalue())
 
 	def test_write_handles_choice(self):
 		s = io.BytesIO()
@@ -4412,7 +4412,7 @@ class TestXmlIO(unittest.TestCase):
 			],None) ],None) ]), s)
 		self.assertEquals(
 			'<?xml version="1.0" ?>\n'
-			+'<dectree>\n'
+			+'<document>\n'
 			+'    <section>\n'
 			+'        <choice>\n'
 			+'            <option>\n'
@@ -4423,7 +4423,7 @@ class TestXmlIO(unittest.TestCase):
 			+'            </option>\n'
 			+'        </choice>\n'
 			+'    </section>\n'
-			+'</dectree>\n', s.getvalue())
+			+'</document>\n', s.getvalue())
 
 	def test_write_handles_choice_no_mark(self):
 		s = io.BytesIO()
@@ -4434,7 +4434,7 @@ class TestXmlIO(unittest.TestCase):
 			],None) ],None) ]), s)
 		self.assertEqual(
 			'<?xml version="1.0" ?>\n'
-			+'<dectree>\n'
+			+'<document>\n'
 			+'    <section>\n'
 			+'        <choice>\n'
 			+'            <option>\n'
@@ -4444,7 +4444,7 @@ class TestXmlIO(unittest.TestCase):
 			+'            </option>\n'
 			+'        </choice>\n'
 			+'    </section>\n'
-			+'</dectree>\n', s.getvalue() )
+			+'</document>\n', s.getvalue() )
 
 	def test_write_handles_choice_no_response(self):
 		s = io.BytesIO()
@@ -4454,7 +4454,7 @@ class TestXmlIO(unittest.TestCase):
 			],None) ],None) ]), s)
 		self.assertEqual(
 			'<?xml version="1.0" ?>\n'
-			+'<dectree>\n'
+			+'<document>\n'
 			+'    <section>\n'
 			+'        <choice>\n'
 			+'            <option>\n'
@@ -4464,7 +4464,7 @@ class TestXmlIO(unittest.TestCase):
 			+'            </option>\n'
 			+'        </choice>\n'
 			+'    </section>\n'
-			+'</dectree>\n', s.getvalue())
+			+'</document>\n', s.getvalue())
 				
 	def test_write_handles_choice_no_goto(self):
 		s = io.BytesIO()
@@ -4474,7 +4474,7 @@ class TestXmlIO(unittest.TestCase):
 			],None) ],None) ]), s)
 		self.assertEquals(
 			'<?xml version="1.0" ?>\n'
-			+'<dectree>\n'
+			+'<document>\n'
 			+'    <section>\n'
 			+'        <choice>\n'
 			+'            <option>\n'
@@ -4484,7 +4484,7 @@ class TestXmlIO(unittest.TestCase):
 			+'            </option>\n'
 			+'        </choice>\n'
 			+'    </section>\n'
-			+'</dectree>\n', s.getvalue())
+			+'</document>\n', s.getvalue())
 				
 	def test_write_handles_choice_no_response_or_goto(self):
 		s = io.BytesIO()
@@ -4494,7 +4494,7 @@ class TestXmlIO(unittest.TestCase):
 			],None) ],None) ]), s)
 		self.assertEquals(
 			'<?xml version="1.0" ?>\n'
-			+'<dectree>\n'
+			+'<document>\n'
 			+'    <section>\n'
 			+'        <choice>\n'
 			+'            <option>\n'
@@ -4503,7 +4503,7 @@ class TestXmlIO(unittest.TestCase):
 			+'            </option>\n'
 			+'        </choice>\n'
 			+'    </section>\n'
-			+'</dectree>\n', s.getvalue())
+			+'</document>\n', s.getvalue())
 
 	def test_write_handles_choiceblock_multiple_choices(self):
 		s = io.BytesIO()
@@ -4514,7 +4514,7 @@ class TestXmlIO(unittest.TestCase):
 				],None) ],None) ]), s)
 		self.assertEquals(
 			'<?xml version="1.0" ?>\n'
-			+'<dectree>\n'
+			+'<document>\n'
 			+'    <section>\n'
 			+'        <choice>\n'
 			+'            <option>\n'
@@ -4531,7 +4531,7 @@ class TestXmlIO(unittest.TestCase):
 			+'            </option>\n'
 			+'        </choice>\n'
 			+'    </section>\n'
-			+'</dectree>\n', s.getvalue())
+			+'</document>\n', s.getvalue())
 
 	def test_write_handles_multiple_sections(self):
 		s = io.BytesIO()
@@ -4540,7 +4540,7 @@ class TestXmlIO(unittest.TestCase):
 			dt.Section("dave",[ dt.TextBlock("bar",None) ],None) ]), s)
 		self.assertEquals(
 			'<?xml version="1.0" ?>\n'
-			+'<dectree>\n'
+			+'<document>\n'
 			+'    <section>\n'
 			+'        <text>foo</text>\n'
 			+'    </section>\n'
@@ -4548,7 +4548,7 @@ class TestXmlIO(unittest.TestCase):
 			+'        <name>dave</name>\n'
 			+'        <text>bar</text>\n'
 			+'    </section>\n'
-			+'</dectree>\n', s.getvalue())
+			+'</document>\n', s.getvalue())
 
 
 class TestGuiRunner(unittest.TestCase):
