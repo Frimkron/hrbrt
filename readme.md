@@ -107,8 +107,8 @@ in JSON format
 	:  [] No
 
 
-Use as Python Module
---------------------
+As a Python Module
+------------------
 
 To use `hrbrt` as a Python module, first rename the file so that it has a ".py"
 extension, then import. The `HrbrtIO` class can be used to parse a Hrbrt 
@@ -121,12 +121,12 @@ See the usage example below:
 	>>> # A minimal Hrbrt document
 	... data = ":: Test\n"
 	>>> 
-	>>> # Create the Hrbrt parser
-	... parser = hrbrt.HrbrtIO()
+	>>> # Create a simple string stream.
+	... # Could read from a file stream instead
+	... stream = io.BytesIO(data)
 	>>> 
-	>>> # Parse the data from a simple string stream
-	... # as an example. Could use a file stream instead 
-	... document = parser.read(io.BytesIO(data))
+	>>> # Parse the data stream
+	... document = hrbrt.HrbrtIO.read(stream)
 	>>> 
 	>>> # Read data from the resulting parse tree
 	... print document.sections[0].items[0].text
@@ -207,7 +207,7 @@ Sections serve to split up the document and provide reference points to which
 the user can be directed as they traverse the document. (See explanation of 
 "go-to" statements in the chapter "Choice Responses").
 
-Each section contains one or more *blocks* of content. Theses may be any 
+Each section contains one or more *blocks* of content. These may be any 
 combination of *text*, *instruction* or *choice* blocks (see subsequent 
 chapters for details).
 
@@ -453,10 +453,11 @@ Credits and Licence
 * Author: Mark Frimston
 * Email: <mfrimston@gmail.com>
 * Homepage: <http://markfrimston.co.uk>
-* Project page: **TODO**
+* Project page: <https://github.com/Frimkron/hrbrt>
 
 The `hrbrt` tool is released under the [MIT licence]. For the full text of 
 this licence, see the source file.
 
 [MIT licence]: http://en.wikipedia.org/wiki/Mit_license
+
 
