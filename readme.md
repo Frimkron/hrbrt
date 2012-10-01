@@ -194,7 +194,7 @@ Below is an example of Hrbrt syntax:
 	
 	:: [ ] Yes	-- GO TO end
 	:  [ ] No	-- Your finger slipped. I see.
-					GO TO cats
+	:              GO TO cats
 	
 	=== End ===
 	
