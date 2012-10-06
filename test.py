@@ -7,6 +7,7 @@ import sys
 import mock
 import unittest
 import Tkinter
+import re
 
 TEMP_NAME = "hbtemp.py"
 
@@ -4269,6 +4270,11 @@ class TestMarkdownIO(unittest.TestCase):
 
 class TestXmlIO(unittest.TestCase):
 
+	def strip_text_nodes(self,xml):
+		tags = "feedback|name|text|instructions|mark|desc|response|goto"
+		return re.sub("<(%s)>\s*" % tags,"<\\1>",
+			re.sub("\s*</(%s)>" % tags,"</\\1>",xml))
+
 	def test_has_extensions(self):
 		dt.XmlIO.EXTENSIONS[0]
 		
@@ -4281,7 +4287,7 @@ class TestXmlIO(unittest.TestCase):
 		dt.XmlIO.write(dt.Document([]),s)
 		self.assertEquals(
 			'<?xml version="1.0" ?>\n'
-			+'<document/>\n', s.getvalue())
+			+'<document/>\n', self.strip_text_nodes(s.getvalue()))
 		
 	def test_write_handles_firstsection(self):
 		s = io.BytesIO()
@@ -4294,7 +4300,7 @@ class TestXmlIO(unittest.TestCase):
 			+'        <feedback>this &quot;is&quot; &lt;fab&gt;</feedback>\n'
 			+'    </section>\n'
 			+'</document>\n', 
-			s.getvalue())
+			self.strip_text_nodes(s.getvalue()))
 					
 	def test_write_handles_section(self):
 		s = io.BytesIO()
@@ -4307,7 +4313,8 @@ class TestXmlIO(unittest.TestCase):
 			+'        <name>My &lt;&quot;&gt; Section</name>\n'
 			+'        <feedback>excellent &quot;stuff&quot; &gt;_&lt;</feedback>\n'
 			+'    </section>\n'
-			+'</document>\n', s.getvalue() )
+			+'</document>\n', 
+			self.strip_text_nodes(s.getvalue()) )
 				
 	def test_write_handles_textblock(self):
 		s = io.BytesIO()
@@ -4319,7 +4326,8 @@ class TestXmlIO(unittest.TestCase):
 			+'    <section>\n'
 			+'        <text>This is &quot;a&quot; &lt;&lt;test&gt;&gt;</text>\n'
 			+'    </section>\n'
-			+'</document>\n', s.getvalue())
+			+'</document>\n', 
+			self.strip_text_nodes(s.getvalue()) )
 
 	def test_formt_handles_firstsection_multiple_blocks(self):
 		s = io.BytesIO()
@@ -4333,7 +4341,8 @@ class TestXmlIO(unittest.TestCase):
 			+'        <text>Testing</text>\n'
 			+'        <text>More testing</text>\n'
 			+'    </section>\n'
-			+'</document>\n', s.getvalue())
+			+'</document>\n', 
+			self.strip_text_nodes(s.getvalue()) )
 		
 	def test_write_handles_section_multiple_blocks(self):
 		s = io.BytesIO()
@@ -4348,7 +4357,8 @@ class TestXmlIO(unittest.TestCase):
 			+'        <text>Testing</text>\n'
 			+'        <text>More testing</text>\n'
 			+'    </section>\n'
-			+'</document>\n', s.getvalue())
+			+'</document>\n', 
+			self.strip_text_nodes(s.getvalue()) )
 				
 	def test_write_handles_firstsection_block_and_feedback(self):
 		s = io.BytesIO()
@@ -4361,7 +4371,8 @@ class TestXmlIO(unittest.TestCase):
 			+'        <text>Test</text>\n'
 			+'        <feedback>Blah blah</feedback>\n'
 			+'    </section>\n'
-			+'</document>\n', s.getvalue())
+			+'</document>\n', 
+			self.strip_text_nodes(s.getvalue()) )
 				
 	def test_write_handles_section_block_and_feedback(self):
 		s = io.BytesIO()
@@ -4375,7 +4386,8 @@ class TestXmlIO(unittest.TestCase):
 			+'        <text>Test</text>\n'
 			+'        <feedback>Blah blah</feedback>\n'
 			+'    </section>\n'
-			+'</document>\n', s.getvalue() )
+			+'</document>\n', 
+			self.strip_text_nodes(s.getvalue()) )
 
 	def test_write_handles_instructionblock(self):
 		s = io.BytesIO()
@@ -4387,7 +4399,8 @@ class TestXmlIO(unittest.TestCase):
 			+'    <section>\n'
 			+'        <instructions>This is &gt;a&lt; &quot;test&quot;</instructions>\n'
 			+'    </section>\n'
-			+'</document>\n', s.getvalue() )
+			+'</document>\n', 
+			self.strip_text_nodes(s.getvalue()) )
 
 	def test_write_handles_choiceblock(self):
 		s = io.BytesIO()
@@ -4401,7 +4414,8 @@ class TestXmlIO(unittest.TestCase):
 			+'            <feedback>&lt;This&gt; is &quot;a&quot; test</feedback>\n'
 			+'        </choice>\n'
 			+'    </section>\n'
-			+'</document>\n', s.getvalue())
+			+'</document>\n', 
+			self.strip_text_nodes(s.getvalue()) )
 
 	def test_write_handles_choice(self):
 		s = io.BytesIO()
@@ -4423,7 +4437,8 @@ class TestXmlIO(unittest.TestCase):
 			+'            </option>\n'
 			+'        </choice>\n'
 			+'    </section>\n'
-			+'</document>\n', s.getvalue())
+			+'</document>\n', 
+			self.strip_text_nodes(s.getvalue()) )
 
 	def test_write_handles_choice_no_mark(self):
 		s = io.BytesIO()
@@ -4444,7 +4459,8 @@ class TestXmlIO(unittest.TestCase):
 			+'            </option>\n'
 			+'        </choice>\n'
 			+'    </section>\n'
-			+'</document>\n', s.getvalue() )
+			+'</document>\n', 
+			self.strip_text_nodes(s.getvalue()) )
 
 	def test_write_handles_choice_no_response(self):
 		s = io.BytesIO()
@@ -4464,7 +4480,8 @@ class TestXmlIO(unittest.TestCase):
 			+'            </option>\n'
 			+'        </choice>\n'
 			+'    </section>\n'
-			+'</document>\n', s.getvalue())
+			+'</document>\n', 
+			self.strip_text_nodes(s.getvalue()) )
 				
 	def test_write_handles_choice_no_goto(self):
 		s = io.BytesIO()
@@ -4484,7 +4501,8 @@ class TestXmlIO(unittest.TestCase):
 			+'            </option>\n'
 			+'        </choice>\n'
 			+'    </section>\n'
-			+'</document>\n', s.getvalue())
+			+'</document>\n', 
+			self.strip_text_nodes(s.getvalue()) )
 				
 	def test_write_handles_choice_no_response_or_goto(self):
 		s = io.BytesIO()
@@ -4503,7 +4521,8 @@ class TestXmlIO(unittest.TestCase):
 			+'            </option>\n'
 			+'        </choice>\n'
 			+'    </section>\n'
-			+'</document>\n', s.getvalue())
+			+'</document>\n', 
+			self.strip_text_nodes(s.getvalue()) )
 
 	def test_write_handles_choiceblock_multiple_choices(self):
 		s = io.BytesIO()
@@ -4531,7 +4550,8 @@ class TestXmlIO(unittest.TestCase):
 			+'            </option>\n'
 			+'        </choice>\n'
 			+'    </section>\n'
-			+'</document>\n', s.getvalue())
+			+'</document>\n', 
+			self.strip_text_nodes(s.getvalue()) )
 
 	def test_write_handles_multiple_sections(self):
 		s = io.BytesIO()
@@ -4548,7 +4568,8 @@ class TestXmlIO(unittest.TestCase):
 			+'        <name>dave</name>\n'
 			+'        <text>bar</text>\n'
 			+'    </section>\n'
-			+'</document>\n', s.getvalue())
+			+'</document>\n', 
+			self.strip_text_nodes(s.getvalue()) )
 
 
 class TestGuiRunner(unittest.TestCase):
