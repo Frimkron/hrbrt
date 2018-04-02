@@ -1618,7 +1618,7 @@ class JsonIO(object):
 		
 	def _write(self,document,stream):
 		obj = self._visit_Document(document)
-		stream.write(json.dumps(obj))
+		stream.write(json.dumps(obj, indent=4))
 		
 	def _visit(self,item):
 		fname = "_visit_%s" % type(item).__name__
@@ -2333,7 +2333,7 @@ if __name__ == "__main__":
 	ap.add_argument("-f","--fromfmt",help="input format",choices=["hrbrt"])
 	ap.add_argument("-t","--tofmt",help="output format",choices=["hrbrt","json","xml","markdown"])
 	ap.add_argument("-v","--validate",help="just validate input",action="store_true")
-	ap.add_argument("-r","--run",help="how to run file",choices=["cl","gui","no"])
+	ap.add_argument("-r","--run",help="how to run file",choices=["cli","gui","no"])
 
 	args = ap.parse_args()
 
@@ -2371,7 +2371,7 @@ if __name__ == "__main__":
 	
 	# default to command line run if no run or output specified
 	if args.run is None and args.output is None and args.tofmt is None:
-		args.run = "cl"
+		args.run = "cli"
 	
 	# if necessary, run and add feedback to parse tree
 	if args.run not in (None,"no"):

@@ -892,7 +892,7 @@ class TestLineWhitespace(unittest.TestCase):
 		i = MockInput("  \t\t \tx",0,None)
 		self.assertIsNotNone( dt.LineWhitespace.parse(i) )
 		self.assertEquals(6, i.pos)
-		  	
+		
 	def test_parse_consumes_input_on_success(self):
 		i = MockInput("\t\tx",0,None)
 		dt.LineWhitespace.parse(i)
@@ -938,20 +938,20 @@ class TestName(unittest.TestCase):
 		
 	def test_parse_allows_hyphen(self):
 		self.assertIsNotNone( dt.Name.parse(MockInput("-^",0,None)) )
-		  	
+		
 	def test_parse_allows_multiple_characters(self):
 		i = MockInput("abcXY-Z123^",0,None)
 		self.assertIsNotNone( dt.Name.parse(i) )
 		self.assertEquals(10, i.pos)
-		  	
+		
 	def test_parse_allows_spaces(self):
 		i = MockInput("foo bar^",0,None)
 		self.assertIsNotNone( dt.Name.parse(i) )
 		self.assertEquals(7, i.pos)
-		  	
+		
 	def test_parse_doesnt_allow_leading_space(self):
 		self.assertIsNone( dt.Name.parse(MockInput("   foo^",0,None)) )
-		  	
+		
 	def test_parse_consumes_input_on_success(self):
 		i = MockInput("HowNowBrownCow^",0,None)
 		dt.Name.parse(i)
@@ -961,8 +961,8 @@ class TestName(unittest.TestCase):
 		i = MockInput(",^",0,None)
 		dt.Name.parse(i)
 		self.assertEquals(0, i.pos)
-		  	
-		  	
+		
+		
 class TestNewline(unittest.TestCase):
 
 	def test_construct(self):
@@ -971,7 +971,7 @@ class TestNewline(unittest.TestCase):
 	def test_parse_returns_newline(self):
 		result = dt.Newline.parse(MockInput("\n^",0,None))
 		self.assertTrue( isinstance(result,dt.Newline) )
-		  	
+		
 	def test_parse_expects_newline(self):
 		self.assertIsNone( dt.Newline.parse(MockInput(",^",0,None)) )
 		
@@ -1012,7 +1012,7 @@ class TestSectionContent(unittest.TestCase):
 		c = dt.SectionContent(["foo","bar"],"weh")
 		c.items[0] = "weh"
 		self.assertEquals("foo", c.items[0])
-		  	
+		
 	def test_feedback_readable(self):
 		c = dt.SectionContent(["foo","bar"],"weh")
 		self.assertEquals("weh",c.feedback)
@@ -1029,7 +1029,7 @@ class TestSectionContent(unittest.TestCase):
 		dt.TextBlock.parse.side_effect = make_parse({"t":dt.TextBlock("","c")})
 		dt.FeedbackLine.parse.side_effect = make_parse({"f":dt.FeedbackLine("a")})
 		dt.StarterLine.parse.side_effect = make_parse({"s":object()})
-		  	
+		
 	mock_parse_methods = mock_statics(dt,"BlankLine.parse","ChoiceBlock.parse",
 			"InstructionBlock.parse","TextBlock.parse","FeedbackLine.parse",
 			"StarterLine.parse")
@@ -1068,12 +1068,12 @@ class TestSectionContent(unittest.TestCase):
 	def test_parse_allows_multiple_blank_lines(self):
 		self.setup_parse_methods()
 		self.assertIsNotNone( dt.SectionContent.parse(MockInput("bbbcit$")) )
-		  	
+		
 	@mock_parse_methods
 	def test_parse_allows_multiple_feedback_lines(self):
 		self.setup_parse_methods()
 		self.assertIsNotNone( dt.SectionContent.parse(MockInput("fffcit$")) )
-		  	
+		
 	@mock_parse_methods
 	def test_parse_checks_starterline_before_feedbackline(self):
 		self.setup_parse_methods()
@@ -1083,7 +1083,7 @@ class TestSectionContent(unittest.TestCase):
 		self.assertIsNotNone( result )
 		self.assertEquals(0, len(result.feedback))
 		self.assertEquals(1, len(result.items))
-		  	
+		
 	@mock_parse_methods
 	def test_parse_expects_block(self):
 		self.setup_parse_methods()
@@ -1139,7 +1139,7 @@ class TestBlankLine(unittest.TestCase):
 		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
 		dt.Newline.parse.side_effect = make_parse({"l":object()})
 		self.assertIsNotNone( dt.BlankLine.parse(MockInput("wl")) )
-		  	
+		
 	@mock_statics(dt,"QuoteMarker.parse","LineWhitespace.parse","Newline.parse")	
 	def test_parse_allows_no_linewhitespace(self):
 		dt.QuoteMarker.parse.side_effect = make_parse({"q":object()})
@@ -1268,7 +1268,7 @@ class TestChoiceBlock(unittest.TestCase):
 		self.assertIsNotNone( result )
 		self.assertEquals(2, len(result.choices) )
 		self.assertEquals(3, len(result.feedback) )
-		  	
+		
 	@mock_parse_methods
 	def test_parse_allows_multiple_feedbacklines(self):
 		self.setup_parse_methods()
@@ -1276,7 +1276,7 @@ class TestChoiceBlock(unittest.TestCase):
 		self.assertIsNotNone( result )
 		self.assertEquals(1, len(result.choices) )
 		self.assertEquals(7, len(result.feedback) )
-		  	
+		
 	@mock_parse_methods
 	def test_parse_checks_choice_before_feedbackline(self):
 		self.setup_parse_methods()		
@@ -1285,7 +1285,7 @@ class TestChoiceBlock(unittest.TestCase):
 		self.assertIsNotNone( result )
 		self.assertEquals(2, len(result.choices) )
 		self.assertEquals(3, len(result.feedback) )
-		  	
+		
 	@mock_parse_methods
 	def test_parse_checks_starterline_before_feedbackline(self):
 		self.setup_parse_methods()
@@ -1294,7 +1294,7 @@ class TestChoiceBlock(unittest.TestCase):
 		self.assertIsNotNone( result )
 		self.assertEquals(1, len(result.choices) )
 		self.assertEquals(1, len(result.feedback) )
-		  	
+		
 	@mock_parse_methods
 	def test_parse_consumes_input_on_success(self):
 		self.setup_parse_methods()
@@ -1362,7 +1362,7 @@ class TestFirstChoice(unittest.TestCase):
 		c = dt.FirstChoice("foo","bar","weh","blah","wibble")
 		with self.assertRaises(AttributeError):
 			c.response = "wibble"
-		  	
+		
 	def test_goto_readable(self):
 		c = dt.FirstChoice("foo","bar","weh","blah","wibble")
 		self.assertEquals("blah",c.goto)
@@ -1387,11 +1387,11 @@ class TestFirstChoice(unittest.TestCase):
 		dt.LineWhitespace.parse.side_effect = make_parse({"w":object()})
 		dt.ChoiceMarker.parse.side_effect = make_parse({"m":dt.ChoiceMarker("a")})
 		dt.ChoiceContent.parse.side_effect = make_parse({"c":dt.ChoiceContent("b","c","d","e")})
-		  	
+		
 	mock_parse_methods = mock_statics(dt,"QuoteMarker.parse","FirstTextLineMarker.parse",
 			"ChoiceMarker.parse","LineWhitespace.parse","ChoiceContent.parse")
 
-	@mock_parse_methods		  	
+	@mock_parse_methods
 	def test_parse_returns_populated_firstchoice(self):
 		self.setup_parse_methods()
 		dt.ChoiceMarker.parse.side_effect = make_parse({"m":dt.ChoiceMarker("foo")})
@@ -1484,7 +1484,7 @@ class TestFirstChoice(unittest.TestCase):
 		self.assertEquals(None, c.mark)
 		c.set_mark("blah")
 		self.assertEquals("blah", c.mark)
-		  	
+		
 
 class TestChoice(unittest.TestCase):
 
@@ -1863,7 +1863,10 @@ class TestChoiceDescription(unittest.TestCase):
 	@mock_parse_methods
 	def test_parse_returns_populated_choicedescription(self):
 		self.setup_parse_methods()
-		dt.ChoiceDescPart.parse.side_effect = make_parse({"p":dt.ChoiceDescPart("blah"),"d":dt.ChoiceDescPart("yadda"),"q":dt.ChoiceDescPart("weh")})
+		dt.ChoiceDescPart.parse.side_effect = make_parse({
+			"p":dt.ChoiceDescPart("blah"),
+			"d":dt.ChoiceDescPart("yadda"),
+			"q":dt.ChoiceDescPart("weh")})
 		dt.ChoiceDescNewline.parse.side_effect = make_parse({"n":dt.ChoiceDescNewline("foo"),"N":dt.ChoiceDescNewline("bar")})
 		result = dt.ChoiceDescription.parse(MockInput("pndNq$"))
 		self.assertTrue( isinstance(result,dt.ChoiceDescription) )
@@ -2025,7 +2028,9 @@ class TestChoiceResponse(unittest.TestCase):
 		self.setup_parse_methods()
 		dt.ChoiceResponseDesc.parse.side_effect = make_parse({"d":dt.ChoiceResponseDesc("foo","wibble")})
 		dt.ChoiceGoto.parse.side_effect = make_parse({"g":dt.ChoiceGoto("bar","blarg")})
-		dt.ChoiceDescNewline.parse.side_effect = make_parse({"n":dt.ChoiceDescNewline("jibber"),"N":dt.ChoiceDescNewline("jabber")})
+		dt.ChoiceDescNewline.parse.side_effect = make_parse({
+			"n":dt.ChoiceDescNewline("jibber"),
+			"N":dt.ChoiceDescNewline("jabber")})
 		result = dt.ChoiceResponse.parse(MockInput("nsNdg$"))
 		self.assertTrue( isinstance(result,dt.ChoiceResponse) )
 		self.assertTrue( hasattr(result,"description") )
@@ -2168,8 +2173,13 @@ class TestChoiceResponseDesc(unittest.TestCase):
 	@mock_parse_methods
 	def test_parse_returns_populated_choiceresponsedesc(self):
 		self.setup_parse_methods()
-		dt.ChoiceResponseDescPart.parse.side_effect = make_parse({"p":dt.ChoiceResponseDescPart("blah"),"d":dt.ChoiceResponseDescPart("yadda"),"q":dt.ChoiceResponseDescPart("wibble")})
-		dt.ChoiceDescNewline.parse.side_effect = make_parse({"n":dt.ChoiceDescNewline("weh"),"N":dt.ChoiceDescNewline("blarg")})
+		dt.ChoiceResponseDescPart.parse.side_effect = make_parse({
+			"p":dt.ChoiceResponseDescPart("blah"),
+			"d":dt.ChoiceResponseDescPart("yadda"),
+			"q":dt.ChoiceResponseDescPart("wibble")})
+		dt.ChoiceDescNewline.parse.side_effect = make_parse({
+			"n":dt.ChoiceDescNewline("weh"),
+			"N":dt.ChoiceDescNewline("blarg")})
 		result = dt.ChoiceResponseDesc.parse(MockInput("pndNq$"))
 		self.assertTrue( isinstance(result,dt.ChoiceResponseDesc) )
 		self.assertTrue( hasattr(result,"text") )
@@ -2520,7 +2530,7 @@ class TestInstructionBlock(unittest.TestCase):
 	@mock_parse_methods
 	def test_parse_allows_multiple_instructionlines(self):
 		self.setup_parse_methods()
-		result =  dt.InstructionBlock.parse(MockInput("Iii$"))
+		result = dt.InstructionBlock.parse(MockInput("Iii$"))
 		self.assertIsNotNone( result )
 		self.assertEquals(5, len(result.text) )
 		self.assertEquals(None, result.feedback)
@@ -3577,47 +3587,96 @@ class TestJsonIO(unittest.TestCase):
 	def test_write_handles_firstsection(self):
 		s = io.BytesIO()
 		dt.JsonIO.write( dt.Document([dt.FirstSection([],"foo")]),s )
-		self.assertEquals('[{"blocks": [], "feedback": "foo"}]', s.getvalue())
+		self.assertEquals('[\n'
+							'    {\n'
+							'        "blocks": [], \n'
+							'        "feedback": "foo"\n'
+							'    }\n'
+							']', s.getvalue())
 	
 	def test_write_handles_section(self):
 		s = io.BytesIO()
 		dt.JsonIO.write(dt.Document([dt.Section("bar",[],"foo")]),s ) 
-		self.assertEquals('[{"blocks": [], "name": "bar", "feedback": "foo"}]',
-			s.getvalue())
+		self.assertEquals('[\n'
+							'    {\n'
+							'        "blocks": [], \n'
+							'        "name": "bar", \n'
+							'        "feedback": "foo"\n'
+							'    }\n'
+							']', s.getvalue())
 
 	def test_write_handles_textblock(self):
 		s = io.BytesIO()
 		dt.JsonIO.write(dt.Document([dt.FirstSection([dt.TextBlock("blah","yadda")],"")]),s ) 
-		self.assertEquals(
-			'[{"blocks": [{"content": "blah", "type": "text"}], "feedback": ""}]',
-			s.getvalue() )
+		self.assertEquals('[\n'
+							'    {\n'
+							'        "blocks": [\n'
+							'            {\n'
+							'                "content": "blah", \n'
+							'                "type": "text"\n'
+							'            }\n'
+							'        ], \n'
+							'        "feedback": ""\n'
+							'    }\n'
+							']', s.getvalue() )
 				
 	def test_write_handles_instructionblock(self):
 		s = io.BytesIO()
 		dt.JsonIO.write(
 				dt.Document([dt.FirstSection([dt.InstructionBlock("wibble","flibble")],"")]),s )
-		self.assertEquals(
-			'[{"blocks": [{"content": "wibble", "type": "instructions"}], "feedback": ""}]',
-			 s.getvalue())
+		self.assertEquals('[\n'
+							'    {\n'
+							'        "blocks": [\n'
+							'            {\n'
+							'                "content": "wibble", \n'
+							'                "type": "instructions"\n'
+							'            }\n'
+							'        ], \n'
+							'        "feedback": ""\n'
+							'    }\n'
+							']', s.getvalue())
 	
 	def test_write_handles_choiceblock(self):
 		s = io.BytesIO()
 		dt.JsonIO.write(
 				dt.Document([dt.FirstSection([dt.ChoiceBlock([],"weh")],"")]),s )
-		self.assertEquals(
-			'[{"blocks": [{"content": [], "type": "choices", "feedback": "weh"}], "feedback": ""}]',
-			 s.getvalue())
+		self.assertEquals('[\n'
+							'    {\n'
+							'        "blocks": [\n'
+							'            {\n'
+							'                "content": [], \n'
+							'                "type": "choices", \n'
+							'                "feedback": "weh"\n'
+							'            }\n'
+							'        ], \n'
+							'        "feedback": ""\n'
+							'    }\n'
+							']', s.getvalue())
 				
 	def test_write_handles_choice(self):
 		s = io.BytesIO()
 		dt.JsonIO.write(
 			dt.Document([dt.FirstSection([dt.ChoiceBlock([
 				dt.Choice("X","33","ok","home","great") ],"great")],"great")]), s ) 
-		self.assertEquals(
-			'[{"blocks": [{"content": ['
-			+'{"response": "ok", "goto": "home", "description": "33", "mark": "X"}'
-			+'], "type": "choices", "feedback": "great"}], "feedback": "great"}]',
-			s.getvalue() )
+		self.assertEquals('[\n'
+						'    {\n'
+							'        "blocks": [\n'
+							'            {\n'
+							'                "content": [\n'
+							'                    {\n'
+							'                        "response": "ok", \n'
+							'                        "goto": "home", \n'
+							'                        "description": "33", \n'
+							'                        "mark": "X"\n'
+							'                    }\n'
+							'                ], \n'
+							'                "type": "choices", \n'
+							'                "feedback": "great"\n'
+							'            }\n'
+							'        ], \n'
+							'        "feedback": "great"\n'
+							'    }\n'
+							']', s.getvalue() )
 					
 					
 class TestHrbrtIO(unittest.TestCase):
@@ -4287,7 +4346,7 @@ class TestXmlIO(unittest.TestCase):
 		dt.XmlIO.write(dt.Document([]),s)
 		self.assertEquals(
 			'<?xml version="1.0" ?>\n'
-			+'<document/>\n', self.strip_text_nodes(s.getvalue()))
+			'<document/>\n', self.strip_text_nodes(s.getvalue()))
 		
 	def test_write_handles_firstsection(self):
 		s = io.BytesIO()
@@ -4295,11 +4354,11 @@ class TestXmlIO(unittest.TestCase):
 			dt.FirstSection([],'this "is" <fab>') ]), s )
 		self.assertEquals(
 			'<?xml version="1.0" ?>\n'
-			+'<document>\n'
-			+'    <section>\n'
-			+'        <feedback>this &quot;is&quot; &lt;fab&gt;</feedback>\n'
-			+'    </section>\n'
-			+'</document>\n', 
+			'<document>\n'
+			'    <section>\n'
+			'        <feedback>this &quot;is&quot; &lt;fab&gt;</feedback>\n'
+			'    </section>\n'
+			'</document>\n', 
 			self.strip_text_nodes(s.getvalue()))
 					
 	def test_write_handles_section(self):
@@ -4308,12 +4367,12 @@ class TestXmlIO(unittest.TestCase):
 				dt.Section('My <"> Section',[],'excellent "stuff" >_<') ]), s)
 		self.assertEquals(
 			'<?xml version="1.0" ?>\n'
-			+'<document>\n'
-			+'    <section>\n'
-			+'        <name>My &lt;&quot;&gt; Section</name>\n'
-			+'        <feedback>excellent &quot;stuff&quot; &gt;_&lt;</feedback>\n'
-			+'    </section>\n'
-			+'</document>\n', 
+			'<document>\n'
+			'    <section>\n'
+			'        <name>My &lt;&quot;&gt; Section</name>\n'
+			'        <feedback>excellent &quot;stuff&quot; &gt;_&lt;</feedback>\n'
+			'    </section>\n'
+			'</document>\n', 
 			self.strip_text_nodes(s.getvalue()) )
 				
 	def test_write_handles_textblock(self):
@@ -4322,11 +4381,11 @@ class TestXmlIO(unittest.TestCase):
 			dt.FirstSection([ dt.TextBlock('This is "a" <<test>>',None) ],None) ]), s)
 		self.assertEquals(
 			'<?xml version="1.0" ?>\n'
-			+'<document>\n'
-			+'    <section>\n'
-			+'        <text>This is &quot;a&quot; &lt;&lt;test&gt;&gt;</text>\n'
-			+'    </section>\n'
-			+'</document>\n', 
+			'<document>\n'
+			'    <section>\n'
+			'        <text>This is &quot;a&quot; &lt;&lt;test&gt;&gt;</text>\n'
+			'    </section>\n'
+			'</document>\n', 
 			self.strip_text_nodes(s.getvalue()) )
 
 	def test_formt_handles_firstsection_multiple_blocks(self):
@@ -4336,12 +4395,12 @@ class TestXmlIO(unittest.TestCase):
 				dt.TextBlock("More testing",None) ],None) ]), s)
 		self.assertEquals(
 			'<?xml version="1.0" ?>\n'
-			+'<document>\n'
-			+'    <section>\n'
-			+'        <text>Testing</text>\n'
-			+'        <text>More testing</text>\n'
-			+'    </section>\n'
-			+'</document>\n', 
+			'<document>\n'
+			'    <section>\n'
+			'        <text>Testing</text>\n'
+			'        <text>More testing</text>\n'
+			'    </section>\n'
+			'</document>\n', 
 			self.strip_text_nodes(s.getvalue()) )
 		
 	def test_write_handles_section_multiple_blocks(self):
@@ -4351,13 +4410,13 @@ class TestXmlIO(unittest.TestCase):
 				dt.TextBlock("More testing",None) ],None) ]), s)
 		self.assertEquals(
 			'<?xml version="1.0" ?>\n'
-			+'<document>\n'
-			+'    <section>\n'
-			+'        <name>dave</name>\n'
-			+'        <text>Testing</text>\n'
-			+'        <text>More testing</text>\n'
-			+'    </section>\n'
-			+'</document>\n', 
+			'<document>\n'
+			'    <section>\n'
+			'        <name>dave</name>\n'
+			'        <text>Testing</text>\n'
+			'        <text>More testing</text>\n'
+			'    </section>\n'
+			'</document>\n', 
 			self.strip_text_nodes(s.getvalue()) )
 				
 	def test_write_handles_firstsection_block_and_feedback(self):
@@ -4366,12 +4425,12 @@ class TestXmlIO(unittest.TestCase):
 			dt.FirstSection([ dt.TextBlock("Test",None) ], "Blah blah") ]), s)
 		self.assertEquals(
 			'<?xml version="1.0" ?>\n'
-			+'<document>\n'
-			+'    <section>\n'
-			+'        <text>Test</text>\n'
-			+'        <feedback>Blah blah</feedback>\n'
-			+'    </section>\n'
-			+'</document>\n', 
+			'<document>\n'
+			'    <section>\n'
+			'        <text>Test</text>\n'
+			'        <feedback>Blah blah</feedback>\n'
+			'    </section>\n'
+			'</document>\n', 
 			self.strip_text_nodes(s.getvalue()) )
 				
 	def test_write_handles_section_block_and_feedback(self):
@@ -4380,13 +4439,13 @@ class TestXmlIO(unittest.TestCase):
 			dt.Section("dave",[ dt.TextBlock("Test",None) ], "Blah blah") ]), s)
 		self.assertEquals(
 			'<?xml version="1.0" ?>\n'
-			+'<document>\n'
-			+'    <section>\n'
-			+'        <name>dave</name>\n'
-			+'        <text>Test</text>\n'
-			+'        <feedback>Blah blah</feedback>\n'
-			+'    </section>\n'
-			+'</document>\n', 
+			'<document>\n'
+			'    <section>\n'
+			'        <name>dave</name>\n'
+			'        <text>Test</text>\n'
+			'        <feedback>Blah blah</feedback>\n'
+			'    </section>\n'
+			'</document>\n', 
 			self.strip_text_nodes(s.getvalue()) )
 
 	def test_write_handles_instructionblock(self):
@@ -4395,11 +4454,11 @@ class TestXmlIO(unittest.TestCase):
 			dt.FirstSection([ dt.InstructionBlock('This is >a< "test"',None) ],None) ]), s)
 		self.assertEquals(
 			'<?xml version="1.0" ?>\n'
-			+'<document>\n'
-			+'    <section>\n'
-			+'        <instructions>This is &gt;a&lt; &quot;test&quot;</instructions>\n'
-			+'    </section>\n'
-			+'</document>\n', 
+			'<document>\n'
+			'    <section>\n'
+			'        <instructions>This is &gt;a&lt; &quot;test&quot;</instructions>\n'
+			'    </section>\n'
+			'</document>\n', 
 			self.strip_text_nodes(s.getvalue()) )
 
 	def test_write_handles_choiceblock(self):
@@ -4408,13 +4467,13 @@ class TestXmlIO(unittest.TestCase):
 			dt.FirstSection([ dt.ChoiceBlock([], '<This> is "a" test') ],None)]), s)
 		self.assertEquals(
 			'<?xml version="1.0" ?>\n'
-			+'<document>\n'
-			+'    <section>\n'
-			+'        <choice>\n'
-			+'            <feedback>&lt;This&gt; is &quot;a&quot; test</feedback>\n'
-			+'        </choice>\n'
-			+'    </section>\n'
-			+'</document>\n', 
+			'<document>\n'
+			'    <section>\n'
+			'        <choice>\n'
+			'            <feedback>&lt;This&gt; is &quot;a&quot; test</feedback>\n'
+			'        </choice>\n'
+			'    </section>\n'
+			'</document>\n', 
 			self.strip_text_nodes(s.getvalue()) )
 
 	def test_write_handles_choice(self):
@@ -4426,18 +4485,18 @@ class TestXmlIO(unittest.TestCase):
 			],None) ],None) ]), s)
 		self.assertEquals(
 			'<?xml version="1.0" ?>\n'
-			+'<document>\n'
-			+'    <section>\n'
-			+'        <choice>\n'
-			+'            <option>\n'
-			+'                <mark>&gt;&quot;X&quot;&lt;</mark>\n'
-			+'                <desc>&quot;blah&quot; &lt;blah&gt;</desc>\n'
-			+'                <response>&gt;&gt;yadda &quot; yadda&lt;&lt;</response>\n'
-			+'                <goto>&quot;wi&gt;bb&lt;le&quot;</goto>\n'
-			+'            </option>\n'
-			+'        </choice>\n'
-			+'    </section>\n'
-			+'</document>\n', 
+			'<document>\n'
+			'    <section>\n'
+			'        <choice>\n'
+			'            <option>\n'
+			'                <mark>&gt;&quot;X&quot;&lt;</mark>\n'
+			'                <desc>&quot;blah&quot; &lt;blah&gt;</desc>\n'
+			'                <response>&gt;&gt;yadda &quot; yadda&lt;&lt;</response>\n'
+			'                <goto>&quot;wi&gt;bb&lt;le&quot;</goto>\n'
+			'            </option>\n'
+			'        </choice>\n'
+			'    </section>\n'
+			'</document>\n', 
 			self.strip_text_nodes(s.getvalue()) )
 
 	def test_write_handles_choice_no_mark(self):
@@ -4449,17 +4508,17 @@ class TestXmlIO(unittest.TestCase):
 			],None) ],None) ]), s)
 		self.assertEqual(
 			'<?xml version="1.0" ?>\n'
-			+'<document>\n'
-			+'    <section>\n'
-			+'        <choice>\n'
-			+'            <option>\n'
-			+'                <desc>blah blah</desc>\n'
-			+'                <response>yadda yadda</response>\n'
-			+'                <goto>wibble</goto>\n'
-			+'            </option>\n'
-			+'        </choice>\n'
-			+'    </section>\n'
-			+'</document>\n', 
+			'<document>\n'
+			'    <section>\n'
+			'        <choice>\n'
+			'            <option>\n'
+			'                <desc>blah blah</desc>\n'
+			'                <response>yadda yadda</response>\n'
+			'                <goto>wibble</goto>\n'
+			'            </option>\n'
+			'        </choice>\n'
+			'    </section>\n'
+			'</document>\n', 
 			self.strip_text_nodes(s.getvalue()) )
 
 	def test_write_handles_choice_no_response(self):
@@ -4470,17 +4529,17 @@ class TestXmlIO(unittest.TestCase):
 			],None) ],None) ]), s)
 		self.assertEqual(
 			'<?xml version="1.0" ?>\n'
-			+'<document>\n'
-			+'    <section>\n'
-			+'        <choice>\n'
-			+'            <option>\n'
-			+'                <mark>X</mark>\n'
-			+'                <desc>blah blah</desc>\n'
-			+'                <goto>wibble</goto>\n'
-			+'            </option>\n'
-			+'        </choice>\n'
-			+'    </section>\n'
-			+'</document>\n', 
+			'<document>\n'
+			'    <section>\n'
+			'        <choice>\n'
+			'            <option>\n'
+			'                <mark>X</mark>\n'
+			'                <desc>blah blah</desc>\n'
+			'                <goto>wibble</goto>\n'
+			'            </option>\n'
+			'        </choice>\n'
+			'    </section>\n'
+			'</document>\n', 
 			self.strip_text_nodes(s.getvalue()) )
 				
 	def test_write_handles_choice_no_goto(self):
@@ -4491,17 +4550,17 @@ class TestXmlIO(unittest.TestCase):
 			],None) ],None) ]), s)
 		self.assertEquals(
 			'<?xml version="1.0" ?>\n'
-			+'<document>\n'
-			+'    <section>\n'
-			+'        <choice>\n'
-			+'            <option>\n'
-			+'                <mark>X</mark>\n'
-			+'                <desc>blah blah</desc>\n'
-			+'                <response>yadda yadda</response>\n'
-			+'            </option>\n'
-			+'        </choice>\n'
-			+'    </section>\n'
-			+'</document>\n', 
+			'<document>\n'
+			'    <section>\n'
+			'        <choice>\n'
+			'            <option>\n'
+			'                <mark>X</mark>\n'
+			'                <desc>blah blah</desc>\n'
+			'                <response>yadda yadda</response>\n'
+			'            </option>\n'
+			'        </choice>\n'
+			'    </section>\n'
+			'</document>\n', 
 			self.strip_text_nodes(s.getvalue()) )
 				
 	def test_write_handles_choice_no_response_or_goto(self):
@@ -4512,16 +4571,16 @@ class TestXmlIO(unittest.TestCase):
 			],None) ],None) ]), s)
 		self.assertEquals(
 			'<?xml version="1.0" ?>\n'
-			+'<document>\n'
-			+'    <section>\n'
-			+'        <choice>\n'
-			+'            <option>\n'
-			+'                <mark>X</mark>\n'
-			+'                <desc>blah blah</desc>\n'
-			+'            </option>\n'
-			+'        </choice>\n'
-			+'    </section>\n'
-			+'</document>\n', 
+			'<document>\n'
+			'    <section>\n'
+			'        <choice>\n'
+			'            <option>\n'
+			'                <mark>X</mark>\n'
+			'                <desc>blah blah</desc>\n'
+			'            </option>\n'
+			'        </choice>\n'
+			'    </section>\n'
+			'</document>\n', 
 			self.strip_text_nodes(s.getvalue()) )
 
 	def test_write_handles_choiceblock_multiple_choices(self):
@@ -4533,24 +4592,24 @@ class TestXmlIO(unittest.TestCase):
 				],None) ],None) ]), s)
 		self.assertEquals(
 			'<?xml version="1.0" ?>\n'
-			+'<document>\n'
-			+'    <section>\n'
-			+'        <choice>\n'
-			+'            <option>\n'
-			+'                <mark>X</mark>\n'
-			+'                <desc>foo</desc>\n'
-			+'                <response>bar</response>\n'
-			+'                <goto>wibble</goto>\n'
-			+'            </option>\n'
-			+'            <option>\n'
-			+'                <mark>Y</mark>\n'
-			+'                <desc>weh</desc>\n'
-			+'                <response>meh</response>\n'
-			+'                <goto>yadda</goto>\n'
-			+'            </option>\n'
-			+'        </choice>\n'
-			+'    </section>\n'
-			+'</document>\n', 
+			'<document>\n'
+			'    <section>\n'
+			'        <choice>\n'
+			'            <option>\n'
+			'                <mark>X</mark>\n'
+			'                <desc>foo</desc>\n'
+			'                <response>bar</response>\n'
+			'                <goto>wibble</goto>\n'
+			'            </option>\n'
+			'            <option>\n'
+			'                <mark>Y</mark>\n'
+			'                <desc>weh</desc>\n'
+			'                <response>meh</response>\n'
+			'                <goto>yadda</goto>\n'
+			'            </option>\n'
+			'        </choice>\n'
+			'    </section>\n'
+			'</document>\n', 
 			self.strip_text_nodes(s.getvalue()) )
 
 	def test_write_handles_multiple_sections(self):
@@ -4560,15 +4619,15 @@ class TestXmlIO(unittest.TestCase):
 			dt.Section("dave",[ dt.TextBlock("bar",None) ],None) ]), s)
 		self.assertEquals(
 			'<?xml version="1.0" ?>\n'
-			+'<document>\n'
-			+'    <section>\n'
-			+'        <text>foo</text>\n'
-			+'    </section>\n'
-			+'    <section>\n'
-			+'        <name>dave</name>\n'
-			+'        <text>bar</text>\n'
-			+'    </section>\n'
-			+'</document>\n', 
+			'<document>\n'
+			'    <section>\n'
+			'        <text>foo</text>\n'
+			'    </section>\n'
+			'    <section>\n'
+			'        <name>dave</name>\n'
+			'        <text>bar</text>\n'
+			'    </section>\n'
+			'</document>\n', 
 			self.strip_text_nodes(s.getvalue()) )
 
 
