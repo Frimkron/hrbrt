@@ -348,103 +348,7 @@ block.
 Hrbrt Formal Definition
 -----------------------
 
-	<Document> ::= <FirstSection> <Section>*
-	
-	<FirstSection> ::= <SectionContent>
-	
-	<Section> ::= <Heading> <SectionContent>
-	
-	<SectionContent> ::= ( <BlankLine> | !<StarterLine> <FeedbackLine> )*
-	                        ( <ChoiceBlock> | <InstructionBlock> | <TextBlock> )+
-	
-	<BlankLine> ::= <QuoteMarker>? <LineWhitespace>? <Newline>
-	
-	<ChoiceBlock> ::= <FirstChoice>
-	                   ( <BlankLine> | <Choice> | !<StarterLine> <FeedbackLine> )*
-	
-	<InstructionBlock> ::= <FirstInstructionLine>
-	                        ( <BlankLine> | <InstructionLine> 
-	                          | !<StarterLine> <FeedbackLine> )*   
-	
-	<TextBlock> ::= <FirstTextLine> 
-	                 ( <BlankLine> | <TextLine> | !<StarterLine> <FeedbackLine> )*
-	
-	<StarterLine> ::= <FirstTextLine> | <FirstInstructionLine> 
-	                    | <Heading> | <FirstChoice>
-	
-	<QuoteMarker> ::= ( ( ' ' | '\t' )* '>' )+ ( ' ' | '\t' )*
-	
-	<LineWhitespace> ::= ( ' ' | '\t' )+
-	
-	<Newline> ::= '\r' '\n'? | '\n'
-	
-	<Choice> ::= <QuoteMarker>? <TextLineMarker> 
-	               <LineWhitespace>? <ChoiceMarker> <ChoiceContent>
-	
-	<FirstChoice> ::= <QuoteMarker>? <FirstTextLineMarker>
-	                    <LineWhitespace>? <ChoiceMarker> <ChoiceContent>
-	
-	<ChoiceContent> ::= <LineWhitespace>? <ChoiceDescription> <ChoiceResponse>?
-	                      <LineWhitespace>? <Newline>
-	
-	<ChoiceMarker> ::= '[' <LineWhitespace>? <ChoiceMarkerMark>? ']'
-	
-	<ChoiceMarkerMark> ::= ( '\x20-\x5C' | '\x5E-\x7E' | '\t' )+
-	
-	<ChoiceDescription> ::= <ChoiceDescPart> 
-	                         ( ChoiceDescNewline> <ChoiceDescPart> )*
-	
-	<ChoiceDescNewline> ::= <Newline>
-	                     ( <BlankLine> | !( <StarterLine> | <TextLine> ) <FeedbackLine> )*
-	                     <QuoteMarker>? <TextLineMarker> <LineWhitespace>? !<ChoiceMarker>
-	
-	<ChoiceDescPart> ::= ( '\x20-\x2C' | '\x2E-\x7E' | '\t' | '-' !'-' )+
-	
-	<ChoiceResponse> ::= <ChoiceDescNewline>? '-' '-'
-	                      ( <ChoiceDescNewline>? <ChoiceResponseDesc> <ChoiceGoto>? 
-	                        | <ChoiceGoto> )
-	
-	<ChoiceResponseDesc> ::= <ChoiceResponseDescPart>
-	                          ( <ChoiceDescNewLine> <ChoiceResponseDescPart> )*
-	
-	<ChoiceResponseDescPart> ::= ( '\x20-\x46' | '\x48-\x7E' 
-	                               | 'G' !( 'O' ' ' 'T' 'O') )
-	
-	<ChoiceGoto> ::= <ChoiceDescNewLin>? 'G' 'O' ' ' 'T' 'O' 
-	                   <LineWhitespace>? <Name> <EndPunctuation>?
-	
-	<EndPunctuation> ::= ( '.' | ',' | ':' | ';' | '!' | '?' )+
-	
-	<Heading> ::= <QuoteMarker>? <HeadingMarker> <LineWhitespace>?
-	                <Name> <HeadingMarker> <Newline>
-	
-	<HeadingMarker> ::= '=' '='+
-	
-	<Name> ::= ( 'a-z' | 'A-Z' | '0-9' | '_' | '-' )
-				( 'a-z' | 'A-Z' | '0-9' | '_' | '-' | ' ' )*
-	
-	<InstructionLine> ::= <QuoteMarker>? <InstructionLineMarker> <TextLineContent>
-	
-	<InstructionLineMarker ::= '%' !'%'
-	
-	<FirstInstructionLine> ::= <QuoteMarker>? 
-	                             <FirstInstructionLineMarker> <TextLineContent>
-	
-	<FirstInstructionLineMarker> ::= '%' '%'
-	
-	<LineText> ::= ( '\x20-\x7E' | '\t' )+
-	
-	<TextLine> ::= <QuoteMarker>? <TextLineMarker> <TextLineContent>
-	
-	<TextLineMarker> ::= ':' !':'
-	
-	<FirstTextLine> ::= <QuoteMarker>? <FirstTextLineMarker> <TextLineContent>
-	
-	<FirstTextLineMarker> ::= ':' ':'
-	
-	<TextLineContent> ::= <LineWhitespace>? <LineText> <Newline>
-	
-	<FeedbackLine> ::= <QuoteMarker>? <LineText> <Newline>
+See `syntax.bnf`
 	
 
 Credits and Licence
@@ -456,7 +360,7 @@ Credits and Licence
 * Project page: <https://github.com/Frimkron/hrbrt>
 
 The `hrbrt` tool is released under the [MIT licence]. For the full text of 
-this licence, see the source file.
+this licence, see LICENCE.txt
 
 [MIT licence]: http://en.wikipedia.org/wiki/Mit_license
 
