@@ -13,7 +13,7 @@ author using any basic text editor.
 
 [markdown]: http://daringfireball.net/projects/markdown/
 
-*hrbrt* is a command line program (or python module) for parsing files in Hrbrt
+_hrbrt_ is a command line program (or python module) for parsing files in Hrbrt
 format. It can convert Hrbrt to other formats or "run" a file using command 
 line or GUI-based prompts.
 
@@ -23,21 +23,45 @@ line or GUI-based prompts.
 
 ### Dependencies ###
 
-hrbrt requires [Python 2.7], and optionally [Tkinter] to use the GUI option 
-(some distributions package it separately).
+hrbrt requires [Python 3.6] or above, and optionally the [Tkinter] python 
+module to use the GUI option. Tkinter is part of Python's standard library and 
+is likely to come installed with it, but some distributions do package it 
+separately.
 
-[python 2.7]: http://python.org
+[python 3.6]: http://python.org
 [tkinter]: http://docs.python.org/library/tkinter.html
+
+
+### Installation ###
+
+The easiest way to install _hrbrt_ is via [pip]. Pip can download and install 
+_hrbrt_ directly from the Github project as follows:
+
+    pip install git+https://github.com/frimkron/hrbrt#egg=hrbrt
+
+Alternatively you can obtain the source code yourself [from Github] and run the 
+`setup.py` Python script:
+
+    python setup.py
+
+[pip]: https://docs.python.org/3/installing/#basic-usage
+[from github]: https://github.com/Frimkron/hrbrt
+
 
 ### Usage ###
 
-	hrbrt [options] [infile [outfile]]
-	
-### Positional Arguments ###
-	
-`infile`
+    hrbrt [OPTIONS] FILE
 
-File to read. Use `-` to read from standard input. This is the default.
+or
+
+    python -m hrbrt [OPTIONS] FILE
+
+    
+### Positional Arguments ###
+    
+`FILE`
+
+The Hrbrt file to read. Use `-` to read from standard input.
  
 `outfile`
 
@@ -45,93 +69,86 @@ File to write output to. Use `-` to write to standard output. If input file
 is specified, output file defaults to `<infile>.out.<ext>` using the name of 
 the input file and the appropriate file extension for the output format. If no 
 input file is specified, defaults to standard output.
-  
+
+
 ### Options ###
 
 `-h`, `--help`
+:    Show usage information and exit
 
-Show this usage information and exit
-  
-`-f`, `--fromfmt`
+`-o FILE`, `--output FILE`
+:    Output the result to `FILE`. Use `-` to write to standard output. 
+If `--tofmt` isn't also specified, the output format is inferred from the file 
+extension, or Hrbrt by default.
 
-Input format. If not specified, the input format is inferred from the input 
-file extension. Currently only `hrbrt` is supported. This is the default.
-  
-`-t`, `--tofmt`
+`-t FORMAT`, `--tofmt FORMAT`
+:    Output the result using the given format. One of `hrbrt`, `json`, `xml`
+or `markdown`. If `--output` isn't also specified, output is written to 
+`<FILE>.out.<EXT>` where `FILE` is the input filename and `EXT` is the format's
+file extension or, if reading from standard input, output is written to standard
+output.
 
-Output format. One of `hrbrt`, `json`, `xml`, or `markdown`. If not specified, 
-the output format is inferred from the output file extension. Default is 
-`hrbrt`.
-
-`-v`, `--validate`
-
-Just validate input, reporting syntax errors, and exit
-
-`-r`, `--run`
-
-How to run the file. One of `cl` (command-line), `gui` (a basic graphical 
-wizard), or `no` (don't run). Defaults to `cl` if no output file or format is 
-specified, otherwise defaults to `no`. The `gui` option requires Tk/Tkinter.
+`-r MODE`, `--run MODE`
+:    Run the document interactively in the specified mode. `cli` for command
+line mode,  or `gui` for a basic graphical wizard mode. The `gui` option 
+requires the TKinter python module.
 
 
 ### Examples ###
 
-Run the file *foobar.hb* on the command line
+Validate the file *foobar.hb* and report errors
 
-	$ hrbrt foobar.hb
+    $ hrbrt foobar.hb
+    Section "first" has no choice blocks and so cannot reach end of document
 
-Validate *test.hb* and report errors
+Convert *questionnaire.hb* to Markdown format
 
-	$ hrbrt -v test.hb
-	Document is valid!
-	
-Convert *questionnaire.hb* to markdown format
+    $ hrbrt -o questionnaire.md questionnaire.hb
 
-	$ hrbrt questionnaire.hb questionnaire.md
+Convert *dialogue.hb* to XML and write to standard out
 
-Convert *dialogue.hb* to XML and output to standard out
-
-	$ hrbrt -t xml dialogue.hb
-	<?xml version="1.0" ?>
-	<document>
-		<section>
-			<text>Nice hat!</text>
-		</section>
-	</document>
+    $ hrbrt -t xml -o - dialogue.hb
+    <?xml version="1.0" ?>
+    <document>
+        <section>
+            <text>Nice hat!</text>
+        </section>
+    </document>
 
 Read Hrbrt data from standard input, run using a GUI and output to *foo.js*
 in JSON format
 
-	$ hrbrt -r gui - foo.js
-	:: [] Yes
-	:  [] No
+    $ hrbrt -r gui -o foo.js -
+    :: [] Yes
+    :  [] No
 
 
-As a Python Module
-------------------
+As a Python Package
+-------------------
 
-To use `hrbrt` as a Python module, first rename the file so that it has a ".py"
-extension, then import. The `HrbrtIO` class can be used to parse a Hrbrt 
-document from a stream into a parse tree represented by a `Document` object.
+The `hrbrt` Python package can be imported and used to parse Hrbrt in other 
+Python code. The `hrbrt.io.HrbrtIO` class reads Hrbrt data from a text stream 
+and produces a `hrbrt.parse.Document` object representing the parse tree.
 
 See the usage example below:
 
-	>>> import hrbrt, io
-	>>> 
-	>>> # A minimal Hrbrt document
-	... data = ":: Test\n"
-	>>> 
-	>>> # Create a simple string stream.
-	... # Could read from a file stream instead
-	... stream = io.BytesIO(data)
-	>>> 
-	>>> # Parse the data stream
-	... document = hrbrt.HrbrtIO.read(stream)
-	>>> 
-	>>> # Read data from the resulting parse tree
-	... print document.sections[0].items[0].text
-	Test
-	>>> 
+    >>> from io import StringIO
+    >>> from hrbrt.io import HrbrtIO
+    >>> 
+    >>> # A minimal Hrbrt document
+    ... data = ":: Test\n"
+    >>> 
+    >>> # Create a simple string stream.
+    ... # Could read from a file stream instead
+    ... stream = StringIO(data)
+    >>> 
+    >>> # Parse the data stream
+    ... document = HrbrtIO.read(stream)
+    >>> 
+    >>> # Read data from the resulting parse tree
+    ... print(document.sections[0].items[0].text)
+    Test
+    >>> 
 
 
 Hrbrt Syntax
@@ -145,12 +162,12 @@ text document.
 
 In either case, the recipient begins reading at the start of the document. When
 they encounter a set of choices, they mark their selection and read the 
-response text beside it. If the response includes a `GO TO` statement, the user
-jumps to that section and continues from there, otherwise the user continues 
-reading as normal. The user continues to follow the flow of the document until 
-they reach the end.
+response text beside it. If the response includes a `GO TO` statement, the 
+reader jumps to that section and continues from there, otherwise the reader 
+continues reading as normal. The reader continues to follow the flow of the 
+document until they reach the end.
 
-A user reading the raw Hrbrt text may mark their selection at each set of 
+A recipient reading the raw Hrbrt text may mark their selection at each set of 
 options by inserting character data in the corresponding box (typically an 'X'
 or '#'). They may also add feedback to the document by adding new lines of
 text or writing in the existing blank lines.
@@ -160,45 +177,45 @@ text or writing in the existing blank lines.
 
 Below is an example of Hrbrt syntax:
 
-	:: Hi there. 
-	
-	%% Please fill in my questionnaire!
-	
-	:: What would you say
-	:  is your favourite animal?
-	
-	:: [ ] Cat		-- GO TO cats
-	:  [ ] Dog		-- GO TO other
-	:  [ ] Turkey	-- GO TO other
-	
-	=== Cats ===
-	
-	:: What is your favourite breed of cat?
-	
-	:: [ ] Burmese
-	:  [ ] Siamese
-	:  [ ] Persian
-	:  [ ] Other
-	
-	:: What do you like most about cats?
-	
-	:: [ ] Their ears	-- GO TO end
-	:  [ ] Their noses	-- GO TO end
-	:  [ ] Their paws	-- GO TO end
-	:  [ ] Their fur	-- GO TO end
-	
-	=== Other ===
-	
-	:: Are you sure you don't like 
-	:  CATS more?
-	
-	:: [ ] Yes	-- GO TO end
-	:  [ ] No	-- Your finger slipped. I see.
-	:              GO TO cats
-	
-	=== End ===
-	
-	:: Thanks for your input!
+    :: Hi there. 
+    
+    %% Please fill in my questionnaire!
+    
+    :: What would you say
+    :  is your favourite animal?
+    
+    :: [ ] Cat       -- GO TO cats
+    :  [ ] Dog       -- GO TO other
+    :  [ ] Turkey    -- GO TO other
+    
+    === Cats ===
+    
+    :: What is your favourite breed of cat?
+    
+    :: [ ] Burmese
+    :  [ ] Siamese
+    :  [ ] Persian
+    :  [ ] Other
+    
+    :: What do you like most about cats?
+    
+    :: [ ] Their ears    -- GO TO end
+    :  [ ] Their noses   -- GO TO end
+    :  [ ] Their paws    -- GO TO end
+    :  [ ] Their fur     -- GO TO end
+    
+    === Other ===
+    
+    :: Are you sure you don't like 
+    :  CATS more?
+    
+    :: [ ] Yes    -- GO TO end
+    :  [ ] No     -- Your finger slipped. I see.
+    :                GO TO cats
+    
+    === End ===
+    
+    :: Thanks for your input!
 
 
 ### Sections ###
@@ -212,15 +229,15 @@ combination of *text*, *instruction* or *choice* blocks (see subsequent
 chapters for details).
 
 The first section of the document is where the user begins reading, and has no 
-heading. Each subsequent section is indicated by a heading with 2 or more 
+heading. Each subsequent section is indicated by a heading with two or more 
 equals signs on each side. The section heading defines the section's name, 
 which is case-insensitive. Section names must only contain letters, numbers,
 underscores, hyphens or spaces. All content below this heading, down to the
 next heading, is contained within the section.
 
 Example:
-	
-	=== My Section ===
+    
+    === My Section ===
 
 
 ### Text and Recipient's Feedback ###
@@ -236,13 +253,13 @@ they will omit the colon from the start.
 
 Example:
 
-	:: This is part of the 
-	:  document text that
-	:  the sender wrote
-	
-	But this is the 
-	recipient's feedback
-	
+    :: This is part of the 
+    :  document text that
+    :  the sender wrote
+    
+    But this is the 
+    recipient's feedback
+    
 When the document is parsed, recipient feedback is included in the output. 
 Feedback within a choice block (see "Choices" chapter) is grouped together and 
 attached to the block, and other feedback is grouped together and attached to 
@@ -259,9 +276,9 @@ percent sign.
 
 Example:
 
-	%% Please fill in this document 
-	%  and send it back as soon as 
-	%  possible
+    %% Please fill in this document 
+    %  and send it back as soon as 
+    %  possible
 
 
 ### Choices ###
@@ -279,10 +296,10 @@ colon.
 
 Example:
 
-	:: [] Animal
-	:  [] Some kind
-	:      of Mineral
-	:  [] Vegetable
+    :: [] Animal
+    :  [] Some kind
+    :      of Mineral
+    :  [] Vegetable
 
 A choice block may not immediately follow another choice block. They must be
 separated, using a text block for example.
@@ -306,17 +323,17 @@ with a colon.
 
 Example:
 
-	:: [] Animal	-- Good choice! GO TO my section
-	:  [] Mineral	-- Ok. GO TO some section.
-	:  [] Vegetable	-- Not bad, but I 
-	:                  think you could
-	:                  have chosen better.
-	:                  GO TO end
+    :: [] Animal     -- Good choice! GO TO my section
+    :  [] Mineral    -- OK. GO TO some section.
+    :  [] Vegetable  -- Not bad, but I 
+    :                   think you could
+    :                   have chosen better.
+    :                   GO TO end
 
 
 ### Quoting ###
 
-All lines in the document my optionally be prefixed with `>` markers, as would 
+All lines in the document may optionally be prefixed with `>` markers, as would 
 typically be added by an email client. The `>` markers themselves are ignored, 
 but the following line content is still parsed. This allows recipients to reply
 directly to a document sent by email and it still be parsable.
@@ -334,11 +351,11 @@ if the user can "fall through" to the end of a section.
 
 For example, the following is *not* allowed:
 
-	:: [] Option A -- GO TO my section
-	:  [] Option B
-	
-	== My Section ==
-	...
+    :: [] Option A -- GO TO my section
+    :  [] Option B
+    
+    == My Section ==
+    ...
 
 A choice block may not immediately follow another choice block (for 
 readability reasons). They must be separated by another block, such as a text 
@@ -349,7 +366,7 @@ Hrbrt Formal Definition
 -----------------------
 
 See `syntax.bnf`
-	
+    
 
 Credits and Licence
 -------------------
@@ -357,10 +374,10 @@ Credits and Licence
 * Author: Mark Frimston
 * Email: <mfrimston@gmail.com>
 * Homepage: <http://markfrimston.co.uk>
-* Project page: <https://github.com/Frimkron/hrbrt>
+* Project page: <https://github.com/frimkron/hrbrt>
 
 The `hrbrt` tool is released under the [MIT licence]. For the full text of 
-this licence, see LICENCE.txt
+this licence, see `LICENCE.txt`
 
 [MIT licence]: http://en.wikipedia.org/wiki/Mit_license
 

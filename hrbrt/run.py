@@ -13,10 +13,9 @@ class CommandLineRunner(object):
 
     @staticmethod
     def run(document):
-        CommandLineRunner.INST._run(document, 
-            sys.stdin, sys.stdout)
+        CommandLineRunner.INST._run(document, sys.stdin, sys.stdout)
         
-    def _run(self,document,ins,outs):
+    def _run(self,document,ins,outs):        
         
         if len(document.sections)==0: return
         
@@ -51,6 +50,7 @@ class CommandLineRunner(object):
 
     def _wait_for_enter(self,ins,outs):
         outs.write("[enter]")
+        outs.flush()
         ins.readline()
         outs.write("\n\n")
         
@@ -67,6 +67,7 @@ class CommandLineRunner(object):
         
         while True:
             outs.write("> ")
+            outs.flush()
             selstring = ins.readline()
             outs.write("\n\n")
             try:
@@ -326,10 +327,13 @@ class GuiRunner(object):
     def _run(self,document,tkroot=None,gui=None):
         global tk
         try: 
-            import Tkinter as tk
+            import tkinter as tk
         except ImportError:
-            raise RunnerError("Failed to load tkinter module required to display gui. "
-                +"You may need to install Tk and/or Tkinter")
+            try:
+                import Tkinter as tk
+            except ImportError:
+                raise RunnerError("Failed to load tkinter module required to display gui. "
+                                   +"You may need to install Tk and/or Tkinter")
     
         if not tkroot: tkroot = tk.Tk()
         self._tkroot = tkroot

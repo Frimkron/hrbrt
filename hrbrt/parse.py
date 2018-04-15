@@ -105,7 +105,7 @@ class Document(object):
         path to end found."""
         
         sname = sec.heading.lower() if hasattr(sec,"heading") else "first"
-        cbs = filter(lambda x: isinstance(x,ChoiceBlock), sec.items)
+        cbs = list(filter(lambda x: isinstance(x,ChoiceBlock), sec.items))
         found_valid = False
         
         # end section is itself a valid path
@@ -122,7 +122,7 @@ class Document(object):
         for b in cbs:
         
             last_block = b is cbs[-1]
-            gcs = filter(lambda c: c.goto is not None, b.choices)
+            gcs = list(filter(lambda c: c.goto is not None, b.choices))
             
             # iterate over choices with gotos
             for c in gcs:
@@ -984,7 +984,7 @@ class ChoiceContent(object):
 
         fb = [desc.feedback]
         if resp is not False: fb.append(resp.feedback)
-        fb = filter(lambda x: x is not None,fb)
+        fb = list(filter(lambda x: x is not None,fb))
                 
         return ChoiceContent(desc.text,
             resp.description if resp is not False else None,
@@ -1022,8 +1022,8 @@ class ChoiceDescription(object):
             ChoiceDescNewline,ChoiceDescPart)).parse(input)
         if ps is None: return None
         parts.extend([p[1].text for p in ps])
-        flines.extend(filter(lambda x: x is not None,
-            [p[0].feedback for p in ps]))
+        flines.extend(list(filter(lambda x: x is not None,
+            [p[0].feedback for p in ps])))
         
         input.commit()
         return ChoiceDescription(" ".join(parts),
@@ -1142,7 +1142,7 @@ class ChoiceResponse(object):
         if n2 is not False: flines.append(n2.feedback)
         if desc is not False: flines.append(desc.feedback)
         if goto is not False: flines.append(goto.feedback)
-        flines = filter(lambda x: x is not None,flines)
+        flines = list(filter(lambda x: x is not None,flines))
         
         input.commit()
         return ChoiceResponse(
@@ -1192,8 +1192,8 @@ class ChoiceResponseDesc(object):
             ChoiceDescNewline,ChoiceResponseDescPart)).parse(input)
         if ps is None: return None
         parts.extend([p[1].text for p in ps])
-        flines.extend(filter(lambda s: s is not None, 
-            [p[0].feedback for p in ps]))
+        flines.extend(list(filter(lambda s: s is not None, 
+            [p[0].feedback for p in ps])))
         
         input.commit()
         return ChoiceResponseDesc(" ".join(parts),

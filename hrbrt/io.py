@@ -2,6 +2,7 @@ import sys
 import re
 import textwrap
 import json
+import codecs
 import xml.dom
 import xml.dom.minidom
 from . import parse
@@ -39,25 +40,23 @@ class JsonIO(object):
         blocklist = []
         for b in sec.items:
             blocklist.append(self._visit(b))
-        return { "name": sec.heading, "blocks": blocklist, 
-                "feedback": sec.feedback }
+        return { "blocks": blocklist, "feedback": sec.feedback, "name": sec.heading }
                 
     def _visit_TextBlock(self,tblock):
-        return { "type": "text", "content": tblock.text }
+        return { "content": tblock.text, "type": "text" }
         
     def _visit_InstructionBlock(self,iblock):
-        return { "type": "instructions", "content": iblock.text }
+        return { "content": iblock.text, "type": "instructions" }
         
     def _visit_ChoiceBlock(self,cblock):
         choicelist = []
         for c in cblock.choices:
             choicelist.append(self._visit_Choice(c))
-        return { "type": "choices", "content": choicelist,
-                "feedback": cblock.feedback }
+        return { "content": choicelist, "feedback": cblock.feedback, "type": "choices" }
         
     def _visit_Choice(self,choice):
-        return { "mark": choice.mark, "description": choice.description,
-                "response": choice.response, "goto": choice.goto }
+        return { "description": choice.description, "goto": choice.goto,
+                 "mark": choice.mark, "response": choice.response }
         
 JsonIO.INST = JsonIO()
 
@@ -83,7 +82,7 @@ class HrbrtIO(object):
     
     @staticmethod
     def write(document,stream):
-        HrbrtIO.INST._write(document,stream)
+        HrbrtIO.INST._write(document, stream)
         
     def _read(self,stream):
         instring = stream.read()
